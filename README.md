@@ -84,11 +84,11 @@ sha256sum --ignore-missing -c "dottod-${V}-sha256sums.txt"
 ```
 
 Extract the scripts and install the binary next to them (so the TUI can find
-`bin/` and `config/` automatically):
+`bin/`, `config/`, and `scripts/` automatically):
 
 ```sh
 mkdir -p ~/dottod
-tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/
+tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
 install -m 0755 dottod-linux-x86_64 ~/dottod/dottod
 ```
 
@@ -103,7 +103,7 @@ Then use either interface below.
 #### Using the TUI
 
 ```sh
-~/dottod/dottod          # auto-detects ~/dottod/bin/ and ~/dottod/config/
+~/dottod/dottod          # auto-detects ~/dottod/bin/, ~/dottod/config/, and ~/dottod/scripts/
 ```
 
 Run it from anywhere with `--repo`, or via the `DOT_REPO_ROOT` variable, or by
