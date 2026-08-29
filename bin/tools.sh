@@ -73,7 +73,7 @@ function _main() {
     rust_arch="$(_rust_arch)"
 
     log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates'
+    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof'
 
     if ! _is_installed batcat && _is_installed bat; then
         ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"
