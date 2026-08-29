@@ -9,6 +9,7 @@ editor, terminal and CLI tooling after a reset or fresh install.
 ```txt
 bin/       executable bootstrap scripts (one per concern)
 config/    dotfiles that get symlinked or templated into $HOME
+scripts/   zsh utilities (aliases + functions) sourced by .zshrc
 tui/       Ratatui TUI runner (Rust)
 docs/      design notes (Ratatui TUI plan)
 .github/   CI + release workflow
@@ -83,11 +84,11 @@ sha256sum --ignore-missing -c "dottod-${V}-sha256sums.txt"
 ```
 
 Extract the scripts and install the binary next to them (so the TUI can find
-`bin/` and `config/` automatically):
+`bin/`, `config/`, and `scripts/` automatically):
 
 ```sh
 mkdir -p ~/dottod
-tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/
+tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
 install -m 0755 dottod-linux-x86_64 ~/dottod/dottod
 ```
 
@@ -102,7 +103,7 @@ Then use either interface below.
 #### Using the TUI
 
 ```sh
-~/dottod/dottod          # auto-detects ~/dottod/bin/ and ~/dottod/config/
+~/dottod/dottod          # auto-detects ~/dottod/bin/, ~/dottod/config/, and ~/dottod/scripts/
 ```
 
 Run it from anywhere with `--repo`, or via the `DOT_REPO_ROOT` variable, or by
@@ -119,7 +120,7 @@ export PATH="$HOME/dottod:$PATH"
 Each release ships four assets:
 
 - `dottod-tui-src-<v>.tar.gz` — TUI source (for building from source)
-- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/`)
+- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/` + `scripts/`)
 - `dottod-linux-x86_64` — compiled TUI binary
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
 
