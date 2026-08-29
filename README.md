@@ -9,6 +9,7 @@ editor, terminal and CLI tooling after a reset or fresh install.
 ```txt
 bin/       executable bootstrap scripts (one per concern)
 config/    dotfiles that get symlinked or templated into $HOME
+scripts/   zsh utilities (aliases + functions) sourced by .zshrc
 tui/       Ratatui TUI runner (Rust)
 docs/      design notes (Ratatui TUI plan)
 .github/   CI + release workflow
