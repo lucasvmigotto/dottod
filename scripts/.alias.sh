@@ -12,3 +12,4 @@ alias commitcount='git shortlog --summary --numbered --all --no-merges'
 
 alias dockerc-ls="docker container ls -a --format 'table {{.ID}} | {{.Names}}\t | {{.State}}\t| {{.Ports}}'"
 alias dockeri-ls="docker image ls -a --format 'table {{.ID}} | {{.Tag}}\t | {{.Repository}}'"
+alias dockers-p="docker system prune -af > /dev/null"
