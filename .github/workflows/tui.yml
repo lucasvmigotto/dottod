@@ -1,0 +1,112 @@
+name: tui
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    paths:
+      - "tui/**"
+      - ".github/workflows/tui.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tui
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tui
+
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        run: cargo test
+
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tui
+
+      - name: Read version
+        id: version
+        run: echo "version=$(grep -m1 '^version' tui/Cargo.toml | cut -d '\"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        working-directory: tui
+        run: cargo build --release
+
+      - name: Stage release artifacts
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          cp tui/target/release/dottod dottod-linux-x86_64
+          tar -czf "dottod-tui-src-${V}.tar.gz" tui/Cargo.toml tui/src
+          tar -czf "dottod-scripts-${V}.tar.gz" bin config
+          sha256sum \
+            "dottod-tui-src-${V}.tar.gz" \
+            "dottod-scripts-${V}.tar.gz" \
+            "dottod-linux-x86_64" \
+            > "dottod-${V}-sha256sums.txt"
+
+      - name: Check for existing release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag and release
+        if: steps.check.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+
+          gh release create "$VERSION" \
+            dottod-tui-src-${VERSION}.tar.gz \
+            dottod-scripts-${VERSION}.tar.gz \
+            dottod-linux-x86_64 \
+            dottod-${VERSION}-sha256sums.txt \
+            --title "$VERSION" \
+            --generate-notes
+
+          gh release view "$VERSION" --json body -q .body > release-notes.md
+          {
+            echo
+            echo "## Checksums (SHA256)"
+            echo '```text'
+            cat "dottod-${VERSION}-sha256sums.txt"
+            echo '```'
+          } >> release-notes.md
+          gh release edit "$VERSION" --notes-file release-notes.md

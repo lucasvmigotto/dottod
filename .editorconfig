@@ -13,5 +13,5 @@ insert_final_newline = true
 [*.{md,yml,yaml}]
 indent_size = 2
 
-[*.{sh,bash,json,vimrc}]
+[*.{sh,bash,json,vimrc,ssh.config,zshrc}]
 indent_size = 4
