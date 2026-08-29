@@ -120,7 +120,7 @@ export PATH="$HOME/dottod:$PATH"
 Each release ships four assets:
 
 - `dottod-tui-src-<v>.tar.gz` — TUI source (for building from source)
-- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/`)
+- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/` + `scripts/`)
 - `dottod-linux-x86_64` — compiled TUI binary
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
 
