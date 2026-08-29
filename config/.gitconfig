@@ -18,6 +18,9 @@
     diff = true
     ui = true
 
+[commit]
+    verbose = true
+
 [color "branch"]
 	current = blue bold
 	local = green
