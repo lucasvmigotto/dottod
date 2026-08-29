@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - "main"
+      - "dev"
   pull_request:
     paths:
       - "tui/**"
@@ -57,7 +58,7 @@ jobs:
 
       - name: Read version
         id: version
-        run: echo "version=$(grep -m1 '^version' tui/Cargo.toml | cut -d '\"' -f2)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep -m1 '^version' tui/Cargo.toml | cut -d ' ' -f3 | sed 's/"//g')" >> "$GITHUB_OUTPUT"
 
       - name: Build release binary
         working-directory: tui

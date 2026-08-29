@@ -43,7 +43,7 @@ docs/      design notes (Ratatui TUI plan)
 
 Clone the repository and `cd` into it:
 
-```sh
+```bash
 git clone https://github.com/lucasvmigotto/dottod.git
 cd dottod
 ```
@@ -54,7 +54,7 @@ Then use either interface below.
 
 Run the bootstrap orchestrator, which installs and configures everything:
 
-```sh
+```bash
 ./bin/bootstrap.sh
 ```
 
@@ -62,7 +62,7 @@ Run the bootstrap orchestrator, which installs and configures everything:
 
 Build and run the interactive front-end:
 
-```sh
+```bash
 cd tui
 cargo run --release
 ```
@@ -71,8 +71,8 @@ cargo run --release
 
 Pick a version (e.g. `0.1.0`) and download the scripts, binary, and checksums:
 
-```sh
-V=0.1.0
+```bash
+V="0.1.0"
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-scripts-${V}.tar.gz"
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-linux-x86_64"
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-${V}-sha256sums.txt"
@@ -80,14 +80,14 @@ curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dott
 
 Verify integrity (ignores assets you did not download, e.g. the source tarball):
 
-```sh
+```bash
 sha256sum --ignore-missing -c "dottod-${V}-sha256sums.txt"
 ```
 
 Extract the scripts and install the binary next to them (so the TUI can find
 `bin/`, `config/`, and `scripts/` automatically):
 
-```sh
+```bash
 mkdir -p ~/dottod
 tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
 install -m 0755 dottod-linux-x86_64 ~/dottod/dottod
@@ -97,20 +97,20 @@ Then use either interface below.
 
 #### Using the scripts only
 
-```sh
+```bash
 ~/dottod/bin/bootstrap.sh
 ```
 
 #### Using the TUI
 
-```sh
+```bash
 ~/dottod/dottod          # auto-detects ~/dottod/bin/, ~/dottod/config/, and ~/dottod/scripts/
 ```
 
 Run it from anywhere with `--repo`, or via the `DOT_REPO_ROOT` variable, or by
 adding the directory to your `PATH`:
 
-```sh
+```bash
 ~/dottod/dottod --repo ~/dottod
 export DOT_REPO_ROOT="$HOME/dottod"
 export PATH="$HOME/dottod:$PATH"
@@ -129,7 +129,7 @@ Each release ships four assets:
 
 If you want to build the TUI yourself without git:
 
-```sh
+```bash
 V=0.1.0
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-tui-src-${V}.tar.gz"
 tar -xzf "dottod-tui-src-${V}.tar.gz"
@@ -144,13 +144,13 @@ cargo build --release
 
 Run all tasks:
 
-```sh
+```bash
 ./bin/bootstrap.sh
 ```
 
 Select or exclude tasks:
 
-```sh
+```bash
 ./bin/bootstrap.sh --only shell,tools
 ./bin/bootstrap.sh --skip docker,desktop
 ```
@@ -169,20 +169,20 @@ Flags:
 
 Each task can be run on its own; some accept arguments:
 
-```sh
+```bash
 ./bin/fonts.sh FiraCode ZedMono
 ./bin/gitconfig.sh
 ```
 
 Identity for `gitconfig` can be supplied non-interactively:
 
-```sh
+```bash
 GIT_NAME="Your Name" GIT_EMAIL="you@example.com" ./bin/gitconfig.sh
 ```
 
 Scripts are configurable via `_DOT_*` environment variables:
 
-```sh
+```bash
 _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ```
 
@@ -190,7 +190,7 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 
 The `dottod` binary mirrors `bootstrap.sh`'s flags:
 
-```sh
+```bash
 dottod --no-ui-support --parallel
 dottod --only shell,tools --repo ~/dottod
 ```
