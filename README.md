@@ -27,6 +27,7 @@ docs/      design notes (Ratatui TUI plan)
 | `vscode`    | `bin/vscode.sh`   | Installs VSCode from the Microsoft apt repo                         |
 | `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
+| `ssh`       | `bin/ssh.sh`      | Links `config/.ssh.config` to `~/.ssh/config`                       |
 | `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa  |
 
 ## Installation

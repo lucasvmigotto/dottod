@@ -30,6 +30,7 @@ pub fn registry() -> Vec<Task> {
         ("vscode", "VSCode (Microsoft apt repo)"),
         ("ghostty", "Ghostty terminal + set as default"),
         ("gitconfig", "Git identity and config"),
+        ("ssh", "SSH config (links ~/.ssh/config)"),
         (
             "tools",
             "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa",
@@ -40,7 +41,7 @@ pub fn registry() -> Vec<Task> {
         id: id.to_string(),
         description: description.to_string(),
         ui: ui_ids.contains(&id),
-        needs_apt: id != "gitconfig",
+        needs_apt: !matches!(id, "gitconfig" | "ssh"),
         dependencies: Vec::new(),
     })
     .collect()
