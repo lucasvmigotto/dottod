@@ -68,7 +68,7 @@ jobs:
           V="${{ steps.version.outputs.version }}"
           cp tui/target/release/dottod dottod-linux-x86_64
           tar -czf "dottod-tui-src-${V}.tar.gz" tui/Cargo.toml tui/src
-          tar -czf "dottod-scripts-${V}.tar.gz" bin config
+          tar -czf "dottod-scripts-${V}.tar.gz" bin config scripts
           sha256sum \
             "dottod-tui-src-${V}.tar.gz" \
             "dottod-scripts-${V}.tar.gz" \
