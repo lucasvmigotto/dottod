@@ -1,4 +1,14 @@
+
+export EDITOR='vim'
+export LANG=en_US.UTF-8
 export PATH="${HOME}/.local/bin:${PATH}"
+
+# Load dottod shell utilities (aliases + functions)
+_DOTFILES_ROOT="${${(%):-%N}:A:h:h}"
+for _dotfile in "${_DOTFILES_ROOT}"/scripts/*.sh(DN); do
+    source "${_dotfile}"
+done
+unset _dotfile _DOTFILES_ROOT
 
 ENABLE_CORRECTION="false"
 
@@ -13,6 +23,8 @@ plugins=(
     zsh-autosuggestions
     zsh-syntax-highlighting
 )
+
+zstyle ':omz:update' mode auto
 
 source $ZSH/oh-my-zsh.sh
 
