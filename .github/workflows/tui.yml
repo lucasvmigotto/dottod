@@ -38,3 +38,57 @@ jobs:
 
       - name: Tests
         run: cargo test
+
+  release:
+    name: Release
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: tui
+
+      - name: Read version
+        id: version
+        run: echo "version=$(grep -m1 '^version' tui/Cargo.toml | cut -d '\"' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Build release binary
+        working-directory: tui
+        run: cargo build --release
+
+      - name: Stage release artifacts
+        run: |
+          V="${{ steps.version.outputs.version }}"
+          cp tui/target/release/dottod dottod-linux-x86_64
+          tar -czf "dottod-tui-src-${V}.tar.gz" tui/Cargo.toml tui/src
+          tar -czf "dottod-scripts-${V}.tar.gz" bin config
+
+      - name: Check for existing release
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag and release
+        if: steps.check.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.version.outputs.version }}" \
+            dottod-tui-src-${{ steps.version.outputs.version }}.tar.gz \
+            dottod-scripts-${{ steps.version.outputs.version }}.tar.gz \
+            dottod-linux-x86_64 \
+            --title "${{ steps.version.outputs.version }}" \
+            --generate-notes
