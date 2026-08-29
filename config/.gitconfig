@@ -1,41 +1,53 @@
 [init]
     defaultBranch = main
+
 [core]
-    editor = code --wait
+    editor = vim --nofork
+
 [push]
     default = simple
+
 [pull]
     rebase = true
+
 [color]
     status = auto
     branch = auto
     diff = true
     ui = true
+
 [color "branch"]
 	current = blue bold
 	local = green
 	remote = cyan
+
 [color "diff"]
 	meta = yellow bold
 	frag = magenta bold
 	old = red bold
 	new = green bold
 	whitespace = red reverse
+
 [color "status"]
 	added = green
 	changed = yellow
 	untracked = red
+
 [log]
     decorate = true
+
 [alias]
     lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit --date=relative
     st = status
     br = branch -av
 	clone-branches = "! git branch -a | sed -n \"/\\/HEAD /d; /\\/master$/d; /remotes/p;\" | xargs -L1 git checkout -t"
+
 [diff]
     tool = default-difftool
+
 [difftool "default-difftool"]
     cmd = code --wait --diff $LOCAL $REMOTE
+
 [filter "lfs"]
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
