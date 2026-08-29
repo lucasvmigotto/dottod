@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim docker desktop vscode ghostty gitconfig tools)
+readonly DOT_TASKS=(shell fonts vim docker desktop vscode ghostty gitconfig ssh tools)
 readonly DOT_UI_TASKS=(desktop vscode ghostty)
 
 function _in_list() {
@@ -42,6 +42,7 @@ Tasks:
   vscode    VSCode (Microsoft apt repo)
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
+  ssh       SSH config (links ~/.ssh/config)
   tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa
 EOF
 }
