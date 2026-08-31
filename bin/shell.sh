@@ -105,7 +105,7 @@ function _main() {
     local spaceship_rep_url=${_DOT_SPACESHIP_URL:-"https://github.com/spaceship-prompt/spaceship-prompt.git"}
 
     local current_user
-    current_user="$(id -un)"
+    current_user="${_DOT_TARGET_USER:-$(id -un)}"
 
     log_step 'Installing git and zsh'
     _install_packages 'git zsh curl ca-certificates'

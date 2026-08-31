@@ -197,6 +197,21 @@ function _install_packages() {
     local package_list=${1:?'Package list not provided'}
     local no_recommends=${2:-0}
 
+    if [[ "${_DOT_NO_PACKAGES:-0}" == 1 ]]; then
+        return 0
+    fi
+
+    if declare -F _pkg_install >/dev/null 2>&1; then
+        if declare -F _pkg_update >/dev/null 2>&1; then
+            _pkg_update
+        fi
+        _pkg_install ${package_list}
+        if declare -F _pkg_clean >/dev/null 2>&1; then
+            _pkg_clean
+        fi
+        return 0
+    fi
+
     if [[ -z "${DEBIAN_FRONTEND:-}" ]]; then
         export DEBIAN_FRONTEND=noninteractive
     fi
