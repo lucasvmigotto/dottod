@@ -2,8 +2,8 @@
 
 Personal dotfiles and workstation bootstrap for Debian (GNOME). Reproducibly
 recreates a [Spaceship](https://spaceship-prompt.sh/) Zsh environment (with a
-system-info segment), fonts, editor, terminal, CLI tooling, and GitHub SSH
-configuration after a reset or fresh install.
+system-info segment), fonts, editor, terminal, CLI tooling, container runtime
+(Podman by default), and GitHub SSH configuration after a reset or fresh install.
 
 ## Layout
 
@@ -12,7 +12,7 @@ bin/       executable bootstrap scripts (one per concern)
 config/    dotfiles that get symlinked or templated into $HOME
 scripts/   zsh utilities (aliases + functions) sourced by .zshrc
 tui/       Ratatui TUI runner (Rust)
-docs/      feature documentation (system-info, ssh, …)
+docs/      feature documentation (system-info, ssh, containers, …)
 tests/     shell test suites (run with ./tests/run.sh)
 .github/   CI + release workflow
 ```
@@ -24,7 +24,7 @@ tests/     shell test suites (run with ./tests/run.sh)
 | `shell`     | `bin/shell.sh`    | Installs zsh + oh-my-zsh + Spaceship prompt (+ system-info segment), links `~/.zshrc` |
 | `fonts`     | `bin/fonts.sh`    | Installs Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono) |
 | `vim`       | `bin/vim.sh`      | Installs vim + vim-plug, links `~/.vimrc`, installs plugins         |
-| `docker`    | `bin/docker.sh`   | Installs Docker Engine from the official apt repo                   |
+| `container` | `bin/container.sh`| Container runtime: Podman by default, Docker when selected          |
 | `desktop`   | `bin/desktop.sh`  | Installs GNOME system monitor, applies dark theme and fonts         |
 | `vscode`    | `bin/vscode.sh`   | Installs VSCode from the Microsoft apt repo                         |
 | `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
@@ -195,8 +195,17 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ```
 
 Runs the shell test suites (system-info collector, Spaceship section, SSH
-merge) against hermetic fixtures — the real `$HOME` and `/proc` are never
-touched. Zsh suites print a skip note when zsh is not installed.
+merge, container runtime) against hermetic fixtures — the real `$HOME` and
+`/proc` are never touched. Zsh suites print a skip note when zsh is not
+installed.
+
+Real container lifecycles live apart in `tests/integration/` and run only
+on request (they need an engine + network):
+
+```bash
+DOTTOD_TEST_INTEGRATION=1 ./tests/integration/docker-hello.sh
+DOTTOD_TEST_INTEGRATION=1 ./tests/integration/podman-hello.sh
+```
 
 ### Interactive TUI
 
@@ -205,7 +214,11 @@ The `dottod` binary mirrors `bootstrap.sh`'s flags:
 ```bash
 dottod --no-ui-support --parallel
 dottod --only shell,tools --repo ~/dottod
+dottod --runtime docker
 ```
+
+Container runtime selection (default: Podman; shows in the status bar,
+`e` cycles `podman → docker → auto`).
 
 Keybindings:
 
@@ -213,6 +226,7 @@ Keybindings:
 - `Space` — toggle task
 - `a`/`n` — select all / none
 - `u` — toggle the GUI task group (like `--no-ui-support`)
+- `e` — cycle container runtime (`podman → docker → auto`)
 - `Enter` — run selected
 - `Tab` / `h` / `l` — switch pane
 - `PgUp`/`PgDn` — scroll log
@@ -231,6 +245,9 @@ corresponding tasks. Edit them there and re-run the task to reapply.
   `_DOT_SYSTEM_INFO_*`, display via `SPACESHIP_SYSINFO_*`).
 * GitHub SSH: see `docs/ssh.md`; `config/.ssh.config` is the template of
   required options merged into `~/.ssh/config` by the `ssh` task.
+* Container runtime: see `docs/containers.md`; Podman by default, Docker via
+  `_DOT_CONTAINER_RUNTIME=docker` (or `--runtime docker`); `bin/docker.sh`
+  stays directly runnable for Docker-only setups.
 
 ## Design notes
 

@@ -1,0 +1,68 @@
+name: container
+
+on:
+  push:
+    branches:
+      - "main"
+      - "dev"
+  pull_request:
+    paths:
+      - "bin/container.sh"
+      - "bin/docker.sh"
+      - "scripts/.container.utils.sh"
+      - "tests/integration/**"
+      - "tui/**"
+      - ".github/workflows/container.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  podman:
+    name: Podman integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Ensure Podman
+        run: |
+          command -v podman >/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq podman uidmap
+          }
+          podman --version
+          podman info
+
+      - name: Ensure rootless subuids
+        run: |
+          if ! getent subuid "${USER}" >/dev/null; then
+            sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "${USER}"
+          fi
+          getent subuid "${USER}"
+
+      - name: Podman hello-world lifecycle
+        run: DOTTOD_TEST_INTEGRATION=1 ./tests/integration/podman-hello.sh
+
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          command -v podman >/dev/null || exit 0
+          podman ps -a --filter label=dottod-test=1 --format '{{.ID}}' \
+            | xargs -r podman rm -f
+
+  docker:
+    name: Docker integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Docker hello-world lifecycle
+        run: |
+          docker --version
+          DOTTOD_TEST_INTEGRATION=1 ./tests/integration/docker-hello.sh
+
+      - name: Cleanup test containers
+        if: always()
+        run: |
+          docker ps -a --filter label=dottod-test=1 --format '{{.ID}}' \
+            | xargs -r docker rm -f
