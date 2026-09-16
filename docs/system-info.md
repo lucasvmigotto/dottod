@@ -122,4 +122,4 @@ render pays. Run `./scripts/system-info.sh --collect` vs plain
 * `scripts/.sysinfo.prompt.sh` — `spaceship_sysinfo()` section +
   `_dottod_sysinfo_register()` (idempotent order registration).
 * `config/.custom.zshrc` — invokes the registration after oh-my-zsh loads.
-* `tests/test-system-info.sh`, `tests/test-spaceship-sysinfo.zsh` — suites.
+* `tests/test-system-info.bats`, `tests/test-spaceship-sysinfo.zsh` — suites.

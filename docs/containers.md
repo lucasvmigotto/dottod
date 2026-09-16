@@ -141,7 +141,7 @@ script's Podman default) applies untouched.
 
 | Test | Needs engine | Needs network |
 | ---- | ------------ | ------------- |
-| `tests/test-container.sh` (selection, detection, ensure, errors, idempotency) | no (stubs) | no |
+| `tests/test-container.bats` (selection, detection, ensure, errors, idempotency) | no (stubs) | no |
 | `tests/test-container.zsh` (lib under zsh, prompt section, order) | no (stubs) | no |
 | Rust TUI tests (default, values, cycle, env forwarding) | no | no |
 | `tests/integration/podman-hello.sh` | Podman + `DOTTOD_TEST_INTEGRATION=1` | yes (one pull) |

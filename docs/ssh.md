@@ -90,7 +90,7 @@ This never contacts github.com; it only parses local configuration.
   key hint, and a warn-only `ssh -G -F` smoke test.
 * `config/.ssh.config` — template and single source of truth for the
   required options (parsed by the merger, so the two cannot diverge).
-* `tests/test-ssh-merge.sh` — matrix: no config, unrelated config,
+* `tests/test-ssh-merge.bats` — matrix: no config, unrelated config,
   complete/partial/conflicting blocks, wildcards, case-insensitivity,
   `Match` boundaries, legacy/user symlinks, idempotency, permissions,
   backups, and `ssh -G -F` acceptance.

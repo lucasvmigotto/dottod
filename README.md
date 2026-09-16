@@ -13,7 +13,7 @@ config/    dotfiles that get symlinked or templated into $HOME
 scripts/   zsh utilities (aliases + functions) sourced by .zshrc
 tui/       Ratatui TUI runner (Rust)
 docs/      feature documentation (system-info, ssh, containers, …)
-tests/     shell test suites (run with ./tests/run.sh)
+tests/     BATS + shell test suites (run with ./tests/run.sh)
 .github/   CI + release workflow
 ```
 
@@ -40,6 +40,8 @@ tests/     shell test suites (run with ./tests/run.sh)
 - `sudo` or `doas`; if not passwordless, the scripts prompt once for the
   password (needs a TTY) — otherwise run as root.
 - Rust toolchain only if you build the TUI from source.
+- BATS (`bats` package) only to run the shell test suites — not needed
+  to install or use dottod itself.
 
 ### Option 1 — Git clone
 
@@ -191,13 +193,21 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ### Tests
 
 ```bash
-./tests/run.sh
+./tests/run.sh                  # everything fast (BATS + zsh)
+bats tests/                     # BATS suites only (TAP output)
+bats tests/test-container.bats  # one suite
 ```
 
-Runs the shell test suites (system-info collector, Spaceship section, SSH
-merge, container runtime) against hermetic fixtures — the real `$HOME` and
-`/proc` are never touched. Zsh suites print a skip note when zsh is not
-installed.
+| Suite | What | Needs |
+| ----- | ---- | ----- |
+| `tests/test-system-info.bats` | collector: metrics, formatting, cache | nothing (fixtures) |
+| `tests/test-ssh-merge.bats` | GitHub SSH merge matrix | nothing (fixtures) + `ssh` for `-G` checks |
+| `tests/test-container.bats` | runtime selection, ensure, errors, idempotency | nothing (stubs) |
+| `tests/test-*.zsh` | prompt sections under zsh | `zsh` (else skipped with a note) |
+| `tests/helpers.bash` | shared BATS assertions, loaded per suite | — |
+
+Shell suites run against hermetic fixtures — the real `$HOME` and `/proc`
+are never touched.
 
 Real container lifecycles live apart in `tests/integration/` and run only
 on request (they need an engine + network):
