@@ -35,10 +35,19 @@ function _container_docker_script() {
     printf '%s' "${DOT_REPO_ROOT}/bin/docker.sh"
 }
 
+# subuid/subgid are plain shadow-utils files, NOT NSS databases, so `getent`
+# cannot see them ("Unknown database"). Read the files directly; a missing
+# or unreadable file counts as missing ranges. Paths are overridable for
+# tests (_DOT_CONTAINER_SUBUID_FILE / _DOT_CONTAINER_SUBGID_FILE).
 function _podman_have_subids() {
     local user=${1:?'User must be informed'}
-    [[ -n "$(getent subuid "${user}" 2>/dev/null)" \
-        && -n "$(getent subgid "${user}" 2>/dev/null)" ]]
+    local subuid_file=${_DOT_CONTAINER_SUBUID_FILE:-/etc/subuid}
+    local subgid_file=${_DOT_CONTAINER_SUBGID_FILE:-/etc/subgid}
+    # Contract: 0 = ranges present, 1 = absent for any reason (no match,
+    # missing or unreadable file — grep itself exits 2 on file errors).
+    grep -q -- "^${user}:" "${subuid_file}" 2>/dev/null || return 1
+    grep -q -- "^${user}:" "${subgid_file}" 2>/dev/null || return 1
+    return 0
 }
 
 function _podman_ensure_subids() {
@@ -76,7 +85,7 @@ function _podman_ensure() {
     if ! _ctr_usable_podman; then
         log_error 'Podman is installed but not usable rootlessly.'
         log_error 'Check user namespaces and subuid/subgid:'
-        log_error '  getent subuid "$(id -un)"; podman info'
+        log_error '  grep "^$(id -un):" /etc/subuid /etc/subgid; podman info'
         return 1
     fi
 

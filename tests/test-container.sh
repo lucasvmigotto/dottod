@@ -69,25 +69,25 @@ case "${1:-}" in
     *) exit 0 ;;
 esac
 EOF
-cat >"${_STUBBIN}/getent" <<'EOF'
-#!/usr/bin/env bash
-if [[ "${1:-}" == subuid || "${1:-}" == subgid ]]; then
-    if [[ "${GETENT_STUB_HAVE_SUBIDS:-1}" == 1 ]]; then
-        printf '%s:100000:65536\n' "${2:-user}"
-        exit 0
-    fi
-    exit 2
-fi
-exec "${REAL_GETENT:-/usr/bin/getent}" "$@"
-EOF
 cat >"${_STUBBIN}/docker-stub.sh" <<'EOF'
 #!/usr/bin/env bash
 echo "docker-script invoked" >>"${STUB_CALLS}"
 exit "${DOCKER_SCRIPT_RC:-0}"
 EOF
-chmod +x "${_STUBBIN}/podman" "${_STUBBIN}/docker" "${_STUBBIN}/getent" "${_STUBBIN}/docker-stub.sh"
-export REAL_GETENT
-REAL_GETENT="$(command -v getent || printf '/usr/bin/getent')"
+chmod +x "${_STUBBIN}/podman" "${_STUBBIN}/docker" "${_STUBBIN}/docker-stub.sh"
+
+# subid fixtures: real files read via overrides. There is deliberately NO
+# getent stub — subuid/subgid are plain files, not NSS databases, so any
+# implementation dependency on `getent subuid` fails loudly here instead
+# of passing silently (regression cover for ubuntu-26.04 CI).
+_FIXUID="$(id -un)"
+function _write_subid_fixtures() {
+    printf '%s:100000:65536\n' "${_FIXUID}" >"${_FIX}/subuid"
+    printf '%s:100000:65536\n' "${_FIXUID}" >"${_FIX}/subgid"
+}
+_write_subid_fixtures
+export _DOT_CONTAINER_SUBUID_FILE="${_FIX}/subuid"
+export _DOT_CONTAINER_SUBGID_FILE="${_FIX}/subgid"
 
 function reset_calls() { : >"${_CALLS}"; }
 
@@ -189,9 +189,24 @@ ctr images >/dev/null
 assert_contains 'ctr dispatches to docker' 'docker images' "$(cat "${_CALLS}")"
 unset _DOT_CONTAINER_RUNTIME
 
+# --- subid file lookup (real files, no stubs) ------------------------------------
+_podman_have_subids "${_FIXUID}"
+assert_eq 'subids present rc 0' '0' "$?"
+printf 'other:200000:65536\n' >"${_FIX}/subuid"
+run_case got rc -- _podman_have_subids "${_FIXUID}"
+assert_eq 'user missing from subuid rc 1' '1' "${rc}"
+_write_subid_fixtures
+rm -f "${_FIX}/subgid"
+run_case got rc -- _podman_have_subids "${_FIXUID}"
+assert_eq 'subgid file absent rc 1' '1' "${rc}"
+_write_subid_fixtures
+printf 'garbage-without-colon\n' >"${_FIX}/subuid"
+run_case got rc -- _podman_have_subids "${_FIXUID}"
+assert_eq 'malformed subuid rc 1' '1' "${rc}"
+_write_subid_fixtures
+
 # --- ensure podman: already usable -> no changes --------------------------------
 export PODMAN_STUB_INFO_RC=0
-export GETENT_STUB_HAVE_SUBIDS=1
 reset_calls
 _container_ensure >/dev/null
 assert_eq 'ready rc 0' '0' "$?"
@@ -206,13 +221,13 @@ assert_eq 'no priv calls on missing' '0' "$(grep -c '^PRIV:' "${_CALLS}" || true
 mv "${_STUBBIN}/podman.hidden" "${_STUBBIN}/podman"
 
 # --- ensure podman: subids missing -> exactly one usermod attempt ---------------
-export GETENT_STUB_HAVE_SUBIDS=0
+printf '' >"${_FIX}/subuid"
 export PODMAN_STUB_INFO_RC=1
 reset_calls
 run_case got rc -- _container_ensure
 assert_eq 'subid path rc 1 (still unusable)' '1' "${rc}"
 assert_eq 'usermod attempted once' '1' "$(grep -c '^PRIV:.*usermod' "${_CALLS}" || true)"
-export GETENT_STUB_HAVE_SUBIDS=1
+_write_subid_fixtures
 export PODMAN_STUB_INFO_RC=0
 
 # --- ensure docker: delegates, never touches podman path -------------------------

@@ -34,11 +34,14 @@ jobs:
           podman info
 
       - name: Ensure rootless subuids
+        # NB: subuid/subgid are plain files, not NSS databases — `getent`
+        # cannot see them ("Unknown database"). Read the files directly.
         run: |
-          if ! getent subuid "${USER}" >/dev/null; then
+          if ! grep -q -- "^${USER}:" /etc/subuid 2>/dev/null \
+            || ! grep -q -- "^${USER}:" /etc/subgid 2>/dev/null; then
             sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "${USER}"
           fi
-          getent subuid "${USER}"
+          grep -- "^${USER}:" /etc/subuid /etc/subgid
 
       - name: Podman hello-world lifecycle
         run: DOTTOD_TEST_INTEGRATION=1 ./tests/integration/podman-hello.sh
