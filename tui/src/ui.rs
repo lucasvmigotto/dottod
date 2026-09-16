@@ -99,8 +99,9 @@ fn draw_status_bar(frame: &mut Frame<'_>, app: &mut App, area: Rect) {
         Mode::Summary => "summary",
     };
     let text = format!(
-        " {mode} | {selected}/{total} selected | {done}/{total} done | j/k move · Space toggle · u UI · Tab pane · Enter run · q quit ",
-        total = app.tasks.len()
+        " {mode} | {selected}/{total} selected | {done}/{total} done | runtime:{runtime} | j/k move · Space toggle · u UI · e runtime · Tab pane · Enter run · q quit ",
+        total = app.tasks.len(),
+        runtime = app.runtime,
     );
     let paragraph = Paragraph::new(text).style(Style::default().fg(Color::Black).bg(Color::Cyan));
     frame.render_widget(paragraph, area);

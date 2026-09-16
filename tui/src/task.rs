@@ -50,6 +50,20 @@ pub fn registry() -> Vec<Task> {
     .collect()
 }
 
+/// Resolve the container runtime selection: explicit value or Podman default.
+/// Mirrors `_ctr_configured` in scripts/.container.utils.sh; keep the two
+/// value sets in sync.
+pub fn resolve_runtime(raw: Option<&str>) -> anyhow::Result<String> {
+    let Some(value) = raw else {
+        return Ok("podman".to_string());
+    };
+    let normalized = value.to_lowercase();
+    match normalized.as_str() {
+        "podman" | "docker" | "auto" => Ok(normalized),
+        _ => anyhow::bail!("invalid container runtime '{value}' (want podman|docker|auto)"),
+    }
+}
+
 /// Resolve the repository root:
 /// 1. explicit `--repo` path,
 /// 2. `DOT_REPO_ROOT` environment variable,
@@ -130,6 +144,26 @@ mod tests {
                 "ui flag mismatch for {}",
                 t.id
             );
+        }
+    }
+
+    #[test]
+    fn runtime_defaults_to_podman() {
+        assert_eq!(resolve_runtime(None).unwrap(), "podman");
+    }
+
+    #[test]
+    fn runtime_accepts_each_value() {
+        for v in ["podman", "docker", "auto", "Podman", "DOCKER", "Auto"] {
+            assert!(resolve_runtime(Some(v)).is_ok(), "{v} should be accepted");
+        }
+        assert_eq!(resolve_runtime(Some("Docker")).unwrap(), "docker");
+    }
+
+    #[test]
+    fn runtime_rejects_invalid() {
+        for v in ["", "bogus", "podman ", " containerd", "docker-compose"] {
+            assert!(resolve_runtime(Some(v)).is_err(), "{v:?} should be rejected");
         }
     }
 }

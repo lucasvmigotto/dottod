@@ -26,6 +26,7 @@ Bootstraps the workstation by running the dottod task scripts.
 Options:
   --only <list>      Comma-separated list of tasks to run (default: all)
   --skip <list>      Comma-separated list of tasks to skip
+  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)
   --parallel         Run tasks concurrently instead of sequentially
   --no-ui-support    Skip GUI/desktop tasks (desktop, vscode, ghostty)
   --yes              Assume yes for any prompts
@@ -115,6 +116,19 @@ function _main() {
                 ;;
             --skip)
                 skip="${2:?'--skip requires a comma-separated task list'}"
+                shift 2
+                ;;
+            --runtime)
+                _DOT_CONTAINER_RUNTIME="$(printf '%s' "${2:?'--runtime requires podman, docker, or auto'}" | tr '[:upper:]' '[:lower:]')"
+                case "${_DOT_CONTAINER_RUNTIME}" in
+                    podman|docker|auto)
+                        export _DOT_CONTAINER_RUNTIME
+                        ;;
+                    *)
+                        log_error "Invalid runtime: $2 (want podman|docker|auto)"
+                        return 1
+                        ;;
+                esac
                 shift 2
                 ;;
             --parallel)

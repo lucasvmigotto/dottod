@@ -77,6 +77,8 @@ pub struct Config {
     pub git_email: String,
     pub repo_root: PathBuf,
     pub state: State,
+    pub runtime: String,
+    pub runtime_explicit: bool,
 }
 
 pub struct IdentityField {
@@ -104,6 +106,8 @@ pub struct App {
     pub should_quit: bool,
     pub tick: u64,
     pub state: State,
+    pub runtime: String,
+    pub runtime_explicit: bool,
 }
 
 const MAX_LOG_LINES: usize = 500;
@@ -144,6 +148,8 @@ impl App {
             should_quit: false,
             tick: 0,
             state: cfg.state,
+            runtime: cfg.runtime,
+            runtime_explicit: cfg.runtime_explicit,
         }
     }
 
@@ -220,6 +226,7 @@ impl App {
             KeyCode::Char('a') => self.select_visible(true),
             KeyCode::Char('n') => self.select_visible(false),
             KeyCode::Char('u') => self.toggle_ui(),
+            KeyCode::Char('e') => self.cycle_runtime(),
             KeyCode::Tab => self.focus = self.focus.other(),
             KeyCode::Char('h') | KeyCode::Left => self.focus = Pane::List,
             KeyCode::Char('l') | KeyCode::Right => self.focus = Pane::Log,
@@ -347,6 +354,18 @@ impl App {
         }
     }
 
+    /// Cycle the container runtime podman -> docker -> auto. Interacting
+    /// marks the choice explicit, so it is forwarded to task scripts.
+    fn cycle_runtime(&mut self) {
+        self.runtime = match self.runtime.as_str() {
+            "podman" => "docker",
+            "docker" => "auto",
+            _ => "podman",
+        }
+        .to_string();
+        self.runtime_explicit = true;
+    }
+
     fn selected_tasks(&self) -> Vec<Task> {
         self.tasks
             .iter()
@@ -388,6 +407,11 @@ impl App {
         if !self.identity.email.trim().is_empty() {
             env.insert("GIT_EMAIL".to_string(), self.identity.email.clone());
         }
+        // Forward an explicit runtime choice; otherwise leave the ambient
+        // environment (or each script's Podman default) untouched.
+        if self.runtime_explicit {
+            env.insert("_DOT_CONTAINER_RUNTIME".to_string(), self.runtime.clone());
+        }
 
         RunSpec {
             tasks: selected,
@@ -411,6 +435,59 @@ impl App {
                 .duration_since(std::time::UNIX_EPOCH)
                 .map(|d| d.as_secs().to_string())
                 .unwrap_or_default(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn test_app(runtime: &str, explicit: bool) -> App {
+        App::new(Config {
+            tasks: Vec::new(),
+            parallel: false,
+            yes: false,
+            git_name: String::new(),
+            git_email: String::new(),
+            repo_root: PathBuf::from("/tmp"),
+            state: State::default(),
+            runtime: runtime.to_string(),
+            runtime_explicit: explicit,
+        })
+    }
+
+    #[test]
+    fn runtime_cycles_podman_docker_auto() {
+        let mut app = test_app("podman", false);
+        app.cycle_runtime();
+        assert_eq!(app.runtime, "docker");
+        assert!(app.runtime_explicit);
+        app.cycle_runtime();
+        assert_eq!(app.runtime, "auto");
+        app.cycle_runtime();
+        assert_eq!(app.runtime, "podman");
+    }
+
+    #[test]
+    fn runtime_cycle_recovers_unknown_value() {
+        let mut app = test_app("bogus", false);
+        app.cycle_runtime();
+        assert_eq!(app.runtime, "podman");
+        assert!(app.runtime_explicit);
+    }
+
+    #[test]
+    fn run_spec_forwards_explicit_runtime_only() {
+        let mut implicit = test_app("podman", false);
+        let spec = implicit.build_run_spec(Vec::new());
+        assert!(!spec.env.contains_key("_DOT_CONTAINER_RUNTIME"));
+
+        let mut explicit = test_app("docker", true);
+        let spec = explicit.build_run_spec(Vec::new());
+        assert_eq!(
+            spec.env.get("_DOT_CONTAINER_RUNTIME").map(String::as_str),
+            Some("docker")
         );
     }
 }

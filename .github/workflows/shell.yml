@@ -42,6 +42,7 @@ jobs:
           zsh -n scripts/.sysinfo.prompt.sh
           zsh -n config/.custom.zshrc
           zsh -n tests/test-spaceship-sysinfo.zsh
+          zsh -n tests/test-container.zsh
 
       - name: ShellCheck (warnings are errors)
         # NB: shellcheck has no zsh dialect, so the zsh sources

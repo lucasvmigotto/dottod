@@ -48,6 +48,10 @@ struct Cli {
     /// Path to the repository root (default: auto-detected)
     #[arg(long, value_name = "PATH")]
     repo: Option<PathBuf>,
+
+    /// Container runtime: podman, docker, or auto (default: podman)
+    #[arg(long, value_name = "RUNTIME")]
+    runtime: Option<String>,
 }
 
 fn split_ids(s: &str) -> Vec<String> {
@@ -134,6 +138,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
     let repo_root = task::resolve_repo_root(cli.repo.clone());
     let tasks = apply_filters(task::registry(), &cli);
+    let runtime = task::resolve_runtime(cli.runtime.as_deref())?;
 
     preflight_privilege()?;
 
@@ -146,6 +151,8 @@ async fn main() -> anyhow::Result<()> {
         git_email: git_config_value("user.email"),
         repo_root,
         state,
+        runtime: runtime.clone(),
+        runtime_explicit: cli.runtime.is_some(),
     };
     let mut app = App::new(cfg);
 
