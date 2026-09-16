@@ -112,6 +112,25 @@ _merge_github_config "${T}" "${_TEMPLATE}" >/dev/null
 assert_eq 'recognized block not duplicated' '1' "$(grep -ci '^host[[:space:]]\+github\.com$' "${T}")"
 assert_eq 'no backup when complete' '0' "$([[ -e "${T}.dottod.bak" ]] && echo 1 || echo 0)"
 
+# --- double-quoted host token -------------------------------------------------
+T="$(fresh_target)"
+printf 'Host "github.com"\n    HostName github.com\n    User git\n    IdentityFile ~/.ssh/github\n    IdentitiesOnly yes\n    AddKeysToAgent yes\n    LogLevel VERBOSE\n' >"${T}"
+_merge_github_config "${T}" "${_TEMPLATE}" >/dev/null
+assert_eq 'quoted block not duplicated' '1' "$(grep -ci '^host[[:space:]]\+"github\.com"$' "${T}")"
+assert_eq 'quoted block no backup' '0' "$([[ -e "${T}.dottod.bak" ]] && echo 1 || echo 0)"
+
+T="$(fresh_target)"
+printf 'Host "github.com"\n    User git\n' >"${T}"
+_merge_github_config "${T}" "${_TEMPLATE}" >/dev/null
+assert_contains 'quoted partial gets missing keys' 'IdentityFile ~/.ssh/github' "$(cat "${T}")"
+assert_eq 'quoted partial single host line' '1' "$(grep -ci '^host[[:space:]]' "${T}")"
+
+T="$(fresh_target)"
+printf 'Host "*.example.com"\n    User me\n' >"${T}"
+_merge_github_config "${T}" "${_TEMPLATE}" >/dev/null
+assert_eq 'quoted wildcard gets appended block' '1' "$(grep -ci '^Host github.com' "${T}")"
+assert_contains 'quoted wildcard kept' 'Host "*.example.com"' "$(cat "${T}")"
+
 # --- insertion stays inside the block (before Match) --------------------------
 T="$(fresh_target)"
 printf 'Host github.com\n    User git\n\nMatch host myserver\n    ForwardAgent yes\n' >"${T}"

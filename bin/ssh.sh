@@ -7,8 +7,8 @@
 #   * ~/.ssh/config missing  -> installed from config/.ssh.config (mode 600).
 #   * ~/.ssh/config present  -> the required GitHub options are merged in:
 #       - an existing `Host github.com` block (exact, case-insensitive token,
-#         no wildcards) gets only the missing options appended; user values
-#         are never modified;
+#         double-quoted `"github.com"` included, no wildcards) gets only the
+#         missing options appended; user values are never modified;
 #       - otherwise the canonical block is appended once.
 #   * Legacy dottod symlink (config -> repo template) is replaced by a real
 #     merged file; a user symlink elsewhere is preserved and the merge is
@@ -51,6 +51,9 @@ function _github_wanted_options() {
             n = split(rest, toks, /[ \t]+/)
             for (i = 1; i <= n; i++) {
                 tok = tolower(toks[i])
+                # OpenSSH allows double-quoted grouping: "github.com"
+                # names the same host as github.com.
+                gsub(/^"|"$/, "", tok)
                 if (tok !~ /[*?![]/ && tok == "github.com") { inblock = 1; break }
             }
             next
@@ -116,7 +119,8 @@ function _merge_github_config() {
     mapfile -t lines <"${target}"
     local n=${#lines[@]}
 
-    # Locate the first Host block naming exact (case-insensitive) github.com.
+    # Locate the first Host block naming exact (case-insensitive,
+    # double-quote-tolerant) github.com.
     local start=-1 end=${n} i line low rest tok tok_low
     for (( i = 0; i < n; i++ )); do
         line="${lines[i]}"
@@ -129,6 +133,10 @@ function _merge_github_config() {
             if [[ "${line}" =~ ^[[:space:]]*[Hh][Oo][Ss][Tt][[:space:]]+(.*)$ ]]; then
                 rest="${BASH_REMATCH[1]}"
                 for tok in ${rest}; do
+                    # OpenSSH allows double-quoted grouping: "github.com"
+                    # names the same host as github.com.
+                    tok="${tok%\"}"
+                    tok="${tok#\"}"
                     tok_low="${tok,,}"
                     case "${tok_low}" in
                         *\** | *\?* | *\!* | *\[*) continue ;;
