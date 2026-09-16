@@ -25,7 +25,10 @@ pub fn registry() -> Vec<Task> {
             "Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)",
         ),
         ("vim", "vim + vim-plug + plugins"),
-        ("docker", "Docker Engine (official apt repo)"),
+        (
+            "container",
+            "Container runtime (Podman default, Docker alternative)",
+        ),
         ("desktop", "GNOME system monitor, dark theme and fonts"),
         ("vscode", "VSCode (Microsoft apt repo)"),
         ("ghostty", "Ghostty terminal + set as default"),

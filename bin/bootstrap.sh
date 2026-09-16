@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim docker desktop vscode ghostty gitconfig ssh tools)
+readonly DOT_TASKS=(shell fonts vim container desktop vscode ghostty gitconfig ssh tools)
 readonly DOT_UI_TASKS=(desktop vscode ghostty)
 
 function _in_list() {
@@ -37,7 +37,7 @@ Tasks:
   shell     zsh + oh-my-zsh + spaceship prompt + system info
   fonts     Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)
   vim       vim + vim-plug + plugins
-  docker    Docker Engine (official apt repo)
+  container Container runtime (Podman default, Docker alternative)
   desktop   GNOME system monitor, dark theme and fonts
   vscode    VSCode (Microsoft apt repo)
   ghostty   Ghostty terminal + set as default

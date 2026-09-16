@@ -32,6 +32,7 @@ jobs:
             bin/*.sh \
             scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
+            scripts/.container.utils.sh \
             tests/run.sh tests/test-*.sh; do
             bash -n "${f}"
           done
@@ -52,6 +53,7 @@ jobs:
             bin/*.sh \
             scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
+            scripts/.container.utils.sh \
             tests/run.sh tests/test-*.sh
 
       - name: Tests
