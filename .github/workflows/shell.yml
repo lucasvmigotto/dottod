@@ -32,13 +32,14 @@ jobs:
         # NB: tests/*.bats are intentionally absent here — `@test` is not
         # valid bash, so `bash -n` cannot parse them. ShellCheck below
         # understands .bats natively and covers them instead.
+        # (tests/test-*.sh suites were migrated to BATS; no such files exist.)
         run: |
           for f in \
             bin/*.sh \
             scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
             scripts/.container.utils.sh \
-            tests/run.sh tests/test-*.sh; do
+            tests/run.sh; do
             bash -n "${f}"
           done
 
@@ -60,7 +61,7 @@ jobs:
             scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
             scripts/.container.utils.sh \
-            tests/run.sh tests/test-*.sh tests/test-*.bats tests/helpers.bash
+            tests/run.sh tests/test-*.bats tests/helpers.bash
 
       - name: Tests
         run: ./tests/run.sh
