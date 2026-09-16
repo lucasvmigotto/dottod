@@ -1,0 +1,58 @@
+name: shell
+
+on:
+  push:
+    branches:
+      - "main"
+      - "dev"
+  pull_request:
+    paths:
+      - "bin/**"
+      - "config/**"
+      - "scripts/**"
+      - "tests/**"
+      - ".github/workflows/shell.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install zsh and shellcheck
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq zsh shellcheck
+
+      - name: Bash syntax check
+        run: |
+          for f in \
+            bin/*.sh \
+            scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
+            scripts/.sys.utils.sh scripts/.xclip.utils.sh \
+            tests/run.sh tests/test-*.sh; do
+            bash -n "${f}"
+          done
+
+      - name: Zsh syntax check
+        run: |
+          zsh -n scripts/.sysinfo.prompt.sh
+          zsh -n config/.custom.zshrc
+          zsh -n tests/test-spaceship-sysinfo.zsh
+
+      - name: ShellCheck (warnings are errors)
+        # NB: shellcheck has no zsh dialect, so the zsh sources
+        # (scripts/.sysinfo.prompt.sh, config/.custom.zshrc, tests/*.zsh)
+        # are intentionally absent here; they are covered by `zsh -n`
+        # above and by the zsh test suite below.
+        run: |
+          shellcheck -S warning \
+            bin/*.sh \
+            scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
+            scripts/.sys.utils.sh scripts/.xclip.utils.sh \
+            tests/run.sh tests/test-*.sh
+
+      - name: Tests
+        run: ./tests/run.sh

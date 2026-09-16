@@ -252,7 +252,9 @@ function _sysinfo_collect() {
     cpu_now="$(_sysinfo_read_cpu)"
     local cpu_pct=""
     if [[ -n "${cpu_now}" && -n "${_ST_CPU_TOTAL:-}" && -n "${_ST_CPU_IDLE:-}" ]]; then
-        cpu_pct="$(_sysinfo_cpu_pct ${_ST_CPU_TOTAL} ${_ST_CPU_IDLE} ${cpu_now})" || cpu_pct=""
+        local cpu_new_total cpu_new_idle
+        read -r cpu_new_total cpu_new_idle <<<"${cpu_now}"
+        cpu_pct="$(_sysinfo_cpu_pct "${_ST_CPU_TOTAL}" "${_ST_CPU_IDLE}" "${cpu_new_total}" "${cpu_new_idle}")" || cpu_pct=""
     fi
     if [[ -n "${cpu_pct}" ]]; then
         parts+=("${_SYSINFO_GLYPH_CPU} ${cpu_pct}%")

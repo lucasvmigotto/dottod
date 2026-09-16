@@ -2,7 +2,11 @@
 
 set -Eeuo pipefail
 
-readonly DOT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+DOT_REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+readonly DOT_REPO_ROOT
+# Consumed by the scripts that source this file (e.g. bin/ssh.sh,
+# bin/gitconfig.sh); shellcheck only sees this file in isolation.
+# shellcheck disable=SC2034
 readonly DOT_CONFIG_DIR="${DOT_REPO_ROOT}/config"
 readonly DOT_LOG_DIR="/tmp/dottod"
 
@@ -222,7 +226,11 @@ function _install_packages() {
     if [[ "${no_recommends}" == 1 ]]; then
         install_args+=(--no-install-recommends)
     fi
-    install_args+=(${package_list})
+    # Split the space-separated list robustly: a bare ${package_list}
+    # expansion would also glob-expand package names containing wildcards.
+    local -a extra_packages=()
+    read -ra extra_packages <<<"${package_list}" || true
+    install_args+=("${extra_packages[@]}")
 
     _priv "${install_args[@]}" >/dev/null 2>&1
     _priv rm -rf /var/lib/apt/lists/*

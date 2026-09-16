@@ -31,10 +31,10 @@ function assert_match() {
     fi
 }
 
-# Isolated cache + fixtures. NOTE: _DOT_SYSINFO_* input paths are captured by
-# system-info.sh at source time, so every override must be exported BEFORE
-# sourcing it below.
-export _DOT_SYSINFO_CACHE_DIR="$(mktemp -d)"
+# Isolated cache + fixtures. NOTE: _DOT_SYSINFO_* input paths are resolved by
+# system-info.sh dynamically, so overrides take effect at call time.
+_DOT_SYSINFO_CACHE_DIR="$(mktemp -d)"
+export _DOT_SYSINFO_CACHE_DIR
 _FIX="$(mktemp -d)"
 trap 'rm -rf "${_DOT_SYSINFO_CACHE_DIR}" "${_FIX}"' EXIT
 
