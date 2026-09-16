@@ -28,6 +28,12 @@ zstyle ':omz:update' mode auto
 
 source $ZSH/oh-my-zsh.sh
 
+# dottod: register the sysinfo section (defined in scripts/.sysinfo.prompt.sh).
+# Guarded so startup never fails if the file is absent or renamed.
+if (( $+functions[_dottod_sysinfo_register] )); then
+    _dottod_sysinfo_register
+fi
+
 pasteinit() {
     OLD_SELF_INSERT=${${(s.:.)widgets[self-insert]}[2,3]}
     zle -N self-insert url-quote-magic

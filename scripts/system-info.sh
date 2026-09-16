@@ -28,6 +28,15 @@
 #   _DOT_SYSINFO_PROC_STAT _DOT_SYSINFO_PROC_MEMINFO _DOT_SYSINFO_PROC_NET_DEV
 #   _DOT_SYSINFO_PROC_NET_ROUTE _DOT_SYSINFO_PROC_LOADAVG _DOT_SYSINFO_SYS_DIR
 #   _DOT_SYSINFO_CACHE_DIR _DOT_SYSINFO_NOW_NS (fake clock, nanoseconds)
+#
+# NOTE: this file is a bash *program*, not a shell library, but the
+# .custom.zshrc glob sources every scripts/*.sh file into interactive zsh.
+# Bail out immediately under zsh so sourcing is a silent no-op (and, in
+# particular, `set -u` below never leaks NO_UNSET into the interactive shell).
+
+if [[ -n "${ZSH_VERSION:-}" ]]; then
+    return 0 2>/dev/null || exit 0
+fi
 
 set -uo pipefail
 
@@ -340,6 +349,6 @@ function _sysinfo_main() {
     return 0
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
     _sysinfo_main "$@"
 fi
