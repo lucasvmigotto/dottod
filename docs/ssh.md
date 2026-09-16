@@ -35,7 +35,8 @@ overwritten:
 
 1. The file is scanned for a `Host` line whose patterns include an exact,
    case-insensitive `github.com` token without wildcard characters
-   (`Host *`, `Host *.example.com`, quoted variants do not count).
+   (a double-quoted `"github.com"` counts — OpenSSH treats it identically;
+   `Host *` and `Host *.example.com` do not count).
 2. If found, only the required options missing from that (first) block are
    appended inside it, before the next `Host`/`Match` boundary.
 3. If not found, the canonical block is appended exactly once.

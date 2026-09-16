@@ -219,7 +219,8 @@ Keybindings:
 - `r` — rerun failures (summary)
 - `q` — quit
 
-See `docs/ratatui-plan.md` for the full design.
+The TUI implementation in `tui/src/` (`app.rs`, `ui.rs`, `runner.rs`,
+`scheduler.rs`, `state.rs`, `task.rs`) is the authoritative design reference.
 
 ## Configuration
 
@@ -238,4 +239,4 @@ corresponding tasks. Edit them there and re-run the task to reapply.
   dotfiles (suffixed `.dottod.bak`), curl retries, and a final PASS/FAIL summary.
 - **Parallelism**: `--parallel` runs tasks concurrently; apt operations are
   serialized by dpkg's own lock.
-- A Ratatui-based interactive runner lives in `tui/` — see `docs/ratatui-plan.md`.
+- A Ratatui-based interactive runner lives in `tui/`.
