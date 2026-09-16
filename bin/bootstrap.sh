@@ -34,7 +34,7 @@ Options:
   --help, -h         Show this help
 
 Tasks:
-  shell     zsh + oh-my-zsh + spaceship prompt
+  shell     zsh + oh-my-zsh + spaceship prompt + system info
   fonts     Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)
   vim       vim + vim-plug + plugins
   docker    Docker Engine (official apt repo)
@@ -42,7 +42,7 @@ Tasks:
   vscode    VSCode (Microsoft apt repo)
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
-  ssh       SSH config (links ~/.ssh/config)
+  ssh       SSH config (GitHub host, merged safely)
   tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa
 EOF
 }
