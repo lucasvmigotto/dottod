@@ -1,0 +1,86 @@
+{
+    "name": "dottod",
+    "image": "lucasvmigotto/devenv:rust-1.89-debian",
+    "runArgs": [
+        "--rm",
+        "--name",
+        "dottod",
+        "--env-file",
+        ".env"
+    ],
+    "remoteUser": "developer",
+    "mounts": [
+        {
+            "source": "dottod-cargo",
+            "target": "/home/developer/.cargo",
+            "type": "volume"
+        },
+        {
+            "source": "devcontainer-dottod-extensions",
+            "target": "/root/.vscode-server/extensions",
+            "type": "volume"
+        }
+    ],
+    "features": {
+        "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {
+            "moby": false,
+            "installDockerComposeSwitch": false
+        },
+        "ghcr.io/devcontainers/features/go:1": {}
+    },
+    "initializeCommand": {
+        "env-file ": "cat .env >/dev/null 2>&1 || cp .env.example .env"
+    },
+    "postCreateCommand": {
+        "go-install-shfmt": "go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "remote.autoForwardPorts": true,
+                "editor.codeActionsOnSave": {
+                    "source.organizeImports": "explicit"
+                },
+                "editor.formatOnSave": true,
+                "[rust]": {
+                    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+                },
+                "rust-analyzer.check.command": "clippy",
+                "rust-analyzer.cargo.buildScripts.enable": true,
+                "rust-analyzer.procMacro.enable": true,
+                "rust-analyzer.completion.autoimport.enable": true,
+                "rust-analyzer.lens.references.adt.enable": true,
+                "rust-analyzer.lens.references.enumVariant.enable": true,
+                "rust-analyzer.lens.references.method.enable": true,
+                "rust-analyzer.lens.references.trait.enable": true,
+                "even-better-toml.formatter.alignEntries": true,
+                "[shellscript]": {
+                    "editor.defaultFormatter": "foxundermoon.shell-format"
+                }
+            },
+            "extensions": [
+                "Cardinal90.multi-cursor-case-preserve",
+                "christian-kohler.path-intellisense",
+                "DavidAnson.vscode-markdownlint",
+                "docker.docker",
+                "EditorConfig.EditorConfig",
+                "fill-labs.dependi",
+                "foxundermoon.shell-format",
+                "GitHub.vscode-github-actions",
+                "humao.rest-client",
+                "JannisX11.batch-rename-extension",
+                "mhutchie.git-graph",
+                "mohsen1.prettify-json",
+                "ms-azuretools.vscode-docker",
+                "mutantdino.resourcemonitor",
+                "redhat.vscode-yaml",
+                "rust-lang.rust-analyzer",
+                "ryu1kn.partial-diff",
+                "streetsidesoftware.code-spell-checker-portuguese-brazilian",
+                "streetsidesoftware.code-spell-checker",
+                "tamasfe.even-better-toml",
+                "vadimcn.vscode-lldb"
+            ]
+        }
+    }
+}
