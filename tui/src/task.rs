@@ -163,7 +163,10 @@ mod tests {
     #[test]
     fn runtime_rejects_invalid() {
         for v in ["", "bogus", "podman ", " containerd", "docker-compose"] {
-            assert!(resolve_runtime(Some(v)).is_err(), "{v:?} should be rejected");
+            assert!(
+                resolve_runtime(Some(v)).is_err(),
+                "{v:?} should be rejected"
+            );
         }
     }
 }
