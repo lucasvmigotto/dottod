@@ -44,14 +44,14 @@ set -uo pipefail
 # Nerd Font / Unicode glyphs (explicit code-point notation; Nerd Fonts 3.x,
 # Material Design Icons code points verified against glyphnames.json)
 # ---------------------------------------------------------------------------
-readonly _SYSINFO_GLYPH_CPU=$'\uF061A'    # md-chip
-readonly _SYSINFO_GLYPH_MEM=$'\uF035B'    # md-memory
-readonly _SYSINFO_GLYPH_NET=$'\uF06F3'    # md-network
-readonly _SYSINFO_GLYPH_LOAD=$'\uF029A'   # md-gauge
-readonly _SYSINFO_GLYPH_TEMP=$'\uF050F'   # md-thermometer
-readonly _SYSINFO_GLYPH_DOWN=$'\u2193'    # ↓ southwards arrow
-readonly _SYSINFO_GLYPH_UP=$'\u2191'      # ↑ northwards arrow
-readonly _SYSINFO_SEP=$'\u2502'           # │ box-drawings light vertical
+readonly _SYSINFO_GLYPH_CPU=$'\U000F061A'   # md-chip
+readonly _SYSINFO_GLYPH_MEM=$'\U000F035B'    # md-memory
+readonly _SYSINFO_GLYPH_NET=$'\U000F06F3'    # md-network
+readonly _SYSINFO_GLYPH_LOAD=$'\U000F029A'   # md-gauge
+readonly _SYSINFO_GLYPH_TEMP=$'\U000F050F'   # md-thermometer
+readonly _SYSINFO_GLYPH_DOWN=$'\U0002193'    # ↓ southwards arrow
+readonly _SYSINFO_GLYPH_UP=$'\U0002191'      # ↑ northwards arrow
+readonly _SYSINFO_SEP=$'\U0002502'           # │ box-drawings light vertical
 
 # ---------------------------------------------------------------------------
 # Input paths. Resolved dynamically (not captured) so tests can point them
@@ -257,7 +257,7 @@ function _sysinfo_collect() {
         cpu_pct="$(_sysinfo_cpu_pct "${_ST_CPU_TOTAL}" "${_ST_CPU_IDLE}" "${cpu_new_total}" "${cpu_new_idle}")" || cpu_pct=""
     fi
     if [[ -n "${cpu_pct}" ]]; then
-        parts+=("${_SYSINFO_GLYPH_CPU} ${cpu_pct}%")
+        parts+=("${_SYSINFO_GLYPH_CPU} ${cpu_pct}")
     fi
 
     # RAM
@@ -265,24 +265,43 @@ function _sysinfo_collect() {
     if [[ -n "${mem}" ]]; then
         local used total pct
         read -r used total pct <<<"${mem}"
-        parts+=("${_SYSINFO_GLYPH_MEM} $(_sysinfo_fmt_gib "${used}")/$(_sysinfo_fmt_gib "${total}")G ${pct}%")
+
+        local mem_display
+        mem_display="$(_sysinfo_fmt_gib "${used}")/$(_sysinfo_fmt_gib "${total}")"
+
+        if [[ "${_DOT_SYSTEM_INFO_SHOW_MEM_PCT:-0}" == "1" ]]; then
+            mem_display+=" ${pct}%"
+        fi
+
+        parts+=("${_SYSINFO_GLYPH_MEM} ${mem_display}")
     fi
 
     # Network throughput (default route interface)
-    local iface rx_tx rx tx
-    iface="$(_sysinfo_default_iface)"
-    if [[ -n "${iface}" ]]; then
-        rx_tx="$(_sysinfo_read_iface_bytes "${iface}")" || rx_tx=""
-        if [[ -n "${rx_tx}" ]]; then
-            read -r rx tx <<<"${rx_tx}"
-            if [[ -n "${_ST_TS:-}" && "${_ST_IFACE:-}" == "${iface}" \
-                    && -n "${_ST_RX:-}" && -n "${_ST_TX:-}" ]]; then
-                local dt_ns=$((now_ns - _ST_TS))
-                local rx_r tx_r
-                rx_r="$(_sysinfo_rate "${_ST_RX}" "${rx}" "${dt_ns}")" || rx_r=""
-                tx_r="$(_sysinfo_rate "${_ST_TX}" "${tx}" "${dt_ns}")" || tx_r=""
-                if [[ -n "${rx_r}" && -n "${tx_r}" ]]; then
-                    parts+=("${_SYSINFO_GLYPH_NET} ${_SYSINFO_GLYPH_DOWN}$(_sysinfo_fmt_rate "${rx_r}") ${_SYSINFO_GLYPH_UP}$(_sysinfo_fmt_rate "${tx_r}")")
+    if [[ "${_DOT_SYSTEM_INFO_SHOW_NET:-0}" == "1" ]]; then
+        local iface rx_tx rx tx
+
+        iface="$(_sysinfo_default_iface)"
+
+        if [[ -n "${iface}" ]]; then
+            rx_tx="$(_sysinfo_read_iface_bytes "${iface}")" || rx_tx=""
+
+            if [[ -n "${rx_tx}" ]]; then
+                read -r rx tx <<<"${rx_tx}"
+
+                if [[ -n "${_ST_TS:-}" && "${_ST_IFACE:-}" == "${iface}" \
+                        && -n "${_ST_RX:-}" && -n "${_ST_TX:-}" ]]; then
+
+                    local dt_ns=$((now_ns - _ST_TS))
+                    local rx_r tx_r
+
+                    rx_r="$(_sysinfo_rate "${_ST_RX}" "${rx}" "${dt_ns}")" || rx_r=""
+                    tx_r="$(_sysinfo_rate "${_ST_TX}" "${tx}" "${dt_ns}")" || tx_r=""
+
+                    if [[ -n "${rx_r}" && -n "${tx_r}" ]]; then
+                        parts+=(
+                            "${_SYSINFO_GLYPH_NET} ${_SYSINFO_GLYPH_DOWN}$(_sysinfo_fmt_rate "${rx_r}") ${_SYSINFO_GLYPH_UP}$(_sysinfo_fmt_rate "${tx_r}")"
+                        )
+                    fi
                 fi
             fi
         fi
@@ -301,17 +320,22 @@ function _sysinfo_collect() {
     fi
 
     # Persist state for the next sample (best effort, atomic).
-    if [[ -n "${cpu_now}" && -n "${iface:-}" && -n "${rx:-}" && -n "${tx:-}" ]]; then
+    # CPU state is saved whenever a CPU sample exists — decoupled from net,
+    # so CPU % survives even when _DOT_SYSTEM_INFO_SHOW_NET=0 (the default).
+    if [[ -n "${cpu_now}" ]]; then
         local ct ci
         read -r ct ci <<<"${cpu_now}"
-        _sysinfo_write_atomic "${_SYSINFO_STATE_FILE}" \
-            "TS=${now_ns}
-IFACE=${iface}
-RX=${rx}
-TX=${tx}
+        local state="TS=${now_ns}
 CPU_TOTAL=${ct}
 CPU_IDLE=${ci}
-" || true
+"
+        if [[ -n "${iface:-}" && -n "${rx:-}" && -n "${tx:-}" ]]; then
+            state+="IFACE=${iface}
+RX=${rx}
+TX=${tx}
+"
+        fi
+        _sysinfo_write_atomic "${_SYSINFO_STATE_FILE}" "${state}" || true
     fi
 
     # Join with separator.
@@ -320,7 +344,7 @@ CPU_IDLE=${ci}
         if [[ -z "${out}" ]]; then
             out="${p}"
         else
-            out+="${_SYSINFO_SEP} ${p}"
+            out+="${_SYSINFO_SEP}${p}"
         fi
     done
     printf '%s' "${out}"

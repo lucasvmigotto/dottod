@@ -1,4 +1,5 @@
 #!/usr/bin/env zsh
+# shellcheck disable=SC1071
 #
 # .sysinfo.prompt.sh — Spaceship `sysinfo` + `container` sections.
 #
@@ -26,17 +27,31 @@
 # _DOT_SYSTEM_INFO_ENABLED=false hides both sections.
 
 : "${_DOT_SYSTEM_INFO_ENABLED:=true}"
+: "${_DOT_SYSTEM_INFO_SHOW_MEM_PCT:=false}"
+: "${_DOT_SYSTEM_INFO_SHOW_NET:=false}"
+
+: "${SPACESHIP_SYSINFO_PREFIX:=[}"
+: "${SPACESHIP_SYSINFO_SUFFIX:=]}"
 : "${SPACESHIP_SYSINFO_SHOW:=true}"
 : "${SPACESHIP_SYSINFO_COLOR:=cyan}"
 : "${SPACESHIP_SYSINFO_SYMBOL:=}"
 : "${SPACESHIP_CONTAINER_SHOW:=true}"
 : "${SPACESHIP_CONTAINER_COLOR:=cyan}"
+: "${SPACESHIP_CONTAINER_PREFIX:=[}"
+: "${SPACESHIP_CONTAINER_SUFFIX:=]}"
+
+: "${SPACESHIP_EXEC_TIME_SHOW:=true}"
+: "${SPACESHIP_EXEC_TIME_THRESHOLD:=3}"
+: "${SPACESHIP_EXEC_TIME_PREFIX:=[\U000F19A0 }"
+: "${SPACESHIP_EXEC_TIME_SUFFIX:=]}"
+
+
 
 # Nerd Font glyph (explicit code-point notation; Nerd Fonts 3.x MDI,
 # verified against glyphnames.json): md-cube, runtime-agnostic on purpose
 # (MDI ships a Docker whale but no Podman icon; the runtime name carries
 # the meaning).
-_DOT_CONTAINER_GLYPH=$'\uF01A6'
+_DOT_CONTAINER_GLYPH=$'\U000F01A6 '
 
 # Resolve the collector next to this file (<repo>/scripts/system-info.sh).
 if [[ -z "${_DOT_SYSINFO_COLLECTOR:-}" ]]; then
@@ -57,17 +72,16 @@ function spaceship_sysinfo() {
     [[ -n "${info}" ]] || return 0
 
     if (( $+functions[spaceship::section] )); then
-        local -a section_args=(
-            --color "${SPACESHIP_SYSINFO_COLOR-cyan}"
-            --prefix "${SPACESHIP_SYSINFO_PREFIX-$SPACESHIP_PROMPT_DEFAULT_PREFIX}"
-            --suffix "${SPACESHIP_SYSINFO_SUFFIX-$SPACESHIP_PROMPT_DEFAULT_SUFFIX}"
-        )
-        [[ -n "${SPACESHIP_SYSINFO_SYMBOL-}" ]] && section_args+=(--symbol "${SPACESHIP_SYSINFO_SYMBOL}")
-        spaceship::section "${section_args[@]}" "${info}"
+        spaceship::section \
+            --color "${SPACESHIP_SYSINFO_COLOR-cyan}" \
+            --prefix "${SPACESHIP_SYSINFO_PREFIX-[}" \
+            --suffix "${SPACESHIP_SYSINFO_SUFFIX-]}" \
+            --symbol "${SPACESHIP_SYSINFO_SYMBOL-}" \
+            "${info}"
     else
-        # Spaceship API unavailable (e.g. theme failed to load): plain output.
-        print -r -- "${info} "
+        print -r -- "[${info}]"
     fi
+
     return 0
 }
 
@@ -86,14 +100,14 @@ function spaceship_container() {
     if (( $+functions[spaceship::section] )); then
         spaceship::section \
             --color "${SPACESHIP_CONTAINER_COLOR-cyan}" \
-            --prefix "${SPACESHIP_CONTAINER_PREFIX-$SPACESHIP_PROMPT_DEFAULT_PREFIX}" \
-            --suffix "${SPACESHIP_CONTAINER_SUFFIX-$SPACESHIP_PROMPT_DEFAULT_SUFFIX}" \
+            --prefix "${SPACESHIP_CONTAINER_PREFIX-[}" \
+            --suffix "${SPACESHIP_CONTAINER_SUFFIX-]}" \
             --symbol "${_DOT_CONTAINER_GLYPH}" \
             "${rt}"
     else
-        # Spaceship API unavailable (e.g. theme failed to load): plain output.
-        print -r -- "${_DOT_CONTAINER_GLYPH} ${rt} "
+        print -r -- "[${_DOT_CONTAINER_GLYPH} ${rt}]"
     fi
+
     return 0
 }
 
@@ -143,6 +157,29 @@ function _dottod_container_register() {
         )
     else
         SPACESHIP_PROMPT_ORDER+=(container)
+    fi
+    return 0
+}
+
+# Move exec_time to the very end of line 1 (after sysinfo/container).
+# Removal-then-reinsert makes this idempotent regardless of call order elsewhere.
+function _dottod_exec_time_register() {
+    (( ${+SPACESHIP_PROMPT_ORDER} )) || return 0
+
+    local et_idx=${SPACESHIP_PROMPT_ORDER[(I)exec_time]}
+    (( et_idx )) || return 0
+
+    SPACESHIP_PROMPT_ORDER[et_idx]=()   # pull it out
+
+    local ls_idx=${SPACESHIP_PROMPT_ORDER[(I)line_sep]}
+    if (( ls_idx )); then
+        SPACESHIP_PROMPT_ORDER=(
+            ${SPACESHIP_PROMPT_ORDER[1,ls_idx-1]}
+            exec_time
+            ${SPACESHIP_PROMPT_ORDER[ls_idx,-1]}
+        )
+    else
+        SPACESHIP_PROMPT_ORDER+=(exec_time)
     fi
     return 0
 }
