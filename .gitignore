@@ -1,2 +1,5 @@
 /tui/target/
 .env
+
+# dottod Neovim user overrides: local-only, never shipped
+config/nvim/lua/dottod_local.lua

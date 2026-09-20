@@ -26,6 +26,10 @@ pub fn registry() -> Vec<Task> {
         ),
         ("vim", "vim + vim-plug + plugins"),
         (
+            "neovim",
+            "Neovim + lazy.nvim + Telescope (first-class; vim untouched)",
+        ),
+        (
             "container",
             "Container runtime (Podman default, Docker alternative)",
         ),
