@@ -1,0 +1,14 @@
+-- dottod user-local override (optional, loaded after all dottod defaults).
+--
+-- Copy this file to `lua/dottod_local.lua` inside your nvim config:
+--
+--   cp lua/dottod_local.lua.example lua/dottod_local.lua   (repo checkout)
+--   cp ~/.config/nvim/lua/dottod_local.lua.example ~/.config/nvim/lua/dottod_local.lua
+--
+-- It is never touched by `./bin/neovim.sh` and survives dottod updates.
+-- Missing file is fine. Examples:
+--
+--   vim.opt.tabstop = 2
+--   vim.opt.shiftwidth = 2
+--   vim.g.dottod_format_on_save = false   -- disable format-on-save
+return {}
