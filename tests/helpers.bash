@@ -8,6 +8,11 @@
 #
 # Conventions mirror the retired plain-bash suites: every assertion prints
 # a FAIL block with expected/actual and returns 1, which fails the test.
+#
+# Suites that source bin/*.sh must keep errexit enabled and re-arm bats'
+# EXIT trap after sourcing (the sourced utils.sh replaces it); otherwise a
+# failing assertion can vanish from the report (bats 1.14: "Executed N-1
+# instead of N tests"). See tests/test-neovim.bats setup() for the recipe.
 
 function assert_eq() {
     local desc=${1} expected=${2} actual=${3}

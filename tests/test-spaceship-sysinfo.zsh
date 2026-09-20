@@ -48,11 +48,11 @@ source "${_TEST_DIR}/../scripts/.sysinfo.prompt.sh"
 # NOTE: no command substitution here — the stub records args in a variable,
 # which a subshell would discard.
 spaceship_sysinfo >/dev/null; rc=$?
-assert_eq 'renders stub via section API' '--color cyan --prefix via  --suffix   STUB-SEGMENT' "${SPACESHIP_CAPTURED}"
+assert_eq 'renders stub via section API' '--color cyan --prefix [ --suffix ] --symbol  STUB-SEGMENT' "${SPACESHIP_CAPTURED}"
 assert_eq 'render rc 0' '0' "${rc}"
 
 SPACESHIP_SYSINFO_COLOR="magenta" SPACESHIP_SYSINFO_SYMBOL="S" spaceship_sysinfo >/dev/null
-assert_eq 'color/symbol overrides' '--color magenta --prefix via  --suffix   --symbol S STUB-SEGMENT' "${SPACESHIP_CAPTURED}"
+assert_eq 'color/symbol overrides' '--color magenta --prefix [ --suffix ] --symbol S STUB-SEGMENT' "${SPACESHIP_CAPTURED}"
 unset SPACESHIP_SYSINFO_COLOR SPACESHIP_SYSINFO_SYMBOL
 
 SPACESHIP_SYSINFO_SHOW=false out="$(spaceship_sysinfo)"; rc=$?
@@ -84,7 +84,7 @@ assert_eq 'missing collector rc 0' '0' "${rc}"
 unfunction spaceship::section
 export _DOT_SYSINFO_COLLECTOR="${_FIX}/collector-ok"
 out="$(spaceship_sysinfo)"; rc=$?
-assert_eq 'fallback without API' 'STUB-SEGMENT ' "${out}"
+assert_eq 'fallback without API' '[STUB-SEGMENT]' "${out}"
 assert_eq 'fallback rc 0' '0' "${rc}"
 
 # --- registration ------------------------------------------------------------

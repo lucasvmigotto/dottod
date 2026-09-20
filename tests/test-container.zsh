@@ -42,7 +42,8 @@ source "${_TEST_DIR}/../scripts/.container.utils.sh"
 source "${_TEST_DIR}/../scripts/.sysinfo.prompt.sh"
 
 # Expected glyph in code-point notation (md-cube, mirrors the section file).
-GLYPH=$'\uF01A6'
+# 8-hex \U form: F01A6 is in the supplementary plane, 4-hex \u cannot encode it.
+GLYPH=$'\U000F01A6 '
 
 # --- lib under zsh ------------------------------------------------------------
 unset _DOT_CONTAINER_RUNTIME
@@ -64,13 +65,13 @@ unset _DOT_CONTAINER_RUNTIME
 unset _DOT_CONTAINER_RUNTIME
 SPACESHIP_CAPTURED=""
 spaceship_container >/dev/null; rc=$?
-assert_eq 'renders podman token' "--color cyan --prefix via  --suffix   --symbol ${GLYPH} podman" "${SPACESHIP_CAPTURED}"
+assert_eq 'renders podman token' "--color cyan --prefix [ --suffix ] --symbol ${GLYPH} podman" "${SPACESHIP_CAPTURED}"
 assert_eq 'render rc 0' '0' "${rc}"
 
 export _DOT_CONTAINER_RUNTIME=docker
 SPACESHIP_CAPTURED=""
 spaceship_container >/dev/null
-assert_eq 'renders docker token' "--color cyan --prefix via  --suffix   --symbol ${GLYPH} docker" "${SPACESHIP_CAPTURED}"
+assert_eq 'renders docker token' "--color cyan --prefix [ --suffix ] --symbol ${GLYPH} docker" "${SPACESHIP_CAPTURED}"
 unset _DOT_CONTAINER_RUNTIME
 
 export _DOT_CONTAINER_RUNTIME=bogus
@@ -92,7 +93,7 @@ source "${_TEST_DIR}/../scripts/.container.utils.sh"
 
 unfunction spaceship::section
 out="$(spaceship_container)"; rc=$?
-assert_eq 'fallback without API' "${GLYPH} podman " "${out}"
+assert_eq 'fallback without API' "[${GLYPH} podman]" "${out}"
 assert_eq 'fallback rc 0' '0' "${rc}"
 
 # --- registration ---------------------------------------------------------------

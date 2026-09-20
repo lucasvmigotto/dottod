@@ -104,22 +104,62 @@ EOF
     assert_eq 'missing sensors fail' '1' "$status"
 }
 
-@test "cold run shows RAM but no rate-based metrics" {
+@test "cold run shows RAM (no pct/net by default) and persists CPU state" {
+    cat >"$FIX/stat1" <<'EOF'
+cpu  100 0 100 800 0 0 0 0 0 0
+EOF
+    cat >"$FIX/meminfo" <<'EOF'
+MemTotal:       16384000 kB
+MemAvailable:    8192000 kB
+EOF
+    export _DOT_SYSINFO_PROC_STAT="$FIX/stat1"
+    export _DOT_SYSINFO_PROC_MEMINFO="$FIX/meminfo"
+    export _DOT_SYSINFO_NOW_NS="1000000000000"
+    # Net fixtures deliberately absent: net is opt-in and must not be required.
+    export _DOT_SYSINFO_PROC_NET_DEV=/nonexistent
+    export _DOT_SYSINFO_PROC_NET_ROUTE=/nonexistent
+    out="$(_sysinfo_main --collect)"
+    assert_match 'cold run shows mem used/total' '7\.8/15\.6' "$out"
+    if [[ "$out" == *'%'* || "$out" == *"↓"* ]]; then
+        printf 'FAIL: cold run must not show pct/net by default: %q\n' "$out" >&2
+        return 1
+    fi
+    # Regression: CPU state must persist even without net data (the state
+    # write was historically gated on iface/rx/tx, so SHOW_NET=0 killed CPU %).
+    assert_match 'state file persists cpu totals' 'CPU_TOTAL=1000' "$(cat "$_DOT_SYSINFO_CACHE_DIR/sysinfo.state")"
+    assert_match 'state file persists cpu idle' 'CPU_IDLE=800' "$(cat "$_DOT_SYSINFO_CACHE_DIR/sysinfo.state")"
+}
+
+@test "second collect shows CPU % from persisted state (net disabled)" {
+    cat >"$FIX/stat1" <<'EOF'
+cpu  100 0 100 800 0 0 0 0 0 0
+EOF
+    cat >"$FIX/stat2" <<'EOF'
+cpu  150 0 150 900 0 0 0 0 0 0
+EOF
     cat >"$FIX/meminfo" <<'EOF'
 MemTotal:       16384000 kB
 MemAvailable:    8192000 kB
 EOF
     export _DOT_SYSINFO_PROC_MEMINFO="$FIX/meminfo"
+    export _DOT_SYSINFO_PROC_NET_DEV=/nonexistent
+    export _DOT_SYSINFO_PROC_NET_ROUTE=/nonexistent
+    # First sample at t=1e12 ns.
+    export _DOT_SYSINFO_PROC_STAT="$FIX/stat1"
     export _DOT_SYSINFO_NOW_NS="1000000000000"
+    _sysinfo_main --collect >/dev/null
+    # Second sample 2s later: CPU 50%, still no net by default.
+    export _DOT_SYSINFO_PROC_STAT="$FIX/stat2"
+    export _DOT_SYSINFO_NOW_NS="1002000000000"
     out="$(_sysinfo_main --collect)"
-    assert_match 'cold run shows mem pct' '50%' "$out"
-    if [[ "$out" == *"% "* && "$out" == *"↓"* ]]; then
-        printf 'FAIL: cold run must not show cpu/net rates: %q\n' "$out" >&2
+    assert_match 'second run shows cpu pct' '50%' "$out"
+    if [[ "$out" == *"↓"* ]]; then
+        printf 'FAIL: net must stay hidden without SHOW_NET=1: %q\n' "$out" >&2
         return 1
     fi
 }
 
-@test "warm run shows cpu percent and net throughput" {
+@test "warm run shows cpu percent and net throughput when opted in" {
     cat >"$FIX/meminfo" <<'EOF'
 MemTotal:       16384000 kB
 MemAvailable:    8192000 kB
@@ -144,9 +184,30 @@ EOF
     printf 'TS=1000000000000\nIFACE=eth0\nRX=1000000\nTX=2000000\nCPU_TOTAL=1000\nCPU_IDLE=800\n' \
         >"$_DOT_SYSINFO_CACHE_DIR/sysinfo.state"
     export _DOT_SYSINFO_NOW_NS="1002000000000"
+    export _DOT_SYSTEM_INFO_SHOW_NET=1
     out="$(_sysinfo_main --collect)"
     assert_match 'warm run shows cpu' '50%' "$out"
     assert_match 'warm run shows net' '↓.*↑' "$out"
+    unset _DOT_SYSTEM_INFO_SHOW_NET
+}
+
+@test "mem pct is opt-in via SHOW_MEM_PCT" {
+    cat >"$FIX/stat1" <<'EOF'
+cpu  100 0 100 800 0 0 0 0 0 0
+EOF
+    cat >"$FIX/meminfo" <<'EOF'
+MemTotal:       16384000 kB
+MemAvailable:    8192000 kB
+EOF
+    export _DOT_SYSINFO_PROC_STAT="$FIX/stat1"
+    export _DOT_SYSINFO_PROC_MEMINFO="$FIX/meminfo"
+    export _DOT_SYSINFO_PROC_NET_DEV=/nonexistent
+    export _DOT_SYSINFO_PROC_NET_ROUTE=/nonexistent
+    export _DOT_SYSINFO_NOW_NS="1000000000000"
+    export _DOT_SYSTEM_INFO_SHOW_MEM_PCT=1
+    out="$(_sysinfo_main --collect)"
+    assert_match 'mem pct when opted in' '7\.8/15\.6 50%' "$out"
+    unset _DOT_SYSTEM_INFO_SHOW_MEM_PCT
 }
 
 @test "fresh cache is served without readable inputs" {
