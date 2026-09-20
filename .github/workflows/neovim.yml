@@ -1,0 +1,85 @@
+name: neovim
+
+# Network-dependent Neovim integration, deliberately isolated from the
+# hermetic shell.yml suite: this workflow installs a real Neovim (official
+# tarball, sha256-verified), links this repo's config, and runs the
+# headless validation battery + integration BATS suite.
+
+on:
+  push:
+    branches:
+      - "main"
+      - "dev"
+  pull_request:
+    paths:
+      - "bin/neovim.sh"
+      - "bin/bootstrap.sh"
+      - "config/nvim/**"
+      - "scripts/nvim-headless-check.sh"
+      - "tests/test-neovim*.bats"
+      - ".github/workflows/neovim.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  headless:
+    name: Headless validation
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats and build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq bats build-essential ripgrep fd-find
+          bats --version
+
+      - name: Install Neovim via dottod (tarball healing, sha256-verified)
+        # The runner's apt candidate may be < 0.11; ALLOW_TARBALL makes the
+        # installer fall back to the official GitHub tarball. This also
+        # exercises the exact healing path documented in docs/neovim.md.
+        env:
+          _DOT_NVIM_ALLOW_TARBALL: "1"
+        run: |
+          "$HOME/.local/bin/nvim" --version || true
+          ./bin/neovim.sh
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Version meets policy
+        run: |
+          nvim --version | head -n1
+          nvim --version | head -n1 | grep -qE 'NVIM v0\.(1[1-9]|[2-9])' \
+            || { echo 'FAIL: nvim < 0.11'; exit 1; }
+
+      - name: Config linked, user data outside the checkout
+        run: |
+          test -L "$HOME/.config/nvim"
+          readlink "$HOME/.config/nvim" | grep -q 'dottod/config/nvim'
+          test -d "$HOME/.local/share/nvim/lazy"
+
+      - name: Headless check battery (all profiles)
+        run: |
+          ./scripts/nvim-headless-check.sh --profile minimal
+          ./scripts/nvim-headless-check.sh --profile terminal
+          ./scripts/nvim-headless-check.sh --profile development
+          ./scripts/nvim-headless-check.sh --profile full
+
+      - name: Headless BATS suite
+        run: bats tests/test-neovim-headless.bats
+
+      - name: Hermetic installer suite (regression)
+        run: bats tests/test-neovim.bats
+
+      - name: Repeated bootstrap task is idempotent
+        run: |
+          ./bin/neovim.sh > /tmp/first.log 2>&1 || exit 1
+          ./bin/neovim.sh > /tmp/second.log 2>&1 || exit 1
+          grep -q 'Already linked' /tmp/second.log
+          grep -q 'already installed' /tmp/second.log
+          ./scripts/nvim-headless-check.sh --profile development
+
+      - name: Bootstrap knows the task
+        run: |
+          ./bin/bootstrap.sh --list | grep -qx neovim
+          ./bin/bootstrap.sh --help | grep -q 'neovim'
