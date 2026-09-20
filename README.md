@@ -24,6 +24,7 @@ tests/     BATS + shell test suites (run with ./tests/run.sh)
 | `shell`     | `bin/shell.sh`    | Installs zsh + oh-my-zsh + Spaceship prompt (+ system-info segment), links `~/.zshrc` |
 | `fonts`     | `bin/fonts.sh`    | Installs Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono) |
 | `vim`       | `bin/vim.sh`      | Installs vim + vim-plug, links `~/.vimrc`, installs plugins         |
+| `neovim`    | `bin/neovim.sh`   | Installs Neovim (>= 0.11) + lazy.nvim config (zero external deps), links `~/.config/nvim` (see [docs/neovim.md](docs/neovim.md); vim stays untouched) |
 | `container` | `bin/container.sh`| Container runtime: Podman by default, Docker when selected          |
 | `desktop`   | `bin/desktop.sh`  | Installs GNOME system monitor, applies dark theme and fonts         |
 | `vscode`    | `bin/vscode.sh`   | Installs VSCode from the Microsoft apt repo                         |
@@ -157,6 +158,7 @@ Select or exclude tasks:
 ```bash
 ./bin/bootstrap.sh --only shell,tools
 ./bin/bootstrap.sh --skip docker,desktop
+./bin/bootstrap.sh --only vim,neovim
 ```
 
 Flags:
@@ -203,6 +205,8 @@ bats tests/test-container.bats  # one suite
 | `tests/test-system-info.bats` | collector: metrics, formatting, cache | nothing (fixtures) |
 | `tests/test-ssh-merge.bats` | GitHub SSH merge matrix | nothing (fixtures) + `ssh` for `-G` checks |
 | `tests/test-container.bats` | runtime selection, ensure, errors, idempotency | nothing (stubs) |
+| `tests/test-neovim.bats` | installer: version policy, backups, idempotency | nothing (stubs) |
+| `tests/test-neovim-headless.bats` | config: headless startup, profiles, lockfile | `nvim` >= 0.11 + linked config (else skipped) |
 | `tests/test-*.zsh` | prompt sections under zsh | `zsh` (else skipped with a note) |
 | `tests/helpers.bash` | shared BATS assertions, loaded per suite | — |
 
@@ -253,6 +257,10 @@ corresponding tasks. Edit them there and re-run the task to reapply.
 
 * Prompt system metrics: see `docs/system-info.md` (collector tuning via
   `_DOT_SYSTEM_INFO_*`, display via `SPACESHIP_SYSINFO_*`).
+* Neovim: see `docs/neovim.md` — zero-dependency base setup, profiles
+  (`DOTTOD_NVIM_PROFILE`), keymaps, `~/.config/nvim` backup policy and the
+  `lua/dottod_local.lua` override mechanism. Vim remains a fully supported,
+  separate task.
 * GitHub SSH: see `docs/ssh.md`; `config/.ssh.config` is the template of
   required options merged into `~/.ssh/config` by the `ssh` task.
 * Container runtime: see `docs/containers.md`; Podman by default, Docker via
