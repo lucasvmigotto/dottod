@@ -66,6 +66,7 @@ _DOT_SUDO_TOOL=''
 _DOT_SUDO_READY=0
 _DOT_SUDO_ASKPASS_MODE=0
 _DOT_SUDO_OWNS_ASKPASS=0
+_POWER_GIVER_TOOL=''
 
 function _sudo_cleanup() {
     if [[ "${_DOT_SUDO_OWNS_ASKPASS}" == 1 ]]; then
@@ -76,7 +77,7 @@ trap _sudo_cleanup EXIT
 
 function _power_giver() {
     if [[ ${EUID} -eq 0 ]]; then
-        echo ''
+        _POWER_GIVER_TOOL=''
         return 0
     fi
 
@@ -93,11 +94,11 @@ function _power_giver() {
             echo 'Neither `sudo` nor `doas` installed. Install one of them and retry.' >&2
             exit 1
         fi
-        echo ''
+        _POWER_GIVER_TOOL=''
         return 0
     fi
 
-    echo "${_DOT_SUDO_TOOL}"
+    _POWER_GIVER_TOOL="${_DOT_SUDO_TOOL}"
     return 0
 }
 
@@ -124,8 +125,8 @@ function _sudo_preflight() {
         return 0
     fi
 
-    local tool
-    tool="$(_power_giver panic)"
+    _power_giver panic
+    local tool="${_POWER_GIVER_TOOL}"
 
     if _sudo_nopasswd "${tool}"; then
         _DOT_SUDO_READY=1
@@ -190,10 +191,10 @@ function _priv() {
 
     _sudo_preflight
 
-    if [[ "${_DOT_SUDO_TOOL}" == 'sudo' && "${_DOT_SUDO_ASKPASS_MODE}" == 1 ]]; then
+    if [[ "${_POWER_GIVER_TOOL}" == 'sudo' && "${_DOT_SUDO_ASKPASS_MODE}" == 1 ]]; then
         sudo -A "$@"
     else
-        "${_DOT_SUDO_TOOL}" "$@"
+        "${_POWER_GIVER_TOOL}" "$@"
     fi
 }
 
