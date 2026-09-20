@@ -32,7 +32,7 @@
         "env-file ": "cat .env >/dev/null 2>&1 || cp .env.example .env"
     },
     "postCreateCommand": {
-        "go-install-shfmt": "go install mvdan.cc/sh/v3/cmd/shfmt@latest"
+        "shfmt": "go install mvdan.cc/sh/v3/cmd/shfmt@latest"
     },
     "customizations": {
         "vscode": {
