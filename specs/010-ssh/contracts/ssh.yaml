@@ -1,0 +1,10 @@
+# 010-ssh — task contract fragment
+task: ssh
+script: bin/ssh.sh
+flags: []
+env:
+  _DOT_SSH_DIR: {default: "/home/<user>/.ssh"}
+file_effects:
+  - {path: "~/.ssh/config", action: merge-github-block, backup: "config.dottod.bak iff changed", mode: "600"}
+tui_needs_apt: false
+idempotency: byte-identical reruns; exactly one Host github.com stanza

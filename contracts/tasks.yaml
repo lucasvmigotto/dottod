@@ -1,0 +1,30 @@
+# dottod task contract (canonical CLI/task seam)
+
+# There is no HTTP API in this product; this file is the contract that
+# plays the openapi.yaml role: the single source both interfaces
+# (bin/bootstrap.sh and the dottod TUI) build against. Per-feature
+# fragments live in specs/NNN/contracts/ and must match this file.
+# Reconstructed by project:introspec on 2026-09-26 from 39e4839.
+
+version: "1"
+tasks:
+  - {id: shell, script: bin/shell.sh, ui: false, needs_apt: true}
+  - {id: fonts, script: bin/fonts.sh, ui: false, needs_apt: true}
+  - {id: vim, script: bin/vim.sh, ui: false, needs_apt: true}
+  - {id: neovim, script: bin/neovim.sh, ui: false, needs_apt: true}
+  - {id: container, script: bin/container.sh, ui: false, needs_apt: true}
+  - {id: desktop, script: bin/desktop.sh, ui: true, needs_apt: true}
+  - {id: vscode, script: bin/vscode.sh, ui: true, needs_apt: true}
+  - {id: ghostty, script: bin/ghostty.sh, ui: true, needs_apt: true}
+  - {id: gitconfig, script: bin/gitconfig.sh, ui: false, needs_apt: false}
+  - {id: ssh, script: bin/ssh.sh, ui: false, needs_apt: false}
+  - {id: tools, script: bin/tools.sh, ui: false, needs_apt: true}
+bootstrap_flags: [--only LIST, --skip LIST, --runtime RUNTIME, --parallel, --no-ui-support, --yes, --verbose, --list, --help]
+tui_flags: [--only LIST, --skip LIST, --parallel, --no-ui-support, --yes, --repo PATH, --runtime RUNTIME]
+parity_rule: TUI registry ids/order/ui-flags must equal DOT_TASKS/DOT_UI_TASKS (test: registry_matches_bootstrap)
+conventions:
+  idempotency: probe-before-act in every task
+  backups: "<target>.dottod.bak[.timestamp], never delete user files"
+  logging: "per-task /tmp/dottod/<task>.log in quiet mode; streamed in --verbose/TUI"
+  exit_codes: "0 all pass; 1 on any failure (bootstrap counts failures)"
+  privilege: "sudo|doas once per run, cached; TTY required unless passwordless"

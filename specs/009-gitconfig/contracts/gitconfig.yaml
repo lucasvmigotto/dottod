@@ -1,0 +1,12 @@
+# 009-gitconfig — task contract fragment
+task: gitconfig
+script: bin/gitconfig.sh
+flags: []
+env:
+  GIT_NAME: {default: "$(git config --global user.name), else prompt"}
+  GIT_EMAIL: {default: "$(git config --global user.email), else prompt"}
+  DOT_ASSUME_YES: {note: "bootstrap --yes passthrough"}
+file_effects:
+  - {path: "~/.gitconfig", action: write-identity, backup: "~/.gitconfig.dottod.bak"}
+tui_needs_apt: false
+idempotency: existing complete identity reused without prompting

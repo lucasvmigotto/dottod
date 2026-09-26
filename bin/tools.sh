@@ -4,6 +4,48 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+# Checksum for a release asset, mirroring bin/neovim.sh: the GitHub API
+# exposes a `digest` per asset; print the sha256 hex or nothing when the
+# API gives no usable digest (caller warns and proceeds as before).
+function _github_asset_digest() {
+    local repo=${1:?'GitHub repo (owner/name) must be informed'}
+    local pattern=${2:?'Asset name pattern must be informed'}
+
+    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null | python3 -c '
+import json, re, sys
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    sys.exit(1)
+pat = re.compile(sys.argv[1])
+for a in data.get("assets", []):
+    if pat.search(a.get("name", "")):
+        print((a.get("digest") or "").removeprefix("sha256:"))
+        break
+' "${pattern}" || true
+}
+
+# Verify a download when a digest exists; warn-and-proceed otherwise so a
+# missing digest never breaks an install that worked before.
+function _verify_download() {
+    local file=${1:?'File must be informed'}
+    local digest=${2:-}
+    local label=${3:-'download'}
+
+    if [[ -z "${digest}" ]]; then
+        log_warn "No checksum published for ${label}; installing unverified."
+        return 0
+    fi
+
+    local actual
+    actual="$(sha256sum "${file}" | cut -d' ' -f1)"
+    if [[ "${actual}" != "${digest}" ]]; then
+        log_error "Checksum mismatch for ${label} (want ${digest}, got ${actual})."
+        return 1
+    fi
+    return 0
+}
+
 function _github_binary_install() {
     local repo=${1:?'GitHub repo (owner/name) must be informed'}
     local binary_name=${2:?'Binary name must be informed'}
@@ -18,12 +60,17 @@ function _github_binary_install() {
         return 0
     fi
 
-    local url tmp
+    local url tmp digest
     url="$(_github_asset_url "${repo}" "${pattern}")"
+    digest="$(_github_asset_digest "${repo}" "${pattern}" || true)"
     tmp="$(mktemp)"
 
     log_step "Installing ${binary_name}"
     _download "${url}" "${tmp}"
+    if ! _verify_download "${tmp}" "${digest}" "${binary_name}"; then
+        rm -f "${tmp}"
+        return 1
+    fi
     install -m 0755 "${tmp}" "${dest}"
     rm -f "${tmp}"
     log_ok "${binary_name} installed"
@@ -45,12 +92,17 @@ function _github_tarball_install() {
         return 0
     fi
 
-    local url tmpdir extracted
+    local url tmpdir digest extracted
     url="$(_github_asset_url "${repo}" "${pattern}")"
+    digest="$(_github_asset_digest "${repo}" "${pattern}" || true)"
     tmpdir="$(mktemp -d)"
 
     log_step "Installing ${binary_name}"
     _download "${url}" "${tmpdir}/asset.tar.gz"
+    if ! _verify_download "${tmpdir}/asset.tar.gz" "${digest}" "${binary_name}"; then
+        rm -rf "${tmpdir}"
+        return 1
+    fi
     tar -xzf "${tmpdir}/asset.tar.gz" -C "${tmpdir}"
 
     extracted="$(find "${tmpdir}" -type f -name "${binary_name}" | head -n1)"

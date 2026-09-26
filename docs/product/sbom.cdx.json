@@ -1,0 +1,46 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-09-26T00:00:00Z",
+    "component": {
+      "type": "application",
+      "name": "dottod",
+      "version": "1.0.0"
+    },
+    "comment": "Reconstructed by project:introspec on 2026-09-26 from 39e4839. Hand-built from tui/Cargo.lock (112 packages, direct deps listed), config/nvim/lazy-lock.json (15 pins), and pinned install URLs in bin/. syft/cdxgen were unavailable in this environment; regenerate with `syft dir:. -o cyclonedx-json` when available."
+  },
+  "components": [
+    {
+      "type": "application",
+      "name": "dottod-tui",
+      "version": "1.0.0",
+      "licenses": [{ "license": { "id": "MIT" } }],
+      "bom-ref": "dottod-tui"
+    },
+    { "type": "library", "name": "ratatui", "version": "0.29", "bom-ref": "ratatui-0.29", "purl": "pkg:cargo/ratatui@0.29" },
+    { "type": "library", "name": "crossterm", "version": "0.28.1", "bom-ref": "crossterm-0.28.1", "purl": "pkg:cargo/crossterm@0.28.1" },
+    { "type": "library", "name": "tokio", "version": "1", "bom-ref": "tokio-1", "purl": "pkg:cargo/tokio@1" },
+    { "type": "library", "name": "clap", "version": "4.6.6", "bom-ref": "clap-4.6.6", "purl": "pkg:cargo/clap@4.6.6" },
+    { "type": "library", "name": "serde", "version": "1", "bom-ref": "serde-1", "purl": "pkg:cargo/serde@1" },
+    { "type": "library", "name": "serde_json", "version": "1", "bom-ref": "serde_json-1", "purl": "pkg:cargo/serde_json@1" },
+    { "type": "library", "name": "dirs", "version": "5.0.1", "bom-ref": "dirs-5.0.1", "purl": "pkg:cargo/dirs@5.0.1" },
+    { "type": "library", "name": "anyhow", "version": "1.0.104", "bom-ref": "anyhow-1.0.104", "purl": "pkg:cargo/anyhow@1.0.104" },
+    { "type": "library", "name": "lazy.nvim", "version": "85c7ff3711b7", "bom-ref": "lazy-nvim-pin", "purl": "pkg:github/folke/lazy.nvim@85c7ff3711b7" },
+    { "type": "library", "name": "tokyonight.nvim", "version": "545d72cde640", "bom-ref": "tokyonight-pin", "purl": "pkg:github/folke/tokyonight.nvim@545d72cde640" },
+    { "type": "library", "name": "telescope.nvim", "version": "5255aa27c422", "bom-ref": "telescope-pin", "purl": "pkg:github/nvim-telescope/telescope.nvim@5255aa27c422" },
+    { "type": "library", "name": "telescope-fzf-native.nvim", "version": "b25b749b9db6", "bom-ref": "telescope-fzf-native-pin", "purl": "pkg:github/nvim-telescope/telescope-fzf-native.nvim@b25b749b9db6" },
+    { "type": "library", "name": "telescope-ui-select.nvim", "version": "6e51d7da30bd", "bom-ref": "telescope-ui-select-pin", "purl": "pkg:github/nvim-telescope/telescope-ui-select.nvim@6e51d7da30bd" },
+    { "type": "library", "name": "neo-tree.nvim", "version": "1a14083046d9", "bom-ref": "neo-tree-pin", "purl": "pkg:github/nvim-neo-tree/neo-tree.nvim@1a14083046d9" },
+    { "type": "library", "name": "nui.nvim", "version": "f535005e6ad1", "bom-ref": "nui-pin", "purl": "pkg:github/MunifTanjim/nui.nvim@f535005e6ad1" },
+    { "type": "library", "name": "plenary.nvim", "version": "50012918b2fc", "bom-ref": "plenary-pin", "purl": "pkg:github/nvim-lua/plenary.nvim@50012918b2fc" },
+    { "type": "library", "name": "lualine.nvim", "version": "221ce6b2d999", "bom-ref": "lualine-pin", "purl": "pkg:github/nvim-lualine/lualine.nvim@221ce6b2d999" },
+    { "type": "library", "name": "mini.icons", "version": "e56797f90192", "bom-ref": "mini-icons-pin", "purl": "pkg:github/nvim-mini/mini.icons@e56797f90192" },
+    { "type": "library", "name": "which-key.nvim", "version": "fcbf4eea17cb", "bom-ref": "which-key-pin", "purl": "pkg:github/folke/which-key.nvim@fcbf4eea17cb" },
+    { "type": "library", "name": "indent-blankline.nvim", "version": "f1e186e44d3b", "bom-ref": "ibl-pin", "purl": "pkg:github/lukas-reineke/indent-blankline.nvim@f1e186e44d3b" },
+    { "type": "library", "name": "nvim-colorizer.lua", "version": "72a05f62c522", "bom-ref": "colorizer-pin", "purl": "pkg:github/NvChad/nvim-colorizer.lua@72a05f62c522" },
+    { "type": "library", "name": "gitsigns.nvim", "version": "a462f416e2ce", "bom-ref": "gitsigns-pin", "purl": "pkg:github/lewis6991/gitsigns.nvim@a462f416e2ce" },
+    { "type": "library", "name": "toggleterm.nvim", "version": "50ea089fc548", "bom-ref": "toggleterm-pin", "purl": "pkg:github/akinsho/toggleterm.nvim@50ea089fc548" }
+  ]
+}

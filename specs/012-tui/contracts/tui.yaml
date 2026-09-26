@@ -1,0 +1,7 @@
+# 012-tui — task contract fragment (interface contract)
+binary: dottod
+cli_flags: [--only LIST, --skip LIST, --parallel, --no-ui-support, --yes, --repo PATH, --runtime RUNTIME]
+parity_rule: task ids/order/flags mirror bin/bootstrap.sh exactly (test-enforced)
+task_execution: {spawn: "bin/<id>.sh", env: [NO_COLOR=1, DOT_REPO_ROOT, task-env], stream: "stdout+stderr line-wise"}
+scheduling: {sequential: "registry order", parallel: "apt semaphore(1) + cpu-count semaphore"}
+state_file: "~/.cache/dottod/state.json (tolerant load, save on exit)"

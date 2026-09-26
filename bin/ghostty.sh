@@ -30,7 +30,23 @@ function _main() {
     _install_packages 'curl ca-certificates'
 
     log_step 'Installing Ghostty'
-    curl -fsSL "${installer_url}" | _priv bash
+    # Download-then-run (never pipe a remote script into a privileged
+    # shell): a failed/truncated download must not execute as root. The
+    # URL stays overridable. Failures return loudly, as the original
+    # pipefail pipeline did — only with clearer messages.
+    local installer_tmp
+    installer_tmp="$(mktemp)"
+    if ! _download "${installer_url}" "${installer_tmp}"; then
+        rm -f "${installer_tmp}"
+        log_error "Ghostty installer download failed: ${installer_url}"
+        return 1
+    fi
+    if ! _priv bash "${installer_tmp}"; then
+        rm -f "${installer_tmp}"
+        log_error 'Ghostty installer failed.'
+        return 1
+    fi
+    rm -f "${installer_tmp}"
 
     _ghostty_set_default_terminal
 
