@@ -132,7 +132,9 @@ function _main() {
         log_info 'Created batcat alias -> bat'
     fi
 
-    _github_tarball_install 'jesseduffield/lazygit' 'lazygit' "Linux_${go_arch}.tar.gz"
+    # NOTE: lazygit upstream names Linux assets lowercase (`linux_`);
+    # lazydocker still uses `Linux_`. Patterns are per-repo on purpose.
+    _github_tarball_install 'jesseduffield/lazygit' 'lazygit' "linux_${go_arch}.tar.gz"
     _github_tarball_install 'jesseduffield/lazydocker' 'lazydocker' "Linux_${go_arch}.tar.gz"
     _github_tarball_install 'derailed/k9s' 'k9s' "Linux_${rust_arch}.tar.gz"
     _github_binary_install 'unkn0wn-root/resterm' 'resterm' 'resterm_Linux_'
