@@ -35,7 +35,17 @@ function _omz_install() {
     fi
 
     log_step 'Installing oh-my-zsh'
-    sh -c "$(curl -fsSL "${script_url}")" '' --unattended --keep-zshrc >/dev/null 2>&1
+    # Download-then-run (never pipe a remote script straight into a
+    # shell): a failed/truncated download must not execute. The URL stays
+    # overridable so a tag/commit can be pinned instead of master.
+    # The `if` keeps `set -e` from aborting here: the omz_dir probe below
+    # is the real gate, so every failure lands on one clear message.
+    local installer_tmp
+    installer_tmp="$(mktemp)"
+    if _download "${script_url}" "${installer_tmp}"; then
+        sh "${installer_tmp}" '' --unattended --keep-zshrc >/dev/null 2>&1
+    fi
+    rm -f "${installer_tmp}"
 
     if [[ ! -d "${omz_dir}" ]]; then
         log_error '.oh-my-zsh/ not found in home'
