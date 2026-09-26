@@ -1,0 +1,11 @@
+# 008-ghostty — task contract fragment
+task: ghostty
+script: bin/ghostty.sh
+flags: []
+env:
+  _DOT_GHOSTTY_INSTALLER_URL: {default: "https://raw.githubusercontent.com/mkasberg/ghostty-ubuntu/HEAD/install.sh"}
+file_effects:
+  - {path: "ghostty (via third-party installer, privileged)", action: install-if-missing}
+  - {path: "x-terminal-emulator alternative + GNOME default", action: set-default}
+tui_ui_group: true
+idempotency: presence probe skips install; default-setting re-applies

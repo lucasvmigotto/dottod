@@ -1,0 +1,19 @@
+# 004-neovim — task contract fragment
+task: neovim
+script: bin/neovim.sh
+flags: []
+actions: ["'' (ensure)", "status", "--help|-h"]
+env:
+  _DOT_NVIM_MIN_VERSION: {default: "0.11.0"}
+  _DOT_NVIM_VERSION: {default: "v0.12.5"}
+  _DOT_NVIM_ALLOW_TARBALL: {default: "0"}
+  _DOT_NVIM_TARBALL_ROOT: {default: "~/.local/nvim"}
+  _DOT_NVIM_PROFILE: {default: "development", enum: [minimal, terminal, development, full]}
+  _DOT_NVIM_CONFIG_HOME: {default: "~/.config"}
+  _DOT_TARGET_USER: {default: "$(id -un)"}
+  _DOT_NO_PACKAGES: {default: "0", note: "1 skips apt (tests)"}
+file_effects:
+  - {path: "~/.local/nvim/nvim-linux-<arch>/", action: extract-verified-tarball-if-allowed}
+  - {path: "~/.local/bin/nvim", action: symlink-if-missing}
+  - {path: "~/.config/nvim", action: symlink-to-repo, backup: "~/.config/nvim.dottod.bak[.timestamp]"}
+idempotency: version gate skip; correct-link no-op; no repeated backups

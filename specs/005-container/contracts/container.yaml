@@ -1,0 +1,15 @@
+# 005-container — task contract fragment
+task: container
+script: bin/container.sh
+flags: []
+actions: ["'' (ensure)", "status", "--help|-h"]
+env:
+  _DOT_CONTAINER_RUNTIME: {default: "podman", enum: [podman, docker, auto]}
+  _DOT_CONTAINER_SUBUID_FILE: {default: "/etc/subuid", note: "overridable for tests"}
+  _DOT_CONTAINER_SUBGID_FILE: {default: "/etc/subgid", note: "overridable for tests"}
+  _DOT_NO_PACKAGES: {default: "0"}
+tui_flag: "--runtime <podman|docker|auto>"
+file_effects:
+  - {path: "podman+uidmap apt packages (podman path)", action: install-if-unusable}
+  - {path: "/etc/subuid + /etc/subgid", action: usermod-once-if-missing}
+idempotency: usable-engine no-op (zero priv calls); double ensure clean

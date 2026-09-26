@@ -1,0 +1,13 @@
+# 002-fonts — task contract fragment
+task: fonts
+script: bin/fonts.sh
+args: "[FONT...] (default: FiraCode FiraMono RobotoMono NerdFontsSymbolsOnly ZedMono)"
+env:
+  _DOT_NERDFONT_VERSION: {default: "v3.4.0"}
+  _DOT_NERDFONT_BASE: {default: "https://github.com/ryanoasis/nerd-fonts/releases/download"}
+  _DOT_NERDFONT_GLOBAL_INSTALL: {default: "0"}
+  _DOT_NERDFONT_DIE_IF_FAIL_ONCE: {default: "0"}
+  _DOT_NERDFONT_TEMP_DESTINATION: {default: "/tmp/fonts"}
+file_effects:
+  - {path: "~/.local/share/fonts/ (or /usr/local/share/fonts)", action: unzip-only-missing}
+idempotency: fc-list probe per font before download

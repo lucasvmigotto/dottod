@@ -1,0 +1,11 @@
+# 003-vim — task contract fragment
+task: vim
+script: bin/vim.sh
+flags: []
+env:
+  _DOT_VIM_SCRIPT_URL: {default: "https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim"}
+  _DOT_TARGET_USER: {default: "$(id -un)"}
+file_effects:
+  - {path: "~/.vim/autoload/plug.vim", action: download-if-missing}
+  - {path: "~/.vimrc", action: symlink-to-repo, backup: "~/.vimrc.dottod.bak"}
+idempotency: plug.vim presence probe; _link_file no-op on correct link
