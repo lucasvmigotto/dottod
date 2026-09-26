@@ -1,0 +1,16 @@
+# 013-cargo — task contract fragment
+task: cargo
+script: bin/cargo.sh
+flags: []
+actions: ["'' (ensure)", "status", "--help|-h"]
+env:
+  _DOT_RUSTUP_INIT_URL: {default: "https://sh.rustup.rs"}
+  _DOT_RUSTUP_TOOLCHAIN: {default: "stable"}
+  _DOT_RUSTUP_PROFILE: {default: "minimal"}
+  _DOT_CARGO_HOME: {default: "~/.cargo"}
+  _DOT_NO_PACKAGES: {default: "0"}
+file_effects:
+  - {path: "~/.cargo/ (rustup home)", action: install-if-cargo-missing}
+  - {path: "~/.zshrc", action: never-modified (uses --no-modify-path)}
+tui_needs_apt: true
+idempotency: cargo presence probe skips everything

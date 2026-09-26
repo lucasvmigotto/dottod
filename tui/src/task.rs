@@ -40,8 +40,10 @@ pub fn registry() -> Vec<Task> {
         ("ssh", "SSH config (GitHub host, merged safely)"),
         (
             "tools",
-            "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa",
+            "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf",
         ),
+        ("cargo", "Rust toolchain via rustup (stable, minimal profile)"),
+        ("bun", "Bun JS runtime (direct-zip install, verified)"),
     ]
     .into_iter()
     .map(|(id, description)| Task {

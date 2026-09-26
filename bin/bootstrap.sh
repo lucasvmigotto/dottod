@@ -4,7 +4,7 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim neovim container desktop vscode ghostty gitconfig ssh tools)
+readonly DOT_TASKS=(shell fonts vim neovim container desktop vscode ghostty gitconfig ssh tools cargo bun)
 readonly DOT_UI_TASKS=(desktop vscode ghostty)
 
 function _in_list() {
@@ -45,7 +45,9 @@ Tasks:
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely)
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa
+  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf
+  cargo     Rust toolchain via rustup (stable, minimal profile)
+  bun       Bun JS runtime (direct-zip install, verified)
 EOF
 }
 

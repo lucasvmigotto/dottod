@@ -11,6 +11,10 @@ if [[ -d "${HOME}/.bun/bin" ]]; then
     export PATH="${HOME}/.bun/bin:${PATH}"
 fi
 
+if [[ -d "${HOME}/.cargo/bin" ]]; then
+    export PATH="${HOME}/.cargo/bin:${PATH}"
+fi
+
 # Load dottod shell utilities (aliases + functions)
 _DOTFILES_ROOT="${${(%):-%N}:A:h:h}"
 for _dotfile in "${_DOTFILES_ROOT}"/scripts/*.sh(DN); do

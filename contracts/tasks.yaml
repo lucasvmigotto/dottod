@@ -19,6 +19,8 @@ tasks:
   - {id: gitconfig, script: bin/gitconfig.sh, ui: false, needs_apt: false}
   - {id: ssh, script: bin/ssh.sh, ui: false, needs_apt: false}
   - {id: tools, script: bin/tools.sh, ui: false, needs_apt: true}
+  - {id: cargo, script: bin/cargo.sh, ui: false, needs_apt: true}
+  - {id: bun, script: bin/bun.sh, ui: false, needs_apt: true}
 bootstrap_flags: [--only LIST, --skip LIST, --runtime RUNTIME, --parallel, --no-ui-support, --yes, --verbose, --list, --help]
 tui_flags: [--only LIST, --skip LIST, --parallel, --no-ui-support, --yes, --repo PATH, --runtime RUNTIME]
 parity_rule: TUI registry ids/order/ui-flags must equal DOT_TASKS/DOT_UI_TASKS (test: registry_matches_bootstrap)

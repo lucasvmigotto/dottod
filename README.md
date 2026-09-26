@@ -31,7 +31,9 @@ tests/     BATS + shell test suites (run with ./tests/run.sh)
 | `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
 | `ssh`       | `bin/ssh.sh`      | Merges GitHub host config into `~/.ssh/config` (never overwrites)   |
-| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa  |
+| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf |
+| `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
+| `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
 
 ## Installation
 

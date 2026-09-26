@@ -1,0 +1,14 @@
+# 014-bun — task contract fragment
+task: bun
+script: bin/bun.sh
+flags: []
+actions: ["'' (ensure)", "status", "--help|-h"]
+env:
+  _DOT_BUN_VERSION: {default: "latest"}
+  _DOT_BUN_GITHUB: {default: "https://github.com"}
+  _DOT_NO_PACKAGES: {default: "0"}
+file_effects:
+  - {path: "~/.local/bin/bun", action: install-verified-zip-if-missing}
+  - {path: "~/.zshrc", action: never-modified}
+tui_needs_apt: true
+idempotency: bun presence probe skips everything
