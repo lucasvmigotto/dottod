@@ -119,6 +119,6 @@ jobs:
           # the next run releases those commits too.
           git push --atomic origin HEAD:refs/heads/main "refs/tags/$version"
           gh release create "$version" \
-            "dottod-scripts-${VERSION}.tar.gz" \
-            "dottod-${VERSION}-sha256sums.txt" \
+            "dottod-scripts-${version}.tar.gz" \
+            "dottod-${version}-sha256sums.txt" \
             --title "$version" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
