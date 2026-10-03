@@ -23,6 +23,16 @@ function _main() {
         return 1
     fi
 
+    # Idempotent: an existing identity with the same values is left
+    # untouched — no backup, no rewrite.
+    local current_name current_email
+    current_name="$(git config --global user.name 2>/dev/null || true)"
+    current_email="$(git config --global user.email 2>/dev/null || true)"
+    if [[ "${current_name}" == "${git_name}" && "${current_email}" == "${git_email}" ]]; then
+        log_info 'Git identity already set, skipping...'
+        return 0
+    fi
+
     local target="${HOME}/.gitconfig"
 
     if [[ -e "${target}" || -L "${target}" ]]; then
@@ -39,8 +49,18 @@ function _main() {
         echo "    email = ${git_email}"
     } >> "${target}"
 
+    # Post-verification: the values must read back (a bare `git config`
+    # write never fails loudly, so check instead of assuming).
+    if [[ "$(git config --global user.name 2>/dev/null)" != "${git_name}" ]] \
+        || [[ "$(git config --global user.email 2>/dev/null)" != "${git_email}" ]]; then
+        log_error 'Git identity write could not be verified.'
+        return 1
+    fi
+
     log_ok 'git config written'
     return 0
 }
 
-_main "$@"
+if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
+    _main "$@"
+fi
