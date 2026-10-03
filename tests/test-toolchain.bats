@@ -152,6 +152,14 @@ probe() {
     local script=${1} snippet=${2}
     run bash -c "
         set -Eeuo pipefail
+        command() {
+            if [[ \"\${1:-}\" == '-v' && -n \"\${2:-}\" ]]; then
+                case \" \${HIDE_CMDS:-} \" in
+                    *\" \$2 \"*) return 1 ;;
+                esac
+            fi
+            builtin command \"\$@\"
+        }
         source '${REPO_ROOT}/bin/${script}.sh'
         _install_packages() { printf 'PKGS:%s\n' \"\$*\" >>\"\$CALLS\"; return 0; }
         ${snippet}
@@ -333,11 +341,9 @@ INNER_EOF
 
 @test "bun: devcontainer installs nodejs when node is absent" {
     devcontainer_absent
-    # Hide any real node behind a node-free PATH for `command -v`.
-    mkdir -p "$BATS_TEST_TMPDIR/emptypath"
-    for b in bash sh mktemp mkdir rm chmod cut uname curl python3 sha256sum unzip install dirname rm head grep; do
-        command -v "$b" >/dev/null 2>&1 && ln -sf "$(command -v "$b")" "$BATS_TEST_TMPDIR/emptypath/$b"
-    done
+    # Hide any real node from `command -v` (a host-level install must
+    # not leak into the absence simulation).
+    export HIDE_CMDS="node"
     mkdir -p "$FAKE_HOME/.local/bin"
     cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
 #!/usr/bin/env bash
@@ -346,10 +352,10 @@ chmod +x "$FAKE_HOME/.local/bin/devcontainer"
 exit 0
 INNER_EOF
     chmod +x "$FAKE_HOME/.local/bin/bun"
-    export PATH="$BATS_TEST_TMPDIR/emptypath:$STUBBIN:/usr/bin:/bin"
     probe bun '_bun_devcontainer >/dev/null'
     assert_eq 'node absent rc 0' '0' "$status"
     assert_contains 'nodejs requested' 'PKGS:nodejs' "$(cat "$CALLS")"
+    unset HIDE_CMDS
 }
 
 @test "bun: devcontainer honors package override" {

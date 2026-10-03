@@ -20,7 +20,7 @@ setup() {
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME"
     export _DOT_NO_PACKAGES=1
-    unset _DOT_NERDFONT_GLOBAL_INSTALL HIDE_CMDS
+    unset _DOT_NERDFONT_GLOBAL_INSTALL HIDE_CMDS FONT_STUB_INSTALL
 
     # Probes see the stubs first, then the real PATH.
     export PATH="$STUBBIN:/usr/bin:/bin"
@@ -52,7 +52,9 @@ probe() {
         }
         source '${REPO_ROOT}/bin/fonts.sh'
         _install_packages() { printf 'PKGS:%s\n' \"\$*\" >>\"\$CALLS\"; return 0; }
-        _install_nerdfont() { printf 'FONT:%s\n' \"\$1\" >>\"\$CALLS\"; return 0; }
+        if [[ \"\${FONT_STUB_INSTALL:-1}\" == 1 ]]; then
+            _install_nerdfont() { printf 'FONT:%s\n' \"\$1\" >>\"\$CALLS\"; return 0; }
+        fi
         _font_installed() { return 1; }
         ${snippet}
     "
@@ -63,6 +65,20 @@ probe() {
     assert_eq 'main rc 0' '0' "$status"
     assert_eq 'no package calls' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
     assert_contains 'font requested' 'FONT:FiraCode' "$(cat "$CALLS")"
+}
+
+@test "fonts: skips fonts that are already installed" {
+    # Real _install_nerdfont (no recorder): the _font_installed probe
+    # inside it must short-circuit before any download or package call.
+    export FONT_STUB_INSTALL=0
+    probe '
+        _font_installed() { return 0; }
+        _main FiraCode RobotoMono >/dev/null
+    '
+    assert_eq 'main rc 0' '0' "$status"
+    assert_contains 'skip message per font' 'already installed' "$output"
+    assert_eq 'no package calls' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
+    unset FONT_STUB_INSTALL
 }
 
 @test "fonts: installs only the missing prerequisites" {
