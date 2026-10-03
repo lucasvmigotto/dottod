@@ -206,6 +206,26 @@ function _install_packages() {
         return 0
     fi
 
+    # Split the space-separated list robustly: a bare ${package_list}
+    # expansion would also glob-expand package names containing wildcards.
+    local -a extra_packages=()
+    read -ra extra_packages <<<"${package_list}" || true
+
+    # Idempotent fast path: every package already installed means no sudo,
+    # no apt update, no noise. (dpkg-query is the source of truth; the
+    # install below stays authoritative for anything missing.)
+    local pkg all_present=1
+    for pkg in "${extra_packages[@]}"; do
+        if ! _is_dpkg_installed "${pkg}"; then
+            all_present=0
+            break
+        fi
+    done
+    if [[ "${all_present}" == 1 ]]; then
+        log_info "Packages already installed, skipping: ${package_list}"
+        return 0
+    fi
+
     if declare -F _pkg_install >/dev/null 2>&1; then
         if declare -F _pkg_update >/dev/null 2>&1; then
             _pkg_update
@@ -227,10 +247,6 @@ function _install_packages() {
     if [[ "${no_recommends}" == 1 ]]; then
         install_args+=(--no-install-recommends)
     fi
-    # Split the space-separated list robustly: a bare ${package_list}
-    # expansion would also glob-expand package names containing wildcards.
-    local -a extra_packages=()
-    read -ra extra_packages <<<"${package_list}" || true
     install_args+=("${extra_packages[@]}")
 
     _priv "${install_args[@]}" >/dev/null 2>&1
@@ -241,6 +257,18 @@ function _install_packages() {
 
 function _is_installed() {
     command -v "${1}" >/dev/null 2>&1
+}
+
+# Stronger than _is_installed: the binary must not only be on PATH but
+# execute (a broken shim counts as missing). Only for tools known to
+# support `--version` (cargo, bun, zed, ghostty, devcontainer).
+function _is_runnable() {
+    local bin=${1:?'Binary must be informed'}
+    command -v "${bin}" >/dev/null 2>&1 && "${bin}" --version >/dev/null 2>&1
+}
+
+function _is_dpkg_installed() {
+    dpkg-query -W -f='${Status}' "${1}" 2>/dev/null | grep -q 'install ok installed'
 }
 
 function _ensure_local_bin() {

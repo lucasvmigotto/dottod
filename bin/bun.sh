@@ -84,7 +84,7 @@ function _bun_zip_asset() {
 }
 
 function _bun_ensure() {
-    if _is_installed bun; then
+    if _is_runnable bun; then
         log_info "bun $(bun --version 2>/dev/null) already installed, skipping..."
     else
         _bun_install_runtime || return 1
@@ -143,7 +143,7 @@ function _bun_install_runtime() {
 function _bun_devcontainer() {
     local package=${_DOT_DEVCONTAINER_PACKAGE:-'@devcontainers/cli@latest'}
 
-    if _is_installed devcontainer; then
+    if _is_runnable devcontainer; then
         log_info "devcontainer $(devcontainer --version 2>/dev/null) already installed, skipping..."
         return 0
     fi

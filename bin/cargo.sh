@@ -32,7 +32,7 @@ function _cargo_home() {
 }
 
 function _cargo_ensure() {
-    if _is_installed cargo; then
+    if _is_runnable cargo; then
         log_info "cargo $(cargo --version 2>/dev/null | cut -d' ' -f2) already installed, skipping..."
         return 0
     fi

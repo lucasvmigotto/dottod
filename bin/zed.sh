@@ -21,7 +21,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 _DOT_ZED_INSTALLER_URL_DEFAULT='https://zed.dev/install.sh'
 
 function _zed_ensure() {
-    if _is_installed zed; then
+    if _is_runnable zed; then
         log_info 'zed already installed, skipping...'
         return 0
     fi

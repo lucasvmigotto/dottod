@@ -21,7 +21,7 @@ function _ghostty_set_default_terminal() {
 function _main() {
     local installer_url=${_DOT_GHOSTTY_INSTALLER_URL:-'https://raw.githubusercontent.com/mkasberg/ghostty-ubuntu/HEAD/install.sh'}
 
-    if _is_installed ghostty; then
+    if _is_runnable ghostty; then
         log_info 'ghostty already installed, skipping...'
         _ghostty_set_default_terminal
         return 0
