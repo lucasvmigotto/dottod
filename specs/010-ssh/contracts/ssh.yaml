@@ -6,5 +6,6 @@ env:
   _DOT_SSH_DIR: {default: "/home/<user>/.ssh"}
 file_effects:
   - {path: "~/.ssh/config", action: merge-github-block, backup: "config.dottod.bak iff changed", mode: "600"}
-tui_needs_apt: false
-idempotency: byte-identical reruns; exactly one Host github.com stanza
+  - {path: "~/.ssh/github[.pub]", action: generate-ed25519-if-neither-half-exists, mode: "600/644"}
+needs_apt: false
+idempotency: byte-identical reruns; exactly one Host github.com stanza; key never regenerated

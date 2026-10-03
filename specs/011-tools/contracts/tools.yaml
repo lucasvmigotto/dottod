@@ -2,7 +2,8 @@
 task: tools
 script: bin/tools.sh
 flags: []
-apt_set: [btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof]
+apt_set: [btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf]
+apt_repo: {gh: 'https://cli.github.com/packages stable main (signed keyring)'}
 github_installs:
   - {repo: "jesseduffield/lazygit", binary: lazygit, kind: tarball, arch: "linux_<go_arch> (lowercase upstream)"}
   - {repo: "jesseduffield/lazydocker", binary: lazydocker, kind: tarball, arch: "Linux_<go_arch>"}

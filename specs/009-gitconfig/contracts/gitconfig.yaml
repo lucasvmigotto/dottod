@@ -8,5 +8,5 @@ env:
   DOT_ASSUME_YES: {note: "bootstrap --yes passthrough"}
 file_effects:
   - {path: "~/.gitconfig", action: write-identity, backup: "~/.gitconfig.dottod.bak"}
-tui_needs_apt: false
+needs_apt: false
 idempotency: existing complete identity reused without prompting

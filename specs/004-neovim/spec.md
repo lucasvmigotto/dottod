@@ -31,6 +31,6 @@
   [OBSERVED: tests/test-neovim-headless.bats, scripts/nvim-headless-check.sh].
 
 ## Status
-Bash: Implemented. TUI: Implemented. E2E note: the headless battery runs
+Implemented. E2E note: the headless battery runs
 real nvim + real config + real plugins (integration-grade); no
 cross-stack e2e exists. Treated as Implemented per specs/README.md.

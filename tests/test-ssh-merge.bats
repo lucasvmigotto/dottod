@@ -185,3 +185,48 @@ fresh_target() {
     _main >/dev/null
     assert_eq 'main idempotent' '1' "$(grep -ci '^Host github.com' "$_DOT_SSH_DIR/config")"
 }
+
+@test "keygen skips when the github key already exists" {
+    local d
+    d="$(mktemp -d -p "$FIX")"
+    printf 'dummy-private\n' >"$d/github"
+    run _ensure_github_key "$d"
+    assert_eq 'skip rc 0' '0' "$status"
+    assert_contains 'skip message' 'already present' "$output"
+    assert_eq 'private untouched' 'dummy-private' "$(cat "$d/github")"
+    assert_eq 'no public created' '0' "$([[ -e "$d/github.pub" ]] && echo 1 || echo 0)"
+}
+
+@test "keygen skips when only the public half exists" {
+    local d
+    d="$(mktemp -d -p "$FIX")"
+    printf 'dummy-public\n' >"$d/github.pub"
+    run _ensure_github_key "$d"
+    assert_eq 'skip rc 0' '0' "$status"
+    assert_eq 'no private created' '0' "$([[ -e "$d/github" ]] && echo 1 || echo 0)"
+}
+
+@test "keygen creates an ed25519 pair with safe modes" {
+    local d
+    d="$(mktemp -d -p "$FIX")"
+    run _ensure_github_key "$d"
+    assert_eq 'keygen rc 0' '0' "$status"
+    assert_eq 'private exists' '1' "$([[ -f "$d/github" ]] && echo 1 || echo 0)"
+    assert_eq 'public exists' '1' "$([[ -f "$d/github.pub" ]] && echo 1 || echo 0)"
+    assert_eq 'private 600' '600' "$(stat -c %a "$d/github")"
+    assert_eq 'public 644' '644' "$(stat -c %a "$d/github.pub")"
+    assert_contains 'private is ed25519' 'OPENSSH PRIVATE KEY' "$(head -n1 "$d/github")"
+    assert_contains 'public is ed25519' 'ssh-ed25519' "$(cat "$d/github.pub")"
+}
+
+@test "keygen never overwrites: second run is a no-op" {
+    local d
+    d="$(mktemp -d -p "$FIX")"
+    _ensure_github_key "$d" >/dev/null
+    local before
+    before="$(cat "$d/github")"
+    run _ensure_github_key "$d"
+    assert_eq 'second run rc 0' '0' "$status"
+    assert_contains 'second run skips' 'already present' "$output"
+    assert_eq 'key unchanged' "$before" "$(cat "$d/github")"
+}

@@ -16,4 +16,4 @@
   [OBSERVED: bin/fonts.sh:25].
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no.
+Implemented. Verified: no.

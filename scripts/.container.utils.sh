@@ -21,8 +21,8 @@
 #   auto (or unset -> podman default) -> podman if usable, else docker if
 #     usable, else podman (the install target).
 #
-# Shell compatibility: this file is sourced by bash (bin scripts, tests)
-# AND by interactive zsh (scripts/*.sh glob). Keep it to portable
+# Shell compatibility: this file is sourced by bash task scripts, tests,
+# and interactive shells (via config/.custom.bashrc). Keep it to portable
 # constructs only: no arrays, no mapfile, no printf -v, no ${var,,},
 # no [[ =~ ]], no %q. Sourcing must be side-effect free.
 

@@ -4,9 +4,9 @@
 #
 # Installs Bun from its official release zips using download-then-verify
 # (never bun's pipe-to-shell installer, which would append exports to
-# `~/.zshrc` — the repo symlink — behind our back). The single `bun`
+# `~/.bashrc` — the repo symlink — behind our back). The single `bun`
 # binary lands in `~/.local/bin`, already on PATH via
-# `config/.custom.zshrc`; no shell-rc file is ever modified.
+# `config/.custom.bashrc`; no shell-rc file is ever modified.
 #
 # Env overrides:
 #   _DOT_BUN_VERSION       bun tag (default latest; e.g. bun-v1.2.0)
@@ -86,9 +86,15 @@ function _bun_zip_asset() {
 function _bun_ensure() {
     if _is_installed bun; then
         log_info "bun $(bun --version 2>/dev/null) already installed, skipping..."
-        return 0
+    else
+        _bun_install_runtime || return 1
     fi
 
+    _bun_devcontainer
+    return 0
+}
+
+function _bun_install_runtime() {
     local version=${_DOT_BUN_VERSION:-"${_DOT_BUN_VERSION_DEFAULT}"}
     local target url digest tmpdir dest
     target="$(_bun_arch)" || {
@@ -120,12 +126,59 @@ function _bun_ensure() {
     rm -rf "${tmpdir}"
 
     # Check the artifact path directly (not ambient PATH: a bare
-    # `bun.sh` run never sourced the repo .zshrc that adds ~/.local/bin).
+    # `bun.sh` run may not have sourced the repo bashrc that adds
+    # ~/.local/bin yet).
     if [[ ! -x "${dest}" ]]; then
         log_error 'Bun install did not yield a bun binary on PATH.'
         return 1
     fi
     log_ok "bun installed ($("${dest}" --version 2>/dev/null))"
+    return 0
+}
+
+# devcontainer CLI via a bun global install (the user asked for bun as the
+# installer, not npm): idempotent presence probe, pinned package unless
+# overridden. Runs with the fresh binary directly — ambient PATH may not
+# have ~/.local/bin yet in this same run.
+function _bun_devcontainer() {
+    local package=${_DOT_DEVCONTAINER_PACKAGE:-'@devcontainers/cli@latest'}
+
+    if _is_installed devcontainer; then
+        log_info "devcontainer $(devcontainer --version 2>/dev/null) already installed, skipping..."
+        return 0
+    fi
+
+    local bun_bin
+    bun_bin="$(_ensure_local_bin)/bun"
+    if [[ ! -x "${bun_bin}" ]]; then
+        log_warn 'bun binary missing; skipping devcontainer CLI install.'
+        return 0
+    fi
+
+    # The devcontainer CLI is a Node script (#!/usr/bin/env node): ensure a
+    # runtime exists, escalating only when it is actually missing.
+    if ! command -v node >/dev/null 2>&1; then
+        log_step 'Installing Node.js runtime (for the devcontainer CLI)'
+        _install_packages 'nodejs'
+    fi
+
+    log_step "Installing devcontainer CLI (${package})"
+    if ! "${bun_bin}" install --global "${package}" >/dev/null 2>&1; then
+        log_error 'devcontainer CLI install failed.'
+        return 1
+    fi
+
+    # `bun install --global` links binaries into the bun home's bin dir
+    # (~/.bun/bin by default), which config/.custom.bashrc already puts on
+    # PATH — accept that location as well as ~/.local/bin.
+    local bun_home_bin="${BUN_INSTALL:-"${HOME}/.bun"}/bin/devcontainer"
+    if [[ ! -x "$(_ensure_local_bin)/devcontainer" ]] \
+        && [[ ! -x "${bun_home_bin}" ]] \
+        && ! _is_installed devcontainer; then
+        log_error 'devcontainer CLI install did not yield a devcontainer binary on PATH.'
+        return 1
+    fi
+    log_ok 'devcontainer CLI installed'
     return 0
 }
 

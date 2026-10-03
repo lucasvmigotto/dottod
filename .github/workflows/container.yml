@@ -11,7 +11,6 @@ on:
       - "bin/docker.sh"
       - "scripts/.container.utils.sh"
       - "tests/integration/**"
-      - "tui/**"
       - ".github/workflows/container.yml"
 
 permissions:

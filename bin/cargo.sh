@@ -5,7 +5,7 @@
 # Installs the Rust toolchain via rustup using download-then-run (never a
 # pipe-to-shell): the init script is fetched with retries, executed from a
 # file, then removed. `--no-modify-path` keeps installers away from
-# `~/.zshrc` (the repo symlink); PATH comes from `config/.custom.zshrc`.
+# `~/.bashrc` (the repo symlink); PATH comes from `config/.custom.bashrc`.
 #
 # Env overrides:
 #   _DOT_RUSTUP_INIT_URL   rustup-init script URL (default https://sh.rustup.rs)

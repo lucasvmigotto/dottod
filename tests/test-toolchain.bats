@@ -36,7 +36,7 @@ setup() {
     # _ensure_local_bin targets $HOME/.local/bin and the post-install
     # checks use `command -v`: keep the (initially empty) fake local bin
     # on PATH so installs are observable, exactly like a real shell with
-    # the repo .zshrc sourced.
+    # the repo bashrc sourced.
     export PATH="$FAKE_HOME/.local/bin:$STUBBIN:/usr/bin:/bin"
 
     # Fake `cargo`: version controlled by CARGO_STUB_VERSION; absent = missing.
@@ -123,7 +123,12 @@ for a in "$@"; do
 done
 exit 0
 EOF
-    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip}
+    # Fake `devcontainer`: present unless hidden (presence probe only).
+    cat >"$STUBBIN/devcontainer" <<'EOF'
+#!/usr/bin/env bash
+exit 0
+EOF
+    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip,devcontainer}
 
     # Record-only package installs; never touch apt.
     cat >"$STUBBIN/pkg-shim-note" <<'EOF'
@@ -135,6 +140,8 @@ EOF
 # a present-but-failing stub file would still count as installed.
 cargo_absent() { mv "$STUBBIN/cargo" "$STUBBIN/cargo.hidden"; }
 bun_absent()   { mv "$STUBBIN/bun" "$STUBBIN/bun.hidden"; }
+devcontainer_absent() { mv "$STUBBIN/devcontainer" "$STUBBIN/devcontainer.hidden"; }
+devcontainer_absent() { mv "$STUBBIN/devcontainer" "$STUBBIN/devcontainer.hidden"; }
 
 # Run a probe in a fresh bash with PATH/HOME already hermetic.
 # Usage: probe <script> <snippet>  (stdout+stderr captured via `run`)
@@ -265,4 +272,100 @@ probe() {
     assert_eq 'status rc 0' '0' "$status"
     assert_contains 'reports version' '1.2.0' "$output"
     assert_contains 'reports pin default' 'Pinned:' "$output"
+}
+
+@test "bun: devcontainer CLI skipped when already present" {
+    export BUN_STUB_VERSION=1.2.0
+    probe bun '_bun_ensure >/dev/null'
+    assert_eq 'both present rc 0' '0' "$status"
+    assert_contains 'devcontainer skip message' 'already installed' "$output"
+}
+
+@test "bun: devcontainer install warns when bun binary is missing" {
+    devcontainer_absent
+    export BUN_STUB_VERSION=1.2.0
+    probe bun '_bun_devcontainer'
+    assert_eq 'missing bun rc 0' '0' "$status"
+    assert_contains 'warns about missing bun' 'bun binary missing' "$output"
+}
+
+@test "bun: devcontainer installs via bun global" {
+    devcontainer_absent
+    mkdir -p "$FAKE_HOME/.local/bin"
+    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
+#!/usr/bin/env bash
+if [[ "$1" == "install" && "$2" == "--global" ]]; then
+    printf '%s\n' "$3" >>"$CALLS.bun-global"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
+    chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+    exit 0
+fi
+exit 0
+INNER_EOF
+    chmod +x "$FAKE_HOME/.local/bin/bun"
+    probe bun '_bun_devcontainer'
+    assert_eq 'global install rc 0' '0' "$status"
+    assert_contains 'package requested' '@devcontainers/cli' "$(cat "$CALLS.bun-global")"
+    assert_eq 'binary landed' '1' "$([[ -x "$FAKE_HOME/.local/bin/devcontainer" ]] && echo 1 || echo 0)"
+}
+
+@test "bun: devcontainer pulls nodejs only when node is missing" {
+    devcontainer_absent
+    mkdir -p "$FAKE_HOME/.local/bin"
+    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
+#!/usr/bin/env bash
+printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
+chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+exit 0
+INNER_EOF
+    chmod +x "$FAKE_HOME/.local/bin/bun"
+    mkdir -p "$BATS_TEST_TMPDIR/nodebin"
+    cat >"$BATS_TEST_TMPDIR/nodebin/node" <<'INNER_EOF'
+#!/usr/bin/env bash
+exit 0
+INNER_EOF
+    chmod +x "$BATS_TEST_TMPDIR/nodebin/node"
+    export PATH="$BATS_TEST_TMPDIR/nodebin:$PATH"
+    probe bun '_bun_devcontainer >/dev/null'
+    assert_eq 'node present rc 0' '0' "$status"
+    assert_eq 'no package calls' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
+}
+
+@test "bun: devcontainer installs nodejs when node is absent" {
+    devcontainer_absent
+    # Hide any real node behind a node-free PATH for `command -v`.
+    mkdir -p "$BATS_TEST_TMPDIR/emptypath"
+    for b in bash sh mktemp mkdir rm chmod cut uname curl python3 sha256sum unzip install dirname rm head grep; do
+        command -v "$b" >/dev/null 2>&1 && ln -sf "$(command -v "$b")" "$BATS_TEST_TMPDIR/emptypath/$b"
+    done
+    mkdir -p "$FAKE_HOME/.local/bin"
+    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
+#!/usr/bin/env bash
+printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
+chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+exit 0
+INNER_EOF
+    chmod +x "$FAKE_HOME/.local/bin/bun"
+    export PATH="$BATS_TEST_TMPDIR/emptypath:$STUBBIN:/usr/bin:/bin"
+    probe bun '_bun_devcontainer >/dev/null'
+    assert_eq 'node absent rc 0' '0' "$status"
+    assert_contains 'nodejs requested' 'PKGS:nodejs' "$(cat "$CALLS")"
+}
+
+@test "bun: devcontainer honors package override" {
+    devcontainer_absent
+    mkdir -p "$FAKE_HOME/.local/bin"
+    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$3" >>"$CALLS.bun-global"
+printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
+chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+exit 0
+INNER_EOF
+    chmod +x "$FAKE_HOME/.local/bin/bun"
+    export _DOT_DEVCONTAINER_PACKAGE='@devcontainers/cli@0.80.0'
+    probe bun '_bun_devcontainer >/dev/null'
+    assert_eq 'override rc 0' '0' "$status"
+    assert_contains 'pinned package requested' '@devcontainers/cli@0.80.0' "$(cat "$CALLS.bun-global")"
+    unset _DOT_DEVCONTAINER_PACKAGE
 }

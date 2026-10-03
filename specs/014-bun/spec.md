@@ -19,4 +19,4 @@
   installs instead of latest.
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no (no cross-stack e2e).
+Implemented. Verified: no (no cross-stack e2e).

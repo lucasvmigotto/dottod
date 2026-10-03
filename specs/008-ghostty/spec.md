@@ -12,4 +12,4 @@
   default-setting still applies [OBSERVED: bin/ghostty.sh:15].
 
 ## Status
-Bash: Implemented. TUI: Implemented (`ui: true`). Verified: no.
+Implemented (`ui_group: true`, skipped without `--ui`). Verified: no.

@@ -18,4 +18,4 @@
   toolchain installs instead of stable.
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no (no cross-stack e2e).
+Implemented. Verified: no (no cross-stack e2e).

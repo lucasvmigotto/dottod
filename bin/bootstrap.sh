@@ -4,8 +4,8 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim neovim container desktop vscode ghostty gitconfig ssh tools cargo bun)
-readonly DOT_UI_TASKS=(desktop vscode ghostty)
+readonly DOT_TASKS=(shell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun)
+readonly DOT_UI_TASKS=(zed ghostty)
 
 function _in_list() {
     local needle=${1}
@@ -28,26 +28,26 @@ Options:
   --skip <list>      Comma-separated list of tasks to skip
   --runtime <name>   Container runtime: podman, docker, or auto (default: podman)
   --parallel         Run tasks concurrently instead of sequentially
-  --no-ui-support    Skip GUI/desktop tasks (desktop, vscode, ghostty)
+  --ui               Include GUI tasks (zed, ghostty); default skips them
+  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)
   --yes              Assume yes for any prompts
   --verbose, -v      Stream full task output (default: summarized)
   --list, -l         List available tasks and exit
   --help, -h         Show this help
 
 Tasks:
-  shell     zsh + oh-my-zsh + spaceship prompt + system info
+  shell     bash as login shell + dottod bashrc (plain bash, no plugins)
   fonts     Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)
   vim       vim + vim-plug + plugins
   neovim    Neovim + lazy.nvim + Telescope (first-class; vim untouched)
   container Container runtime (Podman default, Docker alternative)
-  desktop   GNOME system monitor, dark theme and fonts
-  vscode    VSCode (Microsoft apt repo)
+  zed       Zed editor (user-level install)
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
-  ssh       SSH config (GitHub host, merged safely)
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf
+  ssh       SSH config (GitHub host, merged safely) + ed25519 key
+  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh
   cargo     Rust toolchain via rustup (stable, minimal profile)
-  bun       Bun JS runtime (direct-zip install, verified)
+  bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
 EOF
 }
 
@@ -108,7 +108,7 @@ function _run_parallel() {
 }
 
 function _main() {
-    local only="" skip="" no_ui=0 parallel=0 verbose=0
+    local only="" skip="" with_ui=0 parallel=0 verbose=0
     local failures=0
 
     while [[ $# -gt 0 ]]; do
@@ -138,8 +138,12 @@ function _main() {
                 parallel=1
                 shift
                 ;;
-            --no-ui-support)
-                no_ui=1
+            --ui)
+                with_ui=1
+                shift
+                ;;
+            --no-ui)
+                with_ui=0
                 shift
                 ;;
             --yes)
@@ -174,8 +178,8 @@ function _main() {
         if [[ -n "${only}" ]] && [[ ",${only}," != *",${task},"* ]]; then
             continue
         fi
-        if [[ "${no_ui}" == 1 ]] && _in_list "${task}" "${DOT_UI_TASKS[@]}"; then
-            log_info "Skipping UI task: ${task}"
+        if [[ "${with_ui}" == 0 ]] && _in_list "${task}" "${DOT_UI_TASKS[@]}"; then
+            log_info "Skipping UI task (pass --ui to include): ${task}"
             continue
         fi
         if [[ -n "${skip}" ]] && [[ ",${skip}," == *",${task},"* ]]; then

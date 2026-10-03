@@ -7,5 +7,5 @@ env:
 file_effects:
   - {path: "ghostty (via third-party installer, privileged)", action: install-if-missing}
   - {path: "x-terminal-emulator alternative + GNOME default", action: set-default}
-tui_ui_group: true
+ui_group: true
 idempotency: presence probe skips install; default-setting re-applies

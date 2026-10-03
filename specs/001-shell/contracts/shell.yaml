@@ -3,16 +3,7 @@ task: shell
 script: bin/shell.sh
 flags: []
 env:
-  _DOT_OMZ_SCRIPT_URL: {default: "https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"}
-  _DOT_OMZ_PLUGIN_LIST: {default: "zsh-autosuggestions zsh-syntax-highlighting"}
-  _DOT_SPACESHIP_URL: {default: "https://github.com/spaceship-prompt/spaceship-prompt.git"}
   _DOT_TARGET_USER: {default: "$(id -un)"}
-  _DOT_SYSTEM_INFO_ENABLED: {default: "true"}
-  _DOT_SYSTEM_INFO_SHOW_MEM_PCT: {default: "0"}
-  _DOT_SYSTEM_INFO_SHOW_NET: {default: "0"}
-  _DOT_SYSTEM_INFO_TTL: {default: "2"}
 file_effects:
-  - {path: "~/.zshrc", action: symlink-to-repo, backup: "~/.zshrc.dottod.bak"}
-  - {path: "~/.oh-my-zsh/", action: clone-if-missing}
-  - {path: "${XDG_CACHE_HOME:-~/.cache}/dottod/sysinfo.*", action: atomic-cache}
-idempotency: probes omz dir, plugin dirs, theme link before acting
+  - {path: "~/.bashrc", action: symlink-to-repo, backup: "~/.bashrc.dottod.bak"}
+idempotency: login-shell probe skips chsh; correct-link no-op without extra backups

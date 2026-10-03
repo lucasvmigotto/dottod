@@ -21,9 +21,9 @@ left alone.
                   bin/container.sh
                   scripts/.container.utils.sh
                            │
-              ┌────────────┼────────────┐
+              ┌────────────┬────────────┐
               │            │            │
-           Bootstrap      TUI        Shell prompt
+           Bootstrap   Shell (ctr)   Scripts
 ```
 
 Linux-only (native, Debian/apt). No Podman Machine, Docker Desktop, WSL,
@@ -38,13 +38,12 @@ Compose, Swarm, or Kubernetes abstraction — dottod uses none of those.
 | `auto` | Podman if usable, else Docker if usable, else Podman (install target) |
 
 Configure via the `_DOT_CONTAINER_RUNTIME` environment variable (repo
-`_DOT_*` convention), the bootstrap `--runtime` flag, or the TUI
-`--runtime` flag / `e` key. Precedence:
+`_DOT_*` convention) or the bootstrap `--runtime` flag. Precedence:
 
 ```text
-bootstrap --runtime / TUI --runtime (explicit flag)
+bootstrap --runtime (explicit flag)
       ↓
-_DOT_CONTAINER_RUNTIME (environment, incl. TUI per-run forwarding)
+_DOT_CONTAINER_RUNTIME (environment)
       ↓
 default: podman
 ```
@@ -118,32 +117,18 @@ Probes run only here (and during ensure) — never in the prompt.
 
 ## Shell
 
-* `ctr` (auto-sourced shell function) dispatches to the resolved runtime:
+* `ctr` (shell function, sourced from `scripts/.container.utils.sh` by
+  `config/.custom.bashrc`) dispatches to the resolved runtime:
   `ctr ps`, `ctr images`, `ctr run …`. Explicit values are honored;
   `auto` resolves per invocation.
 * The existing `docker*` aliases are unchanged and keep working wherever
   the `docker` binary works.
-* The prompt shows a small runtime token after the system metrics
-  (`<cube> podman`), rendered from the *configured selection only* — zero
-  subprocess cost, never blocks startup. Toggle with
-  `SPACESHIP_CONTAINER_SHOW=false` (or the `_DOT_SYSTEM_INFO_ENABLED`
-  master switch); color via `SPACESHIP_CONTAINER_COLOR`.
-
-## TUI
-
-`dottod --runtime docker` (or `podman`/`auto`; invalid values rejected),
-a `runtime:…` status-bar segment, and `e` to cycle the choice per run. An
-interacted-with or flagged choice is forwarded to task scripts as
-`_DOT_CONTAINER_RUNTIME`; otherwise the ambient environment (or each
-script's Podman default) applies untouched.
 
 ## Testing
 
 | Test | Needs engine | Needs network |
 | ---- | ------------ | ------------- |
 | `tests/test-container.bats` (selection, detection, ensure, errors, idempotency) | no (stubs) | no |
-| `tests/test-container.zsh` (lib under zsh, prompt section, order) | no (stubs) | no |
-| Rust TUI tests (default, values, cycle, env forwarding) | no | no |
 | `tests/integration/podman-hello.sh` | Podman + `DOTTOD_TEST_INTEGRATION=1` | yes (one pull) |
 | `tests/integration/docker-hello.sh` | Docker + `DOTTOD_TEST_INTEGRATION=1` | yes (one pull) |
 
@@ -156,7 +141,7 @@ if it pulled it); CI additionally sweeps the `dottod-test=1` label.
 ## CI
 
 * `shell` workflow: syntax, ShellCheck, fast suites (incl. container unit
-  tests), Rust checks.
+  tests).
 * `container` workflow (this page's jobs): independent **Podman** and
   **Docker** integration jobs (`contents: read`, ephemeral runner,
   pinned `hello-world`, label-scoped cleanup) — neither runtime's result
@@ -177,10 +162,8 @@ if it pulled it); CI additionally sweeps the `dottod-test=1` label.
 ## Files
 
 * `scripts/.container.utils.sh` — selection/detection/dispatcher (single
-  branching point; bash+zsh safe)
+  branching point; plain bash)
 * `bin/container.sh` — task: ensure + `status` (+ `--help`)
 * `bin/docker.sh` — explicit-Docker installer (unchanged behavior)
-* `tests/test-container.{sh,zsh}`, `tests/integration/*-hello.sh`
-* `tui/src/{main,app,ui,task}.rs` — `--runtime`, indicator, cycle, tests
-* `scripts/.sysinfo.prompt.sh` — `spaceship_container` section
+* `tests/test-container.bats`, `tests/integration/*-hello.sh`
 * `.github/workflows/container.yml`

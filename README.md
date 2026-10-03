@@ -1,8 +1,8 @@
 # dottod
 
 Personal dotfiles and workstation bootstrap for Debian (GNOME). Reproducibly
-recreates a [Spaceship](https://spaceship-prompt.sh/) Zsh environment (with a
-system-info segment), fonts, editor, terminal, CLI tooling, container runtime
+recreates a plain-bash terminal environment (lightweight prompt, no plugins),
+fonts, editor, terminal, CLI tooling, container runtime
 (Podman by default), and GitHub SSH configuration after a reset or fresh install.
 
 ## Layout
@@ -10,10 +10,9 @@ system-info segment), fonts, editor, terminal, CLI tooling, container runtime
 ```txt
 bin/       executable bootstrap scripts (one per concern)
 config/    dotfiles that get symlinked or templated into $HOME
-scripts/   zsh utilities (aliases + functions) sourced by .zshrc
-tui/       Ratatui TUI runner (Rust)
-docs/      feature documentation (system-info, ssh, containers, …)
-tests/     BATS + shell test suites (run with ./tests/run.sh)
+scripts/   shell utilities (aliases + functions)
+docs/      feature documentation (ssh, containers, …)
+tests/     BATS test suites (run with ./tests/run.sh)
 .github/   CI + release workflow
 ```
 
@@ -21,17 +20,16 @@ tests/     BATS + shell test suites (run with ./tests/run.sh)
 
 | Task        | Script            | What it does                                                        |
 | ----------- | ----------------- | ------------------------------------------------------------------- |
-| `shell`     | `bin/shell.sh`    | Installs zsh + oh-my-zsh + Spaceship prompt (+ system-info segment), links `~/.zshrc` |
+| `shell`     | `bin/shell.sh`    | Ensures bash as login shell, links `~/.bashrc` (plain bash, no plugins) |
 | `fonts`     | `bin/fonts.sh`    | Installs Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono) |
 | `vim`       | `bin/vim.sh`      | Installs vim + vim-plug, links `~/.vimrc`, installs plugins         |
 | `neovim`    | `bin/neovim.sh`   | Installs Neovim (>= 0.11) + lazy.nvim config (zero external deps), links `~/.config/nvim` (see [docs/neovim.md](docs/neovim.md); vim stays untouched) |
 | `container` | `bin/container.sh`| Container runtime: Podman by default, Docker when selected          |
-| `desktop`   | `bin/desktop.sh`  | Installs GNOME system monitor, applies dark theme and fonts         |
-| `vscode`    | `bin/vscode.sh`   | Installs VSCode from the Microsoft apt repo                         |
+| `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download)             |
 | `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
 | `ssh`       | `bin/ssh.sh`      | Merges GitHub host config into `~/.ssh/config` (never overwrites)   |
-| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf |
+| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
 
@@ -42,7 +40,6 @@ tests/     BATS + shell test suites (run with ./tests/run.sh)
 - Debian (or Debian-based) system with `apt`.
 - `sudo` or `doas`; if not passwordless, the scripts prompt once for the
   password (needs a TTY) — otherwise run as root.
-- Rust toolchain only if you build the TUI from source.
 - BATS (`bats` package) only to run the shell test suites — not needed
   to install or use dottod itself.
 
@@ -55,95 +52,42 @@ git clone https://github.com/lucasvmigotto/dottod.git
 cd dottod
 ```
 
-Then use either interface below.
-
-#### Using the scripts only (no Rust needed)
-
-Run the bootstrap orchestrator, which installs and configures everything:
+Then run the bootstrap orchestrator, which installs and configures everything:
 
 ```bash
 ./bin/bootstrap.sh
 ```
 
-#### Using the TUI (needs Rust)
+### Option 2 — Release scripts tarball (no git needed)
 
-Build and run the interactive front-end:
-
-```bash
-cd tui
-cargo run --release
-```
-
-### Option 2 — Prebuilt release (no Rust, no build)
-
-Pick a version (e.g. `0.1.0`) and download the scripts, binary, and checksums:
+Pick a version (e.g. `0.1.0`) and download the scripts and checksums:
 
 ```bash
 V="0.1.0"
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-scripts-${V}.tar.gz"
-curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-linux-x86_64"
 curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-${V}-sha256sums.txt"
 ```
 
-Verify integrity (ignores assets you did not download, e.g. the source tarball):
+Verify integrity:
 
 ```bash
-sha256sum --ignore-missing -c "dottod-${V}-sha256sums.txt"
+sha256sum -c "dottod-${V}-sha256sums.txt"
 ```
 
-Extract the scripts and install the binary next to them (so the TUI can find
-`bin/`, `config/`, and `scripts/` automatically):
+Extract and run:
 
 ```bash
 mkdir -p ~/dottod
 tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
-install -m 0755 dottod-linux-x86_64 ~/dottod/dottod
-```
-
-Then use either interface below.
-
-#### Using the scripts only
-
-```bash
 ~/dottod/bin/bootstrap.sh
-```
-
-#### Using the TUI
-
-```bash
-~/dottod/dottod          # auto-detects ~/dottod/bin/, ~/dottod/config/, and ~/dottod/scripts/
-```
-
-Run it from anywhere with `--repo`, or via the `DOT_REPO_ROOT` variable, or by
-adding the directory to your `PATH`:
-
-```bash
-~/dottod/dottod --repo ~/dottod
-export DOT_REPO_ROOT="$HOME/dottod"
-export PATH="$HOME/dottod:$PATH"
 ```
 
 #### Release assets
 
-Each release ships four assets:
+Each release ships two assets:
 
-- `dottod-tui-src-<v>.tar.gz` — TUI source (for building from source)
 - `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/` + `scripts/`)
-- `dottod-linux-x86_64` — compiled TUI binary
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
-
-### Option 3 — Build the TUI from the source tarball
-
-If you want to build the TUI yourself without git:
-
-```bash
-V=0.1.0
-curl -fsSLO "https://github.com/lucasvmigotto/dottod/releases/download/${V}/dottod-tui-src-${V}.tar.gz"
-tar -xzf "dottod-tui-src-${V}.tar.gz"
-cd tui
-cargo build --release
-# binary at: tui/target/release/dottod
-```
 
 ## Usage
 
@@ -159,15 +103,19 @@ Select or exclude tasks:
 
 ```bash
 ./bin/bootstrap.sh --only shell,tools
-./bin/bootstrap.sh --skip docker,desktop
+./bin/bootstrap.sh --skip ghostty,zed
 ./bin/bootstrap.sh --only vim,neovim
 ```
+
+GUI tasks (`zed`, `ghostty`) are skipped by default — the CLI is
+terminal-first. Pass `--ui` to include them.
 
 Flags:
 
 - `--only <list>` — run only the given comma-separated tasks
 - `--skip <list>` — skip the given comma-separated tasks
-- `--no-ui-support` — skip GUI tasks (`desktop vscode ghostty`)
+- `--ui` — include GUI tasks (`zed ghostty`)
+- `--no-ui` — skip GUI tasks (the default; explicit form of omitting `--ui`)
 - `--parallel` — run tasks concurrently instead of sequentially
 - `--yes` — assume yes for prompts
 - `--verbose` / `-v` — stream full output
@@ -197,19 +145,18 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ### Tests
 
 ```bash
-./tests/run.sh                  # everything fast (BATS + zsh)
+./tests/run.sh                  # everything fast (BATS)
 bats tests/                     # BATS suites only (TAP output)
 bats tests/test-container.bats  # one suite
 ```
 
 | Suite | What | Needs |
 | ----- | ---- | ----- |
-| `tests/test-system-info.bats` | collector: metrics, formatting, cache | nothing (fixtures) |
+| `tests/test-shell.bats` | bash task: linking, login shell, no plugin remnants | nothing (fixtures) |
 | `tests/test-ssh-merge.bats` | GitHub SSH merge matrix | nothing (fixtures) + `ssh` for `-G` checks |
 | `tests/test-container.bats` | runtime selection, ensure, errors, idempotency | nothing (stubs) |
 | `tests/test-neovim.bats` | installer: version policy, backups, idempotency | nothing (stubs) |
 | `tests/test-neovim-headless.bats` | config: headless startup, profiles, lockfile | `nvim` >= 0.11 + linked config (else skipped) |
-| `tests/test-*.zsh` | prompt sections under zsh | `zsh` (else skipped with a note) |
 | `tests/helpers.bash` | shared BATS assertions, loaded per suite | — |
 
 Shell suites run against hermetic fixtures — the real `$HOME` and `/proc`
@@ -223,48 +170,18 @@ DOTTOD_TEST_INTEGRATION=1 ./tests/integration/docker-hello.sh
 DOTTOD_TEST_INTEGRATION=1 ./tests/integration/podman-hello.sh
 ```
 
-### Interactive TUI
-
-The `dottod` binary mirrors `bootstrap.sh`'s flags:
-
-```bash
-dottod --no-ui-support --parallel
-dottod --only shell,tools --repo ~/dottod
-dottod --runtime docker
-```
-
-Container runtime selection (default: Podman; shows in the status bar,
-`e` cycles `podman → docker → auto`).
-
-Keybindings:
-
-- `j`/`k` or `↑`/`↓` — move
-- `Space` — toggle task
-- `a`/`n` — select all / none
-- `u` — toggle the GUI task group (like `--no-ui-support`)
-- `e` — cycle container runtime (`podman → docker → auto`)
-- `Enter` — run selected
-- `Tab` / `h` / `l` — switch pane
-- `PgUp`/`PgDn` — scroll log
-- `r` — rerun failures (summary)
-- `q` — quit
-
-The TUI implementation in `tui/src/` (`app.rs`, `ui.rs`, `runner.rs`,
-`scheduler.rs`, `state.rs`, `task.rs`) is the authoritative design reference.
-
 ## Configuration
 
 Dotfiles live in `config/` and are symlinked or templated into `$HOME` by the
 corresponding tasks. Edit them there and re-run the task to reapply.
 
-* Prompt system metrics: see `docs/system-info.md` (collector tuning via
-  `_DOT_SYSTEM_INFO_*`, display via `SPACESHIP_SYSINFO_*`).
 * Neovim: see `docs/neovim.md` — zero-dependency base setup, profiles
   (`DOTTOD_NVIM_PROFILE`), keymaps, `~/.config/nvim` backup policy and the
   `lua/dottod_local.lua` override mechanism. Vim remains a fully supported,
   separate task.
 * GitHub SSH: see `docs/ssh.md`; `config/.ssh.config` is the template of
-  required options merged into `~/.ssh/config` by the `ssh` task.
+  required options merged into `~/.ssh/config` by the `ssh` task, which also
+  generates an `ed25519` key at `~/.ssh/github` when none exists.
 * Container runtime: see `docs/containers.md`; Podman by default, Docker via
   `_DOT_CONTAINER_RUNTIME=docker` (or `--runtime docker`); `bin/docker.sh`
   stays directly runnable for Docker-only setups.
@@ -276,4 +193,5 @@ corresponding tasks. Edit them there and re-run the task to reapply.
   dotfiles (suffixed `.dottod.bak`), curl retries, and a final PASS/FAIL summary.
 - **Parallelism**: `--parallel` runs tasks concurrently; apt operations are
   serialized by dpkg's own lock.
-- A Ratatui-based interactive runner lives in `tui/`.
+- **Terminal-first**: GUI tasks (`zed`, `ghostty`) never run unless `--ui`
+  is passed.

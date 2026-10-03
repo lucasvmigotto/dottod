@@ -1,9 +1,9 @@
-# 011 — cli tools (lazygit/lazydocker/k9s/btop/…)
+# 011 — cli tools (lazygit/lazydocker/k9s/btop/…/fzf/gh)
 
 ## Stories
 - US1: As a user I run the tools task so that the terminal toolbox
   installs: lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip,
-  chafa (+ `batcat` alias where needed).
+  chafa, fzf (all apt) plus `gh` (official GitHub CLI apt repo).
 
 ## Acceptance scenarios
 - Given a tool already on PATH (or `~/.local/bin`), when the task runs,
@@ -15,4 +15,4 @@
   temp cleanup [OBSERVED: bin/tools.sh:57].
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no.
+Implemented. Verified: no.

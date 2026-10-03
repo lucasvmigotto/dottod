@@ -15,5 +15,5 @@
   fails loudly instead of hanging [OBSERVED: bin/gitconfig.sh:18].
 
 ## Status
-Bash: Implemented. TUI: Implemented (identity overlay feeds env)
-[OBSERVED: tui/src/main.rs:150, tui/src/ui.rs:110]. Verified: no.
+Implemented (env-driven; no interactive overlay exists)
+[OBSERVED: bin/gitconfig.sh]. Verified: no.

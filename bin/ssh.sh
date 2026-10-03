@@ -208,6 +208,30 @@ function _merge_github_config() {
     return 0
 }
 
+function _ensure_github_key() {
+    local ssh_dir=${1:?'SSH dir must be informed'}
+
+    # Never overwrite: either half of the pair counts as present.
+    if [[ -e "${ssh_dir}/github" || -e "${ssh_dir}/github.pub" ]]; then
+        log_info "SSH key ${ssh_dir}/github already present, skipping..."
+        return 0
+    fi
+
+    if ! command -v ssh-keygen >/dev/null 2>&1; then
+        log_step 'Installing OpenSSH client'
+        _install_packages 'openssh-client'
+    fi
+
+    local comment
+    comment="${USER:-$(id -un)}@$(hostname 2>/dev/null || printf 'localhost')"
+    log_step "Generating ed25519 SSH key ${ssh_dir}/github"
+    ssh-keygen -t ed25519 -f "${ssh_dir}/github" -N '' -C "${comment}" >/dev/null
+    chmod 600 "${ssh_dir}/github"
+    chmod 644 "${ssh_dir}/github.pub"
+    log_ok "SSH key generated at ${ssh_dir}/github (add ${ssh_dir}/github.pub to GitHub)"
+    return 0
+}
+
 function _main() {
     local current_user ssh_dir
     current_user="$(id -un)"
@@ -215,6 +239,8 @@ function _main() {
 
     local target="${ssh_dir}/config"
     _merge_github_config "${target}" "${DOT_CONFIG_DIR}/.ssh.config"
+
+    _ensure_github_key "${ssh_dir}"
 
     if [[ ! -e "${ssh_dir}/github" && ! -L "${ssh_dir}/github" ]]; then
         log_info "No ${ssh_dir}/github key found; create/provision it — the SSH config is ready regardless"

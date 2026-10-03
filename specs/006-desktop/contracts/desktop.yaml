@@ -1,9 +1,0 @@
-# 006-desktop — task contract fragment
-task: desktop
-script: bin/desktop.sh
-flags: []
-env:
-  _DOT_DESKTOP_FONT: {default: "FiraCode Nerd Font 11"}
-  _DOT_SYSTEM_MONITOR: {default: "gnome-system-monitor"}
-tui_ui_group: true
-idempotency: probes installed packages/theme before acting

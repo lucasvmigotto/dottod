@@ -119,6 +119,43 @@ function _github_tarball_install() {
     return 0
 }
 
+function _github_cli_install() {
+    # GitHub CLI from its official apt repository
+    # (https://cli.github.com/manual/installation-linux).
+    if _is_installed gh; then
+        log_info 'gh already installed, skipping...'
+        return 0
+    fi
+
+    local arch keyring tmp_key
+    arch="$(dpkg --print-architecture)"
+    keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
+
+    log_step 'Installing GitHub CLI prerequisites'
+    _install_packages 'curl ca-certificates gnupg'
+
+    # Download-then-install (never pipe a remote key straight into a
+    # privileged command): a failed download must not produce a keyring.
+    tmp_key="$(mktemp)"
+    log_step 'Adding GitHub CLI apt repository'
+    _download 'https://cli.github.com/packages/githubcli-archive-keyring.gpg' "${tmp_key}"
+    _priv install -m 0644 "${tmp_key}" "${keyring}"
+    rm -f "${tmp_key}"
+
+    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" \
+        | _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+
+    log_step 'Installing GitHub CLI (gh)'
+    _install_packages 'gh'
+
+    if ! _is_installed gh; then
+        log_error 'GitHub CLI install did not yield a gh binary on PATH.'
+        return 1
+    fi
+    log_ok 'GitHub CLI installed'
+    return 0
+}
+
 function _main() {
     local go_arch rust_arch
     go_arch="$(_go_arch)"
@@ -126,6 +163,8 @@ function _main() {
 
     log_step 'Installing CLI tools (apt)'
     _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf'
+
+    _github_cli_install
 
     if ! _is_installed batcat && _is_installed bat; then
         ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"

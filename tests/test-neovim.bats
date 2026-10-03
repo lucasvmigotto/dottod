@@ -190,6 +190,21 @@ EOF
     assert_eq 'no apt attempt when candidate too old' '0' "$(grep -c '^PKGS:neovim' "$CALLS" || true)"
 }
 
+@test "ensure heals an installed but too-old binary when allowed" {
+    NVIM_STUB_VERSION=0.10.4
+    export _DOT_NVIM_ALLOW_TARBALL=1
+    _nvim_install_tarball() {
+        printf 'TARBALL:%s\n' "$*" >>"$CALLS"
+        # simulate the healed binary shadowing the old one
+        NVIM_STUB_VERSION=0.12.5
+    }
+    run _nvim_ensure_binary
+    assert_eq 'healed-over-old rc 0' '0' "$status"
+    assert_contains 'warns about the old binary' 'healing via tarball' "$output"
+    assert_contains 'tarball invoked' 'TARBALL:v0.12.5' "$(cat "$CALLS")"
+    assert_eq 'no apt attempt for a known-old install' '0' "$(grep -c '^PKGS:neovim' "$CALLS" || true)"
+}
+
 @test "ensure refuses tarball version below the minimum" {
     nvim_absent
     export _DOT_NVIM_ALLOW_TARBALL=1 _DOT_NVIM_VERSION=v0.10.4

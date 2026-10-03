@@ -23,4 +23,4 @@
   it [OBSERVED: tests/test-ssh-merge.bats:15].
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no (hermetic BATS only).
+Implemented. Verified: no (hermetic BATS only).

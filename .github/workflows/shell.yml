@@ -8,7 +8,11 @@ on:
   pull_request:
     paths:
       - "bin/**"
-      - "config/**"
+      - "config/.custom.bashrc"
+      - "config/.custom.vimrc"
+      - "config/.nerdtree.vimrc"
+      - "config/.gitconfig"
+      - "config/.ssh.config"
       - "scripts/**"
       - "tests/**"
       - ".github/workflows/shell.yml"
@@ -23,9 +27,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install zsh, shellcheck and bats
+      - name: Install shellcheck and bats
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq zsh shellcheck bats
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck bats
           bats --version
 
       - name: Bash syntax check
@@ -36,31 +40,21 @@ jobs:
         run: |
           for f in \
             bin/*.sh \
-            scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
+            scripts/*.sh \
+            config/.custom.bashrc \
+            scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
             scripts/.container.utils.sh scripts/nvim-headless-check.sh \
             tests/run.sh; do
             bash -n "${f}"
           done
 
-      - name: Zsh syntax check
-        run: |
-          zsh -n scripts/.sysinfo.prompt.sh
-          zsh -n config/.custom.zshrc
-          zsh -n tests/test-spaceship-sysinfo.zsh
-          zsh -n tests/test-container.zsh
-
       - name: ShellCheck (warnings are errors)
-        # NB: shellcheck has no zsh dialect, so the zsh sources
-        # (scripts/.sysinfo.prompt.sh, config/.custom.zshrc, tests/*.zsh)
-        # are intentionally absent here; they are covered by `zsh -n`
-        # above and by the zsh test suite below.
         run: |
           shellcheck -S warning \
             bin/*.sh \
-            scripts/system-info.sh scripts/.alias.sh scripts/.bat.utils.sh \
-            scripts/.sys.utils.sh scripts/.xclip.utils.sh \
-            scripts/.container.utils.sh scripts/nvim-headless-check.sh \
+            scripts/*.sh \
+            config/.custom.bashrc \
             tests/run.sh tests/test-*.bats tests/helpers.bash
 
       - name: Tests

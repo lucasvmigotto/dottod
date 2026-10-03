@@ -8,11 +8,11 @@
 # Usage: scripts/nvim-headless-check.sh [--profile NAME]
 #   DOTTOD_NVIM_PROFILE can also be set directly in the environment.
 #
-# Sourced-by-zsh guard (same contract as scripts/system-info.sh): the zshrc
-# glob sources every scripts/*.sh, and this is a bash PROGRAM that executes
-# checks and exits — sourcing it under zsh would run the battery inside the
-# interactive shell and `exit` would close it. Guard before `set` so shell
-# options are never polluted either.
+# Sourced-by-shell guard: historically the zshrc glob sourced every
+# scripts/*.sh, and this is a bash PROGRAM that executes checks and exits —
+# sourcing it would run the battery inside the interactive shell and `exit`
+# would close it. Guard before `set` so shell options are never polluted
+# either. Kept as cheap insurance even though nothing sources scripts/ now.
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
     return 0 2>/dev/null || exit 0

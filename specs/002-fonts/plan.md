@@ -7,5 +7,6 @@
 - Env: `_DOT_NERDFONT_VERSION` (default v3.4.0), `_DOT_NERDFONT_BASE`,
   `_DOT_NERDFONT_GLOBAL_INSTALL`, `_DOT_NERDFONT_DIE_IF_FAIL_ONCE`,
   `_DOT_NERDFONT_TEMP_DESTINATION` [OBSERVED: bin/fonts.sh:60].
-- No dedicated test suite (covered only by shellcheck/bash -n in CI)
-  [OBSERVED: tests/run.sh glob; no test-fonts file].
+- Tests: `tests/test-fonts.bats` (5 tests: probing matrix, user-level
+  target, no desktop overrides). No dedicated suite for the download path;
+  covered by shellcheck/bash -n in CI.

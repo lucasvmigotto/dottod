@@ -23,6 +23,6 @@
   with empty output [OBSERVED: tests/test-container.bats:75].
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no (integration/
+Implemented. Verified: no (integration/
 needs engine+network, gated behind `DOTTOD_TEST_INTEGRATION=1`;
 did not run here).

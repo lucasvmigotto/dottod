@@ -11,6 +11,6 @@ env:
   _DOT_NO_PACKAGES: {default: "0"}
 file_effects:
   - {path: "~/.cargo/ (rustup home)", action: install-if-cargo-missing}
-  - {path: "~/.zshrc", action: never-modified (uses --no-modify-path)}
-tui_needs_apt: true
+  - {path: "~/.bashrc", action: never-modified (uses --no-modify-path)}
+needs_apt: true
 idempotency: cargo presence probe skips everything

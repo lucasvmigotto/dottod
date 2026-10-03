@@ -14,4 +14,4 @@
   warn but don't fail the task [OBSERVED: bin/vim.sh:37].
 
 ## Status
-Bash: Implemented. TUI: Implemented. Verified: no.
+Implemented. Verified: no.

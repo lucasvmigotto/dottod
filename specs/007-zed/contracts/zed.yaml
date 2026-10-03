@@ -1,0 +1,13 @@
+# 007-zed — task contract fragment
+task: zed
+script: bin/zed.sh
+flags: [--ui (include; UI tasks skip by default)]
+env:
+  _DOT_ZED_INSTALLER_URL: {default: "https://zed.dev/install.sh"}
+  _DOT_ZED_CHANNEL: {default: "stable"}
+  _DOT_ZED_VERSION: {default: "latest"}
+  _DOT_NO_PACKAGES: {default: "0"}
+file_effects:
+  - {path: "~/.local/bin/zed", action: install-if-missing (user-level)}
+ui_group: true
+idempotency: zed presence probe skips everything

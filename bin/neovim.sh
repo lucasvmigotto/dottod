@@ -189,24 +189,35 @@ function _nvim_fail_old_apt() {
 function _nvim_ensure_binary() {
     local min=${_DOT_NVIM_MIN_VERSION:-"${_DOT_NVIM_MIN_VERSION_DEFAULT}"}
     local ver cand
+    local need_tarball=0
 
     if ver="$(_nvim_version 2>/dev/null)"; then
         if _nvim_ver_ge "${ver}" "${min}"; then
             log_info "Neovim ${ver} already installed (>= ${min}), skipping..."
             return 0
         fi
-        log_error "Neovim ${ver} detected, but this configuration requires Neovim ${min}+."
-        log_error 'Upgrade Neovim or use a compatible profile; refusing to use an incompatible binary.'
-        return 1
+        # Installed but too old: fail by default. With opt-in healing the
+        # tarball (linked into ~/.local/bin, first on PATH via the repo
+        # bashrc) shadows it, so fall through to healing below instead of
+        # refusing a recovery the user explicitly allowed.
+        if [[ "${_DOT_NVIM_ALLOW_TARBALL:-0}" == 1 ]]; then
+            log_warn "Installed Neovim ${ver} is below minimum ${min}; healing via tarball..."
+            need_tarball=1
+        else
+            log_error "Neovim ${ver} detected, but this configuration requires Neovim ${min}+."
+            log_error 'Upgrade Neovim or use a compatible profile; refusing to use an incompatible binary.'
+            return 1
+        fi
     fi
 
-    # Candidate-first: never attempt a doomed apt install (sudo prompt for a
-    # version we already know is too old) when tarball healing is allowed.
-    cand="$(_nvim_apt_candidate)"
-    local need_tarball=0
-    if [[ -n "${cand}" ]] && ! _nvim_ver_ge "${cand}" "${min}"; then
-        log_info "apt Neovim candidate ${cand} is below minimum ${min}"
-        need_tarball=1
+    if [[ "${need_tarball}" == 0 ]]; then
+        # Candidate-first: never attempt a doomed apt install (sudo prompt for a
+        # version we already know is too old) when tarball healing is allowed.
+        cand="$(_nvim_apt_candidate)"
+        if [[ -n "${cand}" ]] && ! _nvim_ver_ge "${cand}" "${min}"; then
+            log_info "apt Neovim candidate ${cand} is below minimum ${min}"
+            need_tarball=1
+        fi
     fi
 
     if [[ "${need_tarball}" == 0 ]]; then
@@ -232,7 +243,10 @@ function _nvim_ensure_binary() {
         return 1
     fi
     _nvim_install_tarball "${tar_ver}" "$(id -un)"
-    if ver="$(_nvim_version 2>/dev/null)" && _nvim_ver_ge "${ver}" "${min}"; then
+    # Scope ~/.local/bin into PATH for the check: a bare `neovim.sh` run
+    # may not have sourced the repo bashrc that adds it yet.
+    if ver="$(PATH="$(_ensure_local_bin):${PATH}" _nvim_version 2>/dev/null)" \
+        && _nvim_ver_ge "${ver}" "${min}"; then
         log_ok "Neovim ${ver} ready (tarball)"
         return 0
     fi
