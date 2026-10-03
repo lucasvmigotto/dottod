@@ -23,8 +23,14 @@ function M.check()
   -- Plugin manager
   local lazy_ok, lazy = pcall(require, 'lazy')
   if lazy_ok then
-    local core = lazy.core and lazy.core or nil
-    vim.health.ok('lazy.nvim loaded (' .. tostring(core and #core or '?') .. ' specs)')
+    local specs = 0
+    local cfg_ok, cfg = pcall(require, 'lazy.core.config')
+    if cfg_ok and cfg.plugins then
+      for _ in pairs(cfg.plugins) do
+        specs = specs + 1
+      end
+    end
+    vim.health.ok('lazy.nvim loaded (' .. specs .. ' specs)')
     local lock = vim.fn.stdpath('config') .. '/lazy-lock.json'
     if vim.uv.fs_stat(lock) then
       vim.health.ok('lazy-lock.json present (reproducible plugins)')
@@ -56,6 +62,13 @@ function M.check()
     else
       vim.health.info(bin .. ' not found (./bin/tools.sh installs it)')
     end
+  end
+
+  -- DevContainer workflow (devcontainer-cli.nvim, terminal profiles only)
+  if vim.fn.executable('devcontainer') == 1 then
+    vim.health.ok('devcontainer CLI found (<leader>Du)')
+  else
+    vim.health.info('devcontainer CLI not found (./bin/bun.sh installs it)')
   end
 
   -- Terminal capability

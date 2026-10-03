@@ -53,7 +53,7 @@ else
 fi
 
 # 2. Core modules load; collect any load error per module.
-module_err="$(nvim --headless +'lua for _, m in ipairs({"dottod", "dottod.options", "dottod.keymaps", "dottod.autocmds", "dottod.commands", "dottod.utils", "dottod.profiles", "dottod.health", "dottod.plugins.ui", "dottod.plugins.navigation", "dottod.plugins.git", "dottod.plugins.terminal"}) do local ok, err = pcall(require, m) if not ok then print("MODULE_FAIL " .. m .. ": " .. tostring(err)) end end' +qa 2>&1 || true)"
+module_err="$(nvim --headless +'lua for _, m in ipairs({"dottod", "dottod.options", "dottod.keymaps", "dottod.autocmds", "dottod.commands", "dottod.utils", "dottod.profiles", "dottod.health", "dottod.plugins.ui", "dottod.plugins.navigation", "dottod.plugins.git", "dottod.plugins.terminal", "dottod.plugins.devcontainer"}) do local ok, err = pcall(require, m) if not ok then print("MODULE_FAIL " .. m .. ": " .. tostring(err)) end end' +qa 2>&1 || true)"
 if printf '%s' "${module_err}" | grep -q 'MODULE_FAIL'; then
     _fail "module load failures: ${module_err}"
 else

@@ -1,4 +1,5 @@
 {
+  "devcontainer-cli.nvim": { "branch": "main", "commit": "00b08c1dd2b272b5b56b265de148c38d12ea0597" },
   "gitsigns.nvim": { "branch": "main", "commit": "a462f416e2ce4744531c6256252dee99a7d34a83" },
   "indent-blankline.nvim": { "branch": "master", "commit": "f1e186e44d3b7f9ae918008e2c28ce37c6023d2d" },
   "lazy.nvim": { "branch": "main", "commit": "85c7ff3711b730b4030d03144f6db6375044ae82" },

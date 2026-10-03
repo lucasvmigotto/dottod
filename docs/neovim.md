@@ -82,7 +82,7 @@ relink needed), validated by the installer *and* the Lua layer.
 | Profile | Plugins at startup |
 | ------- | ------------------ |
 | `minimal` | options, keymaps, colorscheme, statusline only (SSH/recovery) |
-| `terminal` | + gitsigns, toggleterm, lazygit/lazydocker/k9s/btop launchers |
+| `terminal` | + gitsigns, toggleterm, lazygit/lazydocker/k9s/btop launchers, devcontainer CLI |
 | `development` | same as `terminal` (default) |
 | `full` | same as `terminal` |
 
@@ -110,7 +110,7 @@ config/nvim/
     options.lua keymaps.lua autocmds.lua commands.lua
     utils.lua health.lua profiles.lua
     plugins/                   # one spec file per concern
-      init.lua ui.lua navigation.lua git.lua terminal.lua
+      init.lua ui.lua navigation.lua git.lua terminal.lua devcontainer.lua
   lua/dottod_local.lua.example # user override template
 ```
 
@@ -160,7 +160,9 @@ Core (all profiles):
 
 Terminal profile: `<C-\>` toggle, `<leader>tt/th/tv` float/horizontal/vertical,
 `<leader>gg` lazygit, `<leader>dk` lazydocker, `<leader>kk` k9s, `<leader>bt`
-btop (each degrades with an actionable warning when the tool is missing).
+btop (each degrades with an actionable warning when the tool is missing),
+`<leader>Du/Dc/Dd/De` devcontainer up/connect/down/exec (needs the
+`devcontainer` CLI — `./bin/bun.sh` installs it).
 
 Git (gitsigns, buffer-local in git repos): `]h`/`[h` next/prev hunk,
 `<leader>ghp` preview, `ghs`/`ghr` stage/reset hunk, `ghS`/`ghR` stage/reset

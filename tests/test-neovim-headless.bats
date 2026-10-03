@@ -46,7 +46,7 @@ setup() {
     assert_eq 'minimal probe rc 0' '0' "$status"
     local loaded="$output"
     # LSP/completion/formatting/linting/telescope must be absent in minimal
-    for heavy in blink.cmp nvim-lspconfig conform.nvim nvim-lint telescope.nvim neo-tree.nvim gitsigns.nvim toggleterm.nvim mason.nvim; do
+    for heavy in blink.cmp nvim-lspconfig conform.nvim nvim-lint telescope.nvim neo-tree.nvim gitsigns.nvim toggleterm.nvim devcontainer-cli.nvim mason.nvim; do
         assert_eq "minimal does not load ${heavy}" '0' "$(printf '%s' "$loaded" | grep -c "${heavy}" || true)"
     done
 }
@@ -68,6 +68,15 @@ setup() {
     body="$(cat "$report")"
     assert_contains 'reports neovim version' 'Neovim 0.' "$body"
     assert_contains 'reports profile' 'Profile: development' "$body"
+    assert_contains 'reports devcontainer CLI' 'devcontainer CLI' "$body"
+    assert_eq 'health has no errors' '0' "$(grep -cE '❌|ERROR' "$report" || true)"
+}
+
+@test "devcontainer spec is registered and lazy under development" {
+    run nvim --headless +'lua local p=require("lazy.core.config").plugins["devcontainer-cli.nvim"] print(p and "registered" or "MISSING"); print(p and p._.loaded and "EAGER" or "lazy")' +qa
+    assert_eq 'spec probe rc 0' '0' "$status"
+    assert_contains 'spec registered' 'registered' "$output"
+    assert_contains 'spec lazy-loaded' 'lazy' "$output"
 }
 
 @test "lazy-lock.json is valid json pinning the plugin set" {
@@ -78,7 +87,7 @@ setup() {
 import json, sys
 lock = json.load(open(sys.argv[1]))
 assert len(lock) >= 15, f"too few pins: {len(lock)}"
-for must in ("lazy.nvim", "telescope.nvim", "neo-tree.nvim", "gitsigns.nvim"):
+for must in ("lazy.nvim", "telescope.nvim", "neo-tree.nvim", "gitsigns.nvim", "toggleterm.nvim", "devcontainer-cli.nvim"):
     assert must in lock, f"core pin missing: {must}"
 for name, meta in lock.items():
     assert "commit" in meta, f"{name} missing commit pin"
