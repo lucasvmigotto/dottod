@@ -1,6 +1,7 @@
 # 003-vim — as-is technical context
 
-- Entry: `bin/vim.sh` (apt → vim-plug → link → `vim -es PlugInstall`)
+- Entry: `bin/vim.sh` (apt → vim-plug → link → `PlugInstall` only for
+  missing plugins).
   [OBSERVED: bin/vim.sh:25].
 - Config: `config/.custom.vimrc` (leader/Space, fzf, NERDTree, ALE,
   lightline) + `config/.nerdtree.vimrc` (dev-oriented ignore list)
