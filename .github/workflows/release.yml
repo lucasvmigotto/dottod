@@ -37,7 +37,7 @@ jobs:
     runs-on: ubuntu-26.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@3d3c42e5aac5cb0e671cc3f5d003215d9d7e4617 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -74,7 +74,7 @@ jobs:
     permissions:
       contents: write # push the release commit and tag, create the release
     steps:
-      - uses: actions/checkout@3d3c42e5aac5cb0e671cc3f5d003215d9d7e4617 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the commits since the last tag
           fetch-tags: true

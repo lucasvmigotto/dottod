@@ -52,6 +52,11 @@ jobs:
           nvim --version | head -n1 | grep -qE 'NVIM v0\.(1[1-9]|[2-9])' \
             || { echo 'FAIL: nvim < 0.11'; exit 1; }
 
+      - name: Bootstrap lazy plugins (first launch installs them)
+        # lazy.nvim populates ~/.local/share/nvim/lazy on first startup;
+        # without this every later step sees an empty plugin dir.
+        run: nvim --headless +qa
+
       - name: Config linked, user data outside the checkout
         run: |
           test -L "$HOME/.config/nvim"
