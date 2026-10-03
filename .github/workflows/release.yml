@@ -1,63 +1,124 @@
 name: release
 
-# Tag-triggered release of the scripts tarball + checksums.
-# Tags look like `1.0.0` (plain SemVer, no `v` prefix, per git:workflow).
+# Every push to main runs the checks, then releases if the commits since the
+# last tag warrant it. scripts/release.py decides: feat → minor; fix, perf,
+# refactor → patch; "type!:" or BREAKING CHANGE → major; anything else → no
+# release. A release promotes CHANGELOG.md's "## Unreleased" (or generates a
+# section), commits "chore(release): X.Y.Z", tags X.Y.Z and publishes a GitHub
+# Release with the scripts tarball. First release uses --initial 1.0.0.
+#
+# The check job below is self-contained (shellcheck + hermetic BATS suites
+# + release-logic tests) so path-filtered workflows can never skip the gate:
+# a skipped `needs` dependency would skip the release with it. Heavier
+# integration (container engines, real Neovim) runs on pushes to dev via
+# container.yml / neovim.yml before anything reaches main.
+#
+# The bot pushes that commit and tag straight to main with GITHUB_TOKEN:
+# branch protection or a ruleset that requires pull requests (or doesn't let
+# github-actions[bot] bypass it) rejects the push. Pushes made with
+# GITHUB_TOKEN don't trigger workflows, so the release commit can't loop; the
+# chore(release) condition below is a second guard.
 
 on:
   push:
-    tags:
-      - "[0-9]+.[0-9]+.[0-9]+"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 jobs:
-  scripts:
-    name: Scripts tarball
+  check:
+    if: ${{ !startsWith(github.event.head_commit.message, 'chore(release):') }}
     runs-on: ubuntu-26.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5cb0e671cc3f5d003215d9d7e4617 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Stage release artifacts
+      - name: Install shellcheck and bats
         run: |
-          V="${GITHUB_REF_NAME}"
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck bats
+          bats --version
+
+      - name: Bash syntax check
+        run: |
+          for f in bin/*.sh scripts/*.sh config/.custom.bashrc tests/run.sh; do
+            bash -n "${f}"
+          done
+
+      - name: ShellCheck (warnings are errors)
+        run: |
+          shellcheck -S warning \
+            bin/*.sh \
+            scripts/*.sh \
+            config/.custom.bashrc \
+            tests/run.sh tests/test-*.bats tests/helpers.bash
+
+      - name: BATS suites
+        run: ./tests/run.sh
+
+      - name: Release-logic tests
+        run: bash scripts/test-release.sh
+
+  release:
+    needs: check
+    if: ${{ github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # push the release commit and tag, create the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5cb0e671cc3f5d003215d9d7e4617 # v7.0.1
+        with:
+          fetch-depth: 0 # the commits since the last tag
+          fetch-tags: true
+          persist-credentials: true # the push below uses the checkout's GITHUB_TOKEN
+
+      - name: Plan
+        id: plan
+        run: |
+          set +e
+          python3 scripts/release.py --initial 1.0.0 --dry-run
+          code=$?
+          set -e
+          case "$code" in
+            0) echo "release=true" >>"$GITHUB_OUTPUT" ;;
+            3) echo "release=false" >>"$GITHUB_OUTPUT"; echo "No release needed." ;;
+            *) exit "$code" ;;
+          esac
+
+      - name: Release
+        if: ${{ steps.plan.outputs.release == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898496+github-actions[bot]@users.noreply.github.com"
+          version="$(python3 scripts/release.py --initial 1.0.0)"
+          python3 scripts/release.py --notes "$version" >"$RUNNER_TEMP/notes.md"
+          V="$version"
           tar -czf "dottod-scripts-${V}.tar.gz" bin config scripts
           sha256sum "dottod-scripts-${V}.tar.gz" > "dottod-${V}-sha256sums.txt"
-
-      - name: Check for existing release
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create release
-        if: steps.check.outputs.exists != 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${GITHUB_REF_NAME}"
-          gh release create "$VERSION" \
-            "dottod-scripts-${VERSION}.tar.gz" \
-            "dottod-${VERSION}-sha256sums.txt" \
-            --title "$VERSION" \
-            --generate-notes
-
-          gh release view "$VERSION" --json body -q .body > release-notes.md
           {
             echo
             echo "## Checksums (SHA256)"
             echo '```text'
-            cat "dottod-${VERSION}-sha256sums.txt"
+            cat "dottod-${V}-sha256sums.txt"
             echo '```'
-          } >> release-notes.md
-          gh release edit "$VERSION" --notes-file release-notes.md
+          } >>"$RUNNER_TEMP/notes.md"
+          git add CHANGELOG.md
+          git commit -m "chore(release): $version"
+          git tag -a "$version" -m "$version"
+          # Rejected (and nothing published) if main moved since this run started;
+          # the next run releases those commits too.
+          git push --atomic origin HEAD:refs/heads/main "refs/tags/$version"
+          gh release create "$version" \
+            "dottod-scripts-${VERSION}.tar.gz" \
+            "dottod-${VERSION}-sha256sums.txt" \
+            --title "$version" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag

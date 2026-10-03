@@ -59,3 +59,6 @@ jobs:
 
       - name: Tests
         run: ./tests/run.sh
+
+      - name: Release-logic tests
+        run: bash scripts/test-release.sh
