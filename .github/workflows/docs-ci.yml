@@ -1,0 +1,171 @@
+name: Docs CI
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "docs/site/**"
+      - "docs/product/**"
+      - "specs/**"
+      - "contracts/**"
+      - "CHANGELOG.md"
+      - ".github/workflows/docs-ci.yml"
+  pull_request:
+    paths:
+      - "docs/site/**"
+      - "docs/product/**"
+      - "specs/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1"
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+        working-directory: docs/site
+
+      - name: Lint (Biome)
+        run: bun run lint
+        working-directory: docs/site
+
+      - name: Typecheck
+        run: bun run typecheck
+        working-directory: docs/site
+
+      - name: Unit and a11y tests
+        run: bun run test
+        working-directory: docs/site
+
+      - name: Build (emits dist + llms output)
+        run: bun run build
+        working-directory: docs/site
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SITE_URL: https://docs.lucasvmigotto.me/${{ github.event.repository.name }}
+
+      - name: Install Playwright browsers
+        run: bunx playwright install --with-deps chromium
+        working-directory: docs/site
+
+      - name: e2e smoke (serves the production build)
+        run: bun run test:e2e
+        working-directory: docs/site
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+
+      - name: Guard prefix-scoped R2 deploy
+        run: |
+          # Fitness function: every R2 sync/cp must be prefix-scoped, so a
+          # project can never wipe the shared bucket root.
+          bad=$(grep -nE '^[[:space:]]+aws s3 (sync|cp)' .github/workflows/docs-ci.yml | grep -v 'R2_PREFIX' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::root-scoped R2 target detected — every deploy must use \$R2_PREFIX"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-site-dist
+          path: docs/site/dist/
+          retention-days: 7
+          if-no-files-found: error
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    environment:
+      name: dottod-docs
+      url: https://docs.lucasvmigotto.me/dottod/
+    env:
+      AWS_ACCESS_KEY_ID: ${{ vars.CLOUDFLARE_R2_ACCOUNT_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_SECRET }}
+      AWS_DEFAULT_REGION: auto
+      AWS_EC2_METADATA_DISABLED: "true"
+      R2_ENDPOINT: ${{ vars.CLOUDFLARE_R2_ENDPOINT_S3_CLIENT }}
+      R2_BUCKET: ${{ vars.CLOUDFLARE_R2_BUCKET_ID }}
+      # Per-project prefix in the shared docs-hub bucket. The slug is the
+      # repository name — no per-repo configuration, cannot drift.
+      R2_PREFIX: /${{ github.event.repository.name }}/
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1"
+
+      - name: Install and build
+        run: bun install --frozen-lockfile && bun run build
+        working-directory: docs/site
+        env:
+          VITE_BASE_PATH: /${{ github.event.repository.name }}/
+          VITE_SITE_URL: https://docs.lucasvmigotto.me/${{ github.event.repository.name }}
+
+      - name: Check R2 credentials
+        id: creds
+        run: |
+          if [ -n "$AWS_ACCESS_KEY_ID" ] && [ -n "$AWS_SECRET_ACCESS_KEY" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::R2 credentials not configured — skipping deploy"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate R2 configuration
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          if [ -z "$R2_ENDPOINT" ]; then echo "::error::CLOUDFLARE_R2_ENDPOINT_S3_CLIENT repo variable is not set"; exit 1; fi
+          case "$R2_ENDPOINT" in https://*) ;; *) echo "::error::CLOUDFLARE_R2_ENDPOINT_S3_CLIENT must start with https:// (got: $R2_ENDPOINT)"; exit 1;; esac
+          if [ -z "$R2_BUCKET" ]; then echo "::error::CLOUDFLARE_R2_BUCKET_ID repo variable is not set"; exit 1; fi
+          case "$R2_PREFIX" in /*/) ;; *) echo "::error::R2_PREFIX must look like /<slug>/ (got: '$R2_PREFIX')"; exit 1;; esac
+
+      # Prefix-scoped deploy into the shared docs-hub bucket.
+      # NEVER sync with --delete on the bucket root — that would wipe
+      # the other apps' prefixes and the landing.
+      - name: Sync hashed assets (immutable)
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          aws s3 sync docs/site/dist/assets "s3://$R2_BUCKET${R2_PREFIX}assets" \
+            --endpoint-url "$R2_ENDPOINT" --delete \
+            --cache-control "public, max-age=31536000, immutable"
+
+      - name: Sync Markdown (LLM output, no-cache, text/markdown)
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          aws s3 sync docs/site/dist/docs "s3://$R2_BUCKET${R2_PREFIX}docs" \
+            --endpoint-url "$R2_ENDPOINT" --delete \
+            --content-type "text/markdown; charset=utf-8" \
+            --cache-control "no-cache"
+
+      - name: Sync entry files and llms (no-cache)
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          aws s3 cp docs/site/dist/index.html "s3://$R2_BUCKET${R2_PREFIX}index.html" \
+            --endpoint-url "$R2_ENDPOINT" --content-type "text/html; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp docs/site/dist/llms.txt "s3://$R2_BUCKET${R2_PREFIX}llms.txt" \
+            --endpoint-url "$R2_ENDPOINT" --content-type "text/plain; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp docs/site/dist/llms-full.txt "s3://$R2_BUCKET${R2_PREFIX}llms-full.txt" \
+            --endpoint-url "$R2_ENDPOINT" --content-type "text/plain; charset=utf-8" --cache-control "no-cache"
+          aws s3 cp docs/site/dist/og-image.png "s3://$R2_BUCKET${R2_PREFIX}og-image.png" \
+            --endpoint-url "$R2_ENDPOINT" --content-type "image/png" --cache-control "public, max-age=604800"
+          aws s3 cp docs/site/dist/favicon.svg "s3://$R2_BUCKET${R2_PREFIX}favicon.svg" \
+            --endpoint-url "$R2_ENDPOINT" --content-type "image/svg+xml" --cache-control "public, max-age=604800"
