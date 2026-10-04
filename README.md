@@ -11,7 +11,7 @@ fonts, editor, terminal, CLI tooling, container runtime
 bin/       executable bootstrap scripts (one per concern)
 config/    dotfiles that get symlinked or templated into $HOME
 scripts/   shell utilities (aliases + functions)
-docs/      feature documentation (ssh, containers, …)
+docs/      feature documentation (ssh, containers, …) + docs site (`docs/site/`, deploys to the hub)
 tests/     BATS test suites (run with ./tests/run.sh)
 .github/   CI + release workflow
 ```

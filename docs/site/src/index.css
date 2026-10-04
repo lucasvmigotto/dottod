@@ -1,0 +1,68 @@
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "tailwindcss";
+
+@theme inline {
+  --color-bg: var(--c-bg);
+  --color-surface: var(--c-surface);
+  --color-border: var(--c-border);
+  --color-text: var(--c-text);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-hover: var(--c-accent-hover);
+  --color-success: var(--c-success);
+  --color-warning: var(--c-warning);
+  --color-danger: var(--c-danger);
+  --font-display: var(--f-display);
+  --font-body: var(--f-body);
+}
+
+:root {
+  --c-bg: #f5f6f8;
+  --c-surface: #ffffff;
+  --c-border: #dfe2e8;
+  --c-text: #1b1d22;
+  --c-muted: #565a63;
+  --c-accent: #a9690a;
+  --c-accent-hover: #8a5608;
+  --c-success: #3f7a34;
+  --c-warning: #a9690a;
+  --c-danger: #b23c22;
+  --f-display: "IBM Plex Mono", ui-monospace, monospace;
+  --f-body: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+.dark {
+  --c-bg: #16181d;
+  --c-surface: #1d2026;
+  --c-border: #2b2f38;
+  --c-text: #e7e5df;
+  --c-muted: #9fa2ab;
+  --c-accent: #e8a33d;
+  --c-accent-hover: #f2b455;
+  --c-success: #7fb069;
+  --c-warning: #e8a33d;
+  --c-danger: #e07a5f;
+}
+
+body {
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-family: var(--f-body);
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none;
+    transition: none;
+  }
+}
