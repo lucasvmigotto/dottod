@@ -3,6 +3,20 @@
 # A lightweight robbyrussell-style prompt + handy utils. No plugins, no
 # frameworks: plain bash only. Interactive shells only.
 
+export EDITOR='vim'
+export LANG=en_US.UTF-8
+
+# Tool paths: prepend each once (reload-safe, no duplicates on re-source).
+for _d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.opencode/bin" "${HOME}/.local/bin"; do
+    if [[ -d "${_d}" ]]; then
+        case ":${PATH}:" in
+            *":${_d}:"*) ;;
+            *) export PATH="${_d}:${PATH}" ;;
+        esac
+    fi
+done
+unset _d
+
 # Only for interactive shells
 [[ $- != *i* ]] && return
 
@@ -50,15 +64,18 @@ case ";${PROMPT_COMMAND};" in
     *) PROMPT_COMMAND="__dottod_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
 esac
 
-# dottod container dispatcher (`ctr`): pure functions, silent on source.
-# readlink -f follows ~/.bashrc -> repo symlink to find the checkout.
+# dottod shell utilities (aliases + functions): pure definitions, silent
+# on source. readlink -f follows ~/.bashrc -> repo symlink to find the
+# checkout. Only the hidden scripts/.*.sh libraries — never scripts/*.sh
+# (those are unguarded programs: sourcing one would execute it in this
+# shell and `exit` would close it).
 if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     _dottod_root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
-    if [[ -f "${_dottod_root}/scripts/.container.utils.sh" ]]; then
-        # shellcheck disable=SC1091 # resolved relative to this file
-        source "${_dottod_root}/scripts/.container.utils.sh"
-    fi
-    unset _dottod_root
+    for _dotfile in "${_dottod_root}"/scripts/.*.sh; do
+        # shellcheck disable=SC1090 # resolved relative to this file
+        [[ -f "${_dotfile}" ]] && source "${_dotfile}"
+    done
+    unset _dotfile _dottod_root
 fi
 
 # ──────────────────────────────────────────────────────────────
