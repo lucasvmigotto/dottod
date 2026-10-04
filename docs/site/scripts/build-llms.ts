@@ -68,6 +68,8 @@ function blockToMarkdown(block: Block): string {
     }
     case "callout":
       return `> **${block.title ?? "Note"}** — ${block.text}`;
+    case "demo":
+      return `![${block.alt}](demos/${block.gif})\n\n\`\`\`text\n${block.transcript}\n\`\`\``;
   }
 }
 

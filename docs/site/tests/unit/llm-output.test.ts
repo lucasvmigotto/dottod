@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { expect, test } from "vitest";
 import { generateLlmsOutput, pageToMarkdown } from "../../scripts/build-llms";
 import { enUS } from "../../src/i18n/locales/en-US";
+import { ptBR } from "../../src/i18n/locales/pt-BR";
 import { LOCALES, PAGE_IDS } from "../../src/i18n/types";
 
 test("every page has a .md in every locale", () => {
@@ -55,4 +56,22 @@ test("no page documents planned work as implemented", () => {
   expect(roadmap.toLowerCase()).not.toMatch(
     /already (works|implemented)|now available/,
   );
+});
+
+test("every demo gif exists in public/demos with alt and transcript", () => {
+  const pub = resolve(process.cwd(), "public", "demos");
+  for (const pageId of PAGE_IDS) {
+    for (const locale of LOCALES) {
+      const page = (locale === "en-US" ? enUS : ptBR).pages[pageId];
+      for (const section of page.sections) {
+        for (const block of section.blocks) {
+          if (block.kind === "demo") {
+            expect(existsSync(resolve(pub, block.gif)), block.gif).toBe(true);
+            expect(block.transcript.length).toBeGreaterThan(0);
+            expect(block.alt.length).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  }
 });

@@ -71,7 +71,8 @@ export type Block =
       tone: "info" | "warning" | "success";
       title?: string;
       text: string;
-    };
+    }
+  | { kind: "demo"; gif: string; alt: string; transcript: string };
 
 export interface Section {
   id: string;

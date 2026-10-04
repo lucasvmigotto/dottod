@@ -353,6 +353,13 @@ const pages: Record<PageId, DocPage> = {
             caption: "Select and inspect",
             code: "./bin/bootstrap.sh --runtime docker --only container\n./bin/container.sh status",
           },
+          {
+            kind: "demo",
+            gif: "status-commands.gif",
+            alt: "Terminal recording: container.sh status and cargo.sh status reports.",
+            transcript:
+              "➜ ./bin/container.sh status\n\nContainer runtime\n-----------------\nConfigured: <unset> (default: podman)\nSelected:   podman\nPodman:     installed 5.4.2\nDocker:     missing\nRootless:   yes\nUsable:     yes\n\n➜ ./bin/cargo.sh status\n\nRust toolchain\n--------------\nCargo:    cargo 1.98.0 (797e8a9bc 2026-08-05)\nHome:     /home/lucas/.cargo\nProfile:  minimal (default for fresh installs)\nToolchain: stable (default for fresh installs)\nRustup:   present",
+          },
         ],
       },
       {
@@ -850,6 +857,19 @@ const pages: Record<PageId, DocPage> = {
             lang: "bash",
             caption: "Common invocations",
             code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --skip ghostty,zed",
+          },
+        ],
+      },
+      {
+        id: "demo",
+        heading: "Demo",
+        blocks: [
+          {
+            kind: "demo",
+            gif: "bootstrap-help.gif",
+            alt: "Terminal recording: bootstrap.sh --help output, then the task list.",
+            transcript:
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)\n  --parallel         Run tasks concurrently instead of sequentially\n  --ui               Include GUI tasks (zed, ghostty); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun",
           },
         ],
       },

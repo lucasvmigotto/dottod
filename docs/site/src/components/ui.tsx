@@ -37,6 +37,8 @@ function blockKey(block: Block, fallback: string): string {
       return `table-${block.headers.join(",")}`;
     case "callout":
       return `callout-${block.title ?? block.text.slice(0, 32)}`;
+    case "demo":
+      return `demo-${block.gif}`;
   }
 }
 
@@ -205,6 +207,26 @@ export function BlockView({ block }: { block: Block }) {
     case "callout":
       return (
         <Callout tone={block.tone} title={block.title} text={block.text} />
+      );
+    case "demo":
+      return (
+        <figure className="space-y-2">
+          <img
+            src={`${import.meta.env.BASE_URL}demos/${block.gif}`}
+            alt={block.alt}
+            loading="lazy"
+            className="w-full rounded-md border border-border"
+          />
+          <figcaption className="sr-only">{block.alt}</figcaption>
+          <details className="text-sm">
+            <summary className="cursor-pointer text-muted hover:text-text">
+              Text transcript
+            </summary>
+            <pre className="mt-2 overflow-x-auto rounded-md border border-border bg-surface p-4 font-display text-[13px] leading-relaxed">
+              <code>{block.transcript}</code>
+            </pre>
+          </details>
+        </figure>
       );
   }
 }

@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "og": "bun run scripts/og-image.ts",
+    "demos": "vhs tapes/bootstrap-help.tape && vhs tapes/status-commands.tape",
     "llms": "bun run scripts/build-llms.ts",
     "doctor": "bun --version && bunx tsc --version"
   },
