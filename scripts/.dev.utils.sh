@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# NOTE: PATH for ~/.opencode/bin is owned by config/.custom.bashrc
+# (dedup-safe); do not prepend here or `reload` duplicates entries.
 
 function loadenv() {
 
@@ -65,4 +67,3 @@ ocresume() {
 
     (cd "$dir" && exec opencode --session "$picked")
 }
-
