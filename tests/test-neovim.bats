@@ -24,8 +24,14 @@ setup() {
     : >"$CALLS"
 
     # nvim stub: version controlled by NVIM_STUB_VERSION; absent = missing.
+    # The stub file ALWAYS exists so it shadows any real nvim on PATH
+    # (runners now ship one); NVIM_STUB_ABSENT=1 makes every probe fail,
+    # which is exactly what "no nvim at all" means to the installer.
     cat >"$STUBBIN/nvim" <<'EOF'
 #!/usr/bin/env bash
+if [[ "${NVIM_STUB_ABSENT:-0}" == 1 ]]; then
+    exit 1
+fi
 if [[ "${1:-}" == "--version" ]]; then
     printf 'NVIM v%s\nBuild type: Release\n' "${NVIM_STUB_VERSION:-0.12.5}"
     exit 0
@@ -47,10 +53,12 @@ EOF
     export _DOT_NVIM_CONFIG_HOME="$BATS_TEST_TMPDIR/config"
     unset _DOT_NVIM_ALLOW_TARBALL _DOT_NVIM_MIN_VERSION _DOT_NVIM_VERSION
     unset _DOT_NVIM_PROFILE _DOT_NVIM_TARBALL_ROOT _DOT_TARGET_USER
+    unset NVIM_STUB_ABSENT
     mkdir -p "$_DOT_NVIM_CONFIG_HOME"
-    # Hermetic PATH: stubs win, and a REAL nvim elsewhere (e.g. ~/.local/bin
-    # on a dev box) can never leak into version probes — nvim_absent must
-    # mean "no nvim at all".
+    # Hermetic PATH: stubs win. A REAL nvim elsewhere (runners now ship
+    # one, dev boxes may have ~/.local/bin/nvim) can never leak into
+    # version probes: the stub file always shadows it, and nvim_absent
+    # means "every probe fails".
     export PATH="$STUBBIN:/usr/bin:/bin"
 
     # shellcheck disable=SC1091
@@ -76,8 +84,8 @@ EOF
     }
 }
 
-nvim_absent()   { mv "$STUBBIN/nvim" "$STUBBIN/nvim.hidden"; }
-nvim_present()  { mv "$STUBBIN/nvim.hidden" "$STUBBIN/nvim" 2>/dev/null || true; }
+nvim_absent()  { export NVIM_STUB_ABSENT=1; }
+nvim_present() { export NVIM_STUB_ABSENT=0; }
 
 @test "version comparison handles semver, tags and debian suffixes" {
     run _nvim_ver_ge 0.12.5 0.11.0
@@ -164,6 +172,27 @@ EOF
     assert_eq 'never attempts doomed apt install' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
 }
 
+@test "ensure ignores a system nvim when the stub is absent" {
+    # Regression: ubuntu-26.04 runners ship nvim 0.11.6, which leaked past
+    # the old hide-the-file absence simulation (rc 0 instead of 1).
+    mkdir -p "$BATS_TEST_TMPDIR/sysbin"
+    cat >"$BATS_TEST_TMPDIR/sysbin/nvim" <<'EOF'
+#!/usr/bin/env bash
+printf 'NVIM v0.11.6\nBuild type: Release\n'
+EOF
+    chmod +x "$BATS_TEST_TMPDIR/sysbin/nvim"
+    # After the stub dir, like a real /usr/bin/nvim: the old hide-the-file
+    # simulation let it leak through; the shadowing stub must win.
+    local old_path="$PATH"
+    export PATH="$STUBBIN:$BATS_TEST_TMPDIR/sysbin:/usr/bin:/bin"
+    nvim_absent
+    run _nvim_ensure_binary
+    local rc="$status" out="$output"
+    export PATH="$old_path"
+    assert_eq 'system nvim shadowed rc 1' '1' "$rc"
+    assert_contains 'still names the candidate' '0.10.4 via apt is below the minimum' "$out"
+}
+
 @test "ensure with good candidate attempts apt first, fails honestly if it yields nothing" {
     nvim_absent
     APT_STUB_CANDIDATE='0.12.5-1'
@@ -196,6 +225,7 @@ EOF
     _nvim_install_tarball() {
         printf 'TARBALL:%s\n' "$*" >>"$CALLS"
         # simulate the healed binary shadowing the old one
+        export NVIM_STUB_ABSENT=0
         NVIM_STUB_VERSION=0.12.5
     }
     run _nvim_ensure_binary
