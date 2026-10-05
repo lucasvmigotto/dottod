@@ -5,6 +5,12 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.2.0 — 2026-10-05
+
+### Added
+
+- **scripts:** add codes function
+
 ## 1.1.1 — 2026-10-04
 
 ### Fixed
