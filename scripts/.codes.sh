@@ -17,6 +17,12 @@
 #   CODES_DEPTH          how deep below each root to look for repos (default 3)
 #   CODES_JOBS           parallel git workers (default 8)
 #   CODES_CONFIRM_FUZZY  1 = typo-corrected matches open the picker instead of auto-jumping
+#   CODES_SUBMODULES     0 = drop nested checkouts like before (default 1 keeps
+#                        linked ones: submodules and worktrees nest, vendored
+#                        clones are still dropped)
+#   CODES_GROUP          0 = flat basename list like before (default 1 nests
+#                        submodule checkouts under their superproject and shows
+#                        sibling repos as parent/name)
 
 [[ $- != *i* ]] && return 0 2>/dev/null
 
@@ -106,17 +112,29 @@ __codes_match() {
         for (j = 1; j <= ln; j++) if (A[j] < best) best = A[j]
         return best
     }
+    function tierof(nn,    dds) {
+        if (nn == q)                 return "0,0,0"
+        if (index(nn, q) == 1)       return "1,0," (length(nn) - lq)
+        if (index(nn, q) > 0)        return "2,0," (length(nn) - lq)
+        if (t == 0)                  return ""     # too short to guess
+        dds = osa(q, nn, 1); if (dds > t) return ""
+        return "3," dds "," osa(q, nn, 0)
+    }
+    function bestoftwo(n, m,    r1, r2, a, b) {
+        r1 = tierof(n); r2 = tierof(m)
+        if (r1 == "") return r2
+        if (r2 == "") return r1
+        split(r1, a, ","); split(r2, b, ",")
+        if (b[1] < a[1] || (b[1] == a[1] && (b[2] < a[2] || (b[2] == a[2] && b[3] < a[3])))) return r2
+        return r1
+    }
     BEGIN { q = tolower(query); lq = length(q); t = int(lq / 3); if (t > 3) t = 3; best = 9 }
     {
         p = $0; n = p; sub(/.*\//, "", n); n = tolower(n)
-        if (n == q)               { k = 0; ds = 0; df = 0 }
-        else if (index(n, q) == 1) { k = 1; ds = 0; df = length(n) - lq }
-        else if (index(n, q) > 0)  { k = 2; ds = 0; df = length(n) - lq }
-        else {
-            if (t == 0) next                                  # too short to guess
-            ds = osa(q, n, 1); if (ds > t) next
-            k = 3; df = osa(q, n, 0)
-        }
+        m = p; sub(/\/[^\/]*$/, "", m); sub(/.*\//, "", m); m = tolower(m) "/" n
+        r = bestoftwo(n, m)
+        if (r == "") next                             # no tier matched
+        split(r, a, ","); k = a[1] + 0; ds = a[2] + 0; df = a[3] + 0
         if (k < best) { best = k; cnt = 0 }
         if (k == best) { cnt++; K[cnt] = k; S[cnt] = ds; F[cnt] = df; P[cnt] = p }
     }
@@ -173,10 +191,11 @@ __codes_info() {
 # Table: stdin = paths, stdout = "path<TAB>display" sorted by activity desc
 # ──────────────────────────────────────────────────────────────
 __codes_table() {
-    local fetch=${1:-0} flavor=bsd fn visits
+    local fetch=${1:-0} flavor=bsd fn visits rts
     stat -c %Y / >/dev/null 2>&1 && flavor=gnu
     visits=${XDG_STATE_HOME:-$HOME/.local/state}/codes/visits
     fn=$(declare -f __codes_info)
+    rts=$(__codes_roots | paste -sd'|' -)
 
     tr '\n' '\0' \
         | xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" \
@@ -190,7 +209,7 @@ __codes_table() {
             }
             { if (($2 in v) && v[$2] + 0 > $1 + 0) $1 = v[$2]; print }' \
         | sort -t $'\t' -k1,1nr \
-        | awk -F'\t' -v now="$(date +%s)" -v home="$HOME" '
+        | awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
@@ -240,17 +259,73 @@ __codes_table() {
                 }
 
                 N++
-                pt[N] = path; nm[N] = trunc(name, 32); bn[N] = trunc(br, 24)
+                pts[N] = $1; pt[N] = path; nm0[N] = name
+                pdir = path; sub(/\/[^\/]*$/, "", pdir); pdr[N] = pdir
+                pb = pdir; sub(/.*\//, "", pb); ppb[N] = pb
+                bn[N] = trunc(br, 24)
                 ag[N] = age($1); sp[N] = plain; sc[N] = col; dr[N] = dir
-                if (length(nm[N]) > wn) wn = length(nm[N])
                 if (length(bn[N]) > wb) wb = length(bn[N])
                 if (length(ag[N]) > wa) wa = length(ag[N])
                 if (length(plain)  > ws) ws = length(plain)
             }
             END {
-                for (i = 1; i <= N; i++) {
+                # Render order + display names. Ungrouped (CODES_GROUP=0):
+                # the flat basename list in activity order, as before.
+                nog = 0
+                if (groupopt != 1) {
+                    for (i = 1; i <= N; i++) { nm[i] = trunc(nm0[i], 32); ord[++nog] = i }
+                } else {
+                    for (i = 1; i <= N; i++) cnt[pdr[i]]++
+                    for (i = 1; i <= N; i++) {
+                        key[i] = ""
+                        for (j = 1; j <= N; j++) {
+                            if (i != j && index(pt[i], pt[j] "/") == 1 \
+                                && length(pt[j]) > length(key[i])) key[i] = pt[j]
+                        }
+                        if (key[i] == "") key[i] = pt[i]
+                        if (!(key[i] in gts) || pts[i] > gts[key[i]]) gts[key[i]] = pts[i]
+                    }
+                    # Groups by activity (group = its hottest member);
+                    # the group root first, then children newest-first.
+                    while (1) {
+                        bestk = ""; bestt = -1
+                        for (k in gts) {
+                            if ((k in done)) continue
+                            if (gts[k] > bestt || (gts[k] == bestt && (bestk == "" || k < bestk))) {
+                                bestt = gts[k]; bestk = k
+                            }
+                        }
+                        if (bestk == "") break
+                        done[bestk] = 1
+                        for (i = 1; i <= N; i++)
+                            if (key[i] == bestk && pt[i] == bestk) ord[++nog] = i
+                        nk = 0
+                        for (i = 1; i <= N; i++)
+                            if (key[i] == bestk && pt[i] != bestk) nk++
+                        kk = 0
+                        for (i = 1; i <= N; i++)
+                            if (key[i] == bestk && pt[i] != bestk) {
+                                kk++; lastc[i] = (kk == nk); ord[++nog] = i
+                            }
+                    }
+                    for (oi = 1; oi <= nog; oi++) {
+                        i = ord[oi]
+                        if (key[i] != pt[i]) disp = ppb[i] "/" nm0[i]
+                        else if (cnt[pdr[i]] > 1 && index(roots, "|" pdr[i] "|") == 0 \
+                            && pdr[i] != home) disp = ppb[i] "/" nm0[i]
+                        else disp = nm0[i]
+                        nm[i] = trunc(disp, 32)
+                    }
+                }
+                for (oi = 1; oi <= nog; oi++)
+                    if (length(nm[ord[oi]]) > wn) wn = length(nm[ord[oi]])
+                for (oi = 1; oi <= nog; oi++) {
+                    i = ord[oi]
+                    pre = ""
+                    if (groupopt == 1 && key[i] != pt[i])
+                        pre = D (lastc[i] ? "└─ " : "├─ ") R
                     fill = ""; for (k = length(sp[i]); k < ws; k++) fill = fill " "
-                    printf "%s\t%s  %s  %s  %s%s  %s\n", pt[i],
+                    printf "%s\t%s%s  %s  %s  %s%s  %s\n", pt[i], pre,
                         B pad(nm[i], wn) R, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
                         sc[i], fill, D dr[i] R
                 }
@@ -279,6 +354,7 @@ usage: codes [options] [name]
   codes            pick a project (fzf), sorted by last activity, with git status
   codes <name>     jump to <name>; exact > prefix > substring > typo-tolerant match
                    (ambiguous results open the picker restricted to the candidates)
+                   names also match parent/name (e.g. coparticipacao/front)
 
 options:
   -l, --list         print the table instead of cd-ing
@@ -286,6 +362,11 @@ options:
   -f, --fetch        git fetch all projects first (fresh ⇣ behind counts)
   -i, --interactive  never auto-jump; always open the picker
   -h, --help         this help
+
+grouping (CODES_GROUP=0 for the old flat list):
+  sibling repos under one dir show as parent/name; submodule checkouts
+  nest under their superproject (├─/└─). Every row is a real path.
+  CODES_SUBMODULES=0 drops nested checkouts like before.
 
 status legend:
   ✔ clean   +N staged   !N modified   ?N untracked   ✖N conflicts
@@ -409,6 +490,6 @@ _codes() {
         return
     fi
     while IFS= read -r line; do COMPREPLY+=("$line"); done \
-        < <(compgen -W "$(__codes_find | awk -F/ '{ print $NF }')" -- "$cur")
+        < <(compgen -W "$(__codes_find | awk -F/ '{ print $NF; if (NF > 1) print $(NF-1)"/"$NF }')" -- "$cur")
 }
 complete -F _codes codes
