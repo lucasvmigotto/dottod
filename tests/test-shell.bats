@@ -46,8 +46,10 @@ probe() {
 @test "custom.bashrc is valid bash with an exit-aware prompt" {
     run bash -n "$REPO_ROOT/config/.custom.bashrc"
     assert_eq 'bash syntax clean' '0' "$status"
-    run grep -q "PROMPT_COMMAND" "$REPO_ROOT/config/.custom.bashrc"
-    assert_eq 'prompt hook present' '0' "$status"
+    run grep -q "DOT_PROMPT_STYLE" "$REPO_ROOT/config/.custom.bashrc"
+    assert_eq 'prompt style selector present' '0' "$status"
+    run grep -q "PROMPT_COMMAND" "$REPO_ROOT/styles/prompt-robbyrussell.sh"
+    assert_eq 'default style registers the prompt hook' '0' "$status"
 }
 
 @test "custom.bashrc sets PS1 on an interactive shell without errors" {

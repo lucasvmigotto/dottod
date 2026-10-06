@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # .custom.bashrc — dottod interactive bash customization (linked to ~/.bashrc).
-# A lightweight robbyrussell-style prompt + handy utils. No plugins, no
-# frameworks: plain bash only. Interactive shells only.
+# Prompt styles live in styles/ (robbyrussell default, kali, powerline).
+# No plugins, no frameworks: plain bash only. Interactive shells only.
 
 export EDITOR='vim'
 export LANG=en_US.UTF-8
@@ -20,49 +20,23 @@ unset _d
 # Only for interactive shells
 [[ $- != *i* ]] && return
 
-# ──────────────────────────────────────────────────────────────
-# Prompt:  ➜  dirname git:(branch) ✗
-#   - arrow is bold green if last command succeeded, bold red otherwise
-#   - dir is cyan (basename only, like zsh %c)
-#   - git:( bold blue, branch red, ) blue, ✗ yellow when dirty
-#   - disable dirty check per repo: git config --local dottod.hide-dirty 1
-# ──────────────────────────────────────────────────────────────
-__dottod_git_info() {
-    local ref
-    ref=$(git symbolic-ref --short -q HEAD 2>/dev/null) \
-        || ref=$(git describe --tags --exact-match HEAD 2>/dev/null) \
-        || ref=$(git rev-parse --short HEAD 2>/dev/null) \
-        || return
-
-    local dirty=""
-    if [[ $(git config --get dottod.hide-dirty 2>/dev/null) != 1 ]]; then
-        if [[ -n $(git status --porcelain --ignore-submodules=dirty 2>/dev/null | head -n 1) ]]; then
-            dirty=' \[\e[33m\]✗'
-        fi
-    fi
-
-    printf '%s' ' \[\e[1;34m\]git:(\[\e[0;31m\]'"$ref"'\[\e[34m\])'"$dirty"'\[\e[0m\]'
-}
-
-__dottod_prompt() {
-    local last_status=$?   # must be first line to capture $?
-    local arrow
-
-    if (( last_status == 0 )); then
-        arrow='\[\e[1;32m\]➜\[\e[0m\]'
-    else
-        arrow='\[\e[1;31m\]➜\[\e[0m\]'
-    fi
-
-    PS1="${arrow}  \[\e[36m\]\W\[\e[0m\]$(__dottod_git_info) "
-    return $last_status
-}
-
-# Prepend to PROMPT_COMMAND without clobbering existing entries
-case ";${PROMPT_COMMAND};" in
-    *";__dottod_prompt;"*) ;;
-    *) PROMPT_COMMAND="__dottod_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
-esac
+# Prompt style (styles/): robbyrussell (default) | kali | powerline.
+# Switch with DOT_PROMPT_STYLE in the environment. readlink -f follows
+# ~/.bashrc -> repo symlink to find the checkout.
+if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
+    _dottod_root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    _dottod_style="${DOT_PROMPT_STYLE:-robbyrussell}"
+    case "${_dottod_style}" in
+        robbyrussell | kali | powerline) ;;
+        *)
+            printf 'dottod: unknown DOT_PROMPT_STYLE=%s (want robbyrussell|kali|powerline), using robbyrussell\n' "${_dottod_style}" >&2
+            _dottod_style="robbyrussell"
+            ;;
+    esac
+    # shellcheck disable=SC1090 # resolved relative to this file
+    [[ -f "${_dottod_root}/styles/prompt-${_dottod_style}.sh" ]] && source "${_dottod_root}/styles/prompt-${_dottod_style}.sh"
+    unset _dottod_style _dottod_root
+fi
 
 # dottod shell utilities (aliases + functions): pure definitions, silent
 # on source. readlink -f follows ~/.bashrc -> repo symlink to find the
@@ -76,6 +50,12 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
         [[ -f "${_dotfile}" ]] && source "${_dotfile}"
     done
     unset _dotfile _dottod_root
+fi
+
+# Self-update notice (scripts/.update.sh): silent unless a newer release tag
+# is cached; the network refresh runs detached and never blocks startup.
+if command -v _dottod_update_check >/dev/null 2>&1; then
+    _dottod_update_check
 fi
 
 # ──────────────────────────────────────────────────────────────

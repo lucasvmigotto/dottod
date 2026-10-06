@@ -638,7 +638,37 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "An exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. No plugins, no frameworks; PROMPT_COMMAND does the work.",
+            text: "Three styles in styles/ share one collector library (promptlib.sh: git state, project directory, language markers, disk and duration). robbyrussell is the default: an exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. Switch with DOT_PROMPT_STYLE=kali or powerline. No plugins, no frameworks; PROMPT_COMMAND does the work.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Switch styles",
+            code: "DOT_PROMPT_STYLE=kali      # two-line kali terminal\nDOT_PROMPT_STYLE=powerline  # segmented blocks (needs a Nerd Font)",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "robbyrussell (default)",
+            code: "➜  dottod git:(feat/prompt-styles) ✗",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "kali — red # as root, red $ on failure",
+            code: "┌──(user㉿host)-[dottod]\n└─$",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "powerline — shown with DOT_PROMPT_GLYPHS=ascii",
+            code: " user > dottod > feat/prompt-styles ✗    3s ✓ < 09:35 < 27G",
+          },
+          {
+            kind: "callout",
+            tone: "info",
+            title: "Nerd Font",
+            text: "The powerline separators render as angled blocks only with a Nerd Font installed; without one, set DOT_PROMPT_GLYPHS=ascii as above. The robbyrussell and kali styles work in any terminal.",
           },
         ],
       },
@@ -659,6 +689,42 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "scripts/.*.sh libraries load aliases (lll, git shortcuts), functions (mkcd, extract, ff, gr, psg, port, serve, gcl) and the ctr container dispatcher. Only the hidden library files load — scripts/*.sh are programs and are never sourced.",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        heading: "Projects",
+        blocks: [
+          {
+            kind: "p",
+            text: "The codes switcher jumps between git projects under CODES_ROOTS (default ~/codes:~/code:~/projects:~/src:~/dev:~/work), newest activity first with a git status column. Type codes for the fzf picker, codes <name> to jump with typo-tolerant matching, codes -l to list, codes -p for scripts.",
+          },
+          {
+            kind: "p",
+            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Jump between projects",
+            code: "codes                     # pick from everything\ncodes front               # ambiguous names open the picker\ncodes coparticipacao/back # qualified jump",
+          },
+        ],
+      },
+      {
+        id: "updates",
+        heading: "Updates",
+        blocks: [
+          {
+            kind: "p",
+            text: "Interactive shells check for newer dottod releases weekly: the check runs detached and never blocks startup, and a known update prints one notice with both versions. dottod-update fast-forwards a git checkout (tarball installs get re-download instructions instead). DOT_UPDATE_DAYS tunes the interval, DOT_NO_UPDATE_CHECK=1 disables it.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Update dottod",
+            code: "dottod-update",
           },
         ],
       },

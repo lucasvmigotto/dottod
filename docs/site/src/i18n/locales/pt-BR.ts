@@ -639,7 +639,37 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
+            text: "Três estilos em styles/ compartilham uma biblioteca de coletores (promptlib.sh: estado git, diretório do projeto, marcadores de linguagem, disco e duração). robbyrussell é o padrão: uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Troque com DOT_PROMPT_STYLE=kali ou powerline. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Trocar de estilo",
+            code: "DOT_PROMPT_STYLE=kali      # terminal kali em duas linhas\nDOT_PROMPT_STYLE=powerline  # blocos segmentados (precisa de Nerd Font)",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "robbyrussell (padrão)",
+            code: "➜  dottod git:(feat/prompt-styles) ✗",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "kali — # vermelho como root, $ vermelho na falha",
+            code: "┌──(user㉿host)-[dottod]\n└─$",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "powerline — mostrado com DOT_PROMPT_GLYPHS=ascii",
+            code: " user > dottod > feat/prompt-styles ✗    3s ✓ < 09:35 < 27G",
+          },
+          {
+            kind: "callout",
+            tone: "info",
+            title: "Nerd Font",
+            text: "Os separadores do powerline só viram blocos angulados com uma Nerd Font instalada; sem uma, use DOT_PROMPT_GLYPHS=ascii como acima. Os estilos robbyrussell e kali funcionam em qualquer terminal.",
           },
         ],
       },
@@ -660,6 +690,42 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "Bibliotecas scripts/.*.sh carregam aliases (lll, atalhos git), funções (mkcd, extract, ff, gr, psg, port, serve, gcl) e o despachante ctr. Só os arquivos ocultos de biblioteca carregam — scripts/*.sh são programas e nunca têm source.",
+          },
+        ],
+      },
+      {
+        id: "projects",
+        heading: "Projetos",
+        blocks: [
+          {
+            kind: "p",
+            text: "O alternador codes pula entre projetos git sob CODES_ROOTS (padrão ~/codes:~/code:~/projects:~/src:~/dev:~/work), atividade mais recente primeiro com coluna de status git. Digite codes para o seletor fzf, codes <nome> para pular com correção de typos, codes -l para listar, codes -p para scripts.",
+          },
+          {
+            kind: "p",
+            text: "Repos irmãos sob um diretório aparecem como pai/nome, e checkouts de submódulo aninham sob seu superprojeto — cada linha continua sendo um caminho real. Busque pelo pai (codes coparticipacao) ou nome qualificado (codes coparticipacao/front). CODES_GROUP=0 restaura a lista plana, CODES_SUBMODULES=0 descarta checkouts aninhados como antes.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Pular entre projetos",
+            code: "codes                     # escolhe de tudo\ncodes front               # nomes ambíguos abrem o seletor\ncodes coparticipacao/back # pulo qualificado",
+          },
+        ],
+      },
+      {
+        id: "updates",
+        heading: "Atualizações",
+        blocks: [
+          {
+            kind: "p",
+            text: "Shells interativos verificam novos releases do dottod semanalmente: a verificação roda destacada e nunca bloqueia a inicialização, e uma atualização conhecida imprime um aviso com ambas as versões. dottod-update avança um checkout git (instalações via tarball recebem instruções de re-download). DOT_UPDATE_DAYS ajusta o intervalo, DOT_NO_UPDATE_CHECK=1 desativa.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Atualizar o dottod",
+            code: "dottod-update",
           },
         ],
       },
