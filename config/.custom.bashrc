@@ -52,6 +52,12 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     unset _dotfile _dottod_root
 fi
 
+# Self-update notice (scripts/.update.sh): silent unless a newer release tag
+# is cached; the network refresh runs detached and never blocks startup.
+if command -v _dottod_update_check >/dev/null 2>&1; then
+    _dottod_update_check
+fi
+
 # ──────────────────────────────────────────────────────────────
 # Shell options & history (sane interactive defaults)
 # ──────────────────────────────────────────────────────────────

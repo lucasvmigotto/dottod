@@ -46,6 +46,7 @@ jobs:
             scripts/.alias.sh scripts/.bat.utils.sh \
             scripts/.sys.utils.sh scripts/.xclip.utils.sh \
             scripts/.container.utils.sh scripts/.wsl.sh \
+            scripts/.update.sh \
             scripts/nvim-headless-check.sh \
             tests/run.sh; do
             bash -n "${f}"
@@ -58,6 +59,7 @@ jobs:
             scripts/*.sh \
             styles/*.sh \
             scripts/.wsl.sh \
+            scripts/.update.sh \
             config/.custom.bashrc \
             tests/run.sh tests/test-*.bats tests/helpers.bash
 
