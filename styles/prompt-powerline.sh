@@ -41,12 +41,16 @@ __dottod_prompt_powerline() {
     dur=$((now - __DOTTD_PW_PREV_SECONDS))
     __DOTTD_PW_PREV_SECONDS="${now}"
 
-    local user host dir lang
+    local user dir lname lglyph lang
     user="${USER:-$(id -un 2>/dev/null || printf 'user')}"
-    host="${HOSTNAME:-$(hostname -s 2>/dev/null || printf 'host')}"
     dir="$(__dottod_project_dir)"
-    if lang="$(__dottod_lang 2>/dev/null)"; then
-        lang="$(__dottod_glyph "lang_${lang}") ${lang}"
+    if lname="$(__dottod_lang 2>/dev/null)"; then
+        lglyph="$(__dottod_glyph "lang_${lname}")"
+        if [[ -n "${lglyph}" ]]; then
+            lang="${lglyph} ${lname}"
+        else
+            lang="${lname}"
+        fi
     else
         lang=""
     fi

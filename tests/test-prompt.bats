@@ -33,7 +33,7 @@ setup() {
     assert_contains 'git fragment names the branch' 'git:(' "$output"
     assert_contains 'project dir is the repo name' 'dir=proj' "$output"
     assert_contains 'language detected from marker' 'lang=node' "$output"
-    assert_contains 'segments carry the branch' 'segs=master|0|0|0|0|0|' "$output"
+    assert_match 'segments carry branch, counts and local upstream' 'segs=(master|main)\|0\|0\|0\|0\|1\|' "$output"
 }
 
 @test "promptlib collectors stay silent outside a repo" {
@@ -73,16 +73,25 @@ setup() {
 @test "powerline variant renders blocks and the status cluster" {
     local ihome="$BATS_TEST_TMPDIR/ihome-power"
     mkdir -p "$ihome"
-    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline DOT_PROMPT_GLYPHS=ascii COLUMNS=200 bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
+    local repo="$BATS_TEST_TMPDIR/pwproj"
+    mkdir -p "$repo"
+    git -C "$repo" init -q
+    git -C "$repo" config user.email t@t
+    git -C "$repo" config user.name t
+    git -C "$repo" commit -q --allow-empty -m init
+    touch "$repo/package.json"
+    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline DOT_PROMPT_GLYPHS=ascii COLUMNS=200 bash -i -c "cd '$repo' && source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
     assert_eq 'powerline source rc 0' '0' "$status"
-    assert_contains 'powerline user block' 'lucas' "$output"
+    assert_contains 'powerline project block' 'pwproj' "$output"
+    assert_contains 'powerline language block' 'node' "$output"
     assert_contains 'powerline status cluster' '0s' "$output"
+    assert_contains 'powerline ok status' '✓' "$output"
 }
 
 @test "unknown style falls back to robbyrussell with a warning" {
     local ihome="$BATS_TEST_TMPDIR/ihome-fallback"
     mkdir -p "$ihome"
-    run env HOME="$ihome" DOT_PROMPT_STYLE=nope bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt; printf '%s' \"\$PS1\"" 2>&1
+    run env HOME="$ihome" DOT_PROMPT_STYLE=nope bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null; __dottod_prompt; printf '%s' \"\$PS1\"" 2>&1
     assert_eq 'fallback source rc 0' '0' "$status"
     assert_contains 'fallback warns' 'unknown DOT_PROMPT_STYLE' "$output"
     assert_contains 'fallback renders default' '➜' "$output"
