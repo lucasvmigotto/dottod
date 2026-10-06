@@ -693,6 +693,26 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "projects",
+        heading: "Projetos",
+        blocks: [
+          {
+            kind: "p",
+            text: "O alternador codes pula entre projetos git sob CODES_ROOTS (padrão ~/codes:~/code:~/projects:~/src:~/dev:~/work), atividade mais recente primeiro com coluna de status git. Digite codes para o seletor fzf, codes <nome> para pular com correção de typos, codes -l para listar, codes -p para scripts.",
+          },
+          {
+            kind: "p",
+            text: "Repos irmãos sob um diretório aparecem como pai/nome, e checkouts de submódulo aninham sob seu superprojeto — cada linha continua sendo um caminho real. Busque pelo pai (codes coparticipacao) ou nome qualificado (codes coparticipacao/front). CODES_GROUP=0 restaura a lista plana, CODES_SUBMODULES=0 descarta checkouts aninhados como antes.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Pular entre projetos",
+            code: "codes                     # escolhe de tudo\ncodes front               # nomes ambíguos abrem o seletor\ncodes coparticipacao/back # pulo qualificado",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {

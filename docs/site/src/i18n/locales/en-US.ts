@@ -692,6 +692,26 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "projects",
+        heading: "Projects",
+        blocks: [
+          {
+            kind: "p",
+            text: "The codes switcher jumps between git projects under CODES_ROOTS (default ~/codes:~/code:~/projects:~/src:~/dev:~/work), newest activity first with a git status column. Type codes for the fzf picker, codes <name> to jump with typo-tolerant matching, codes -l to list, codes -p for scripts.",
+          },
+          {
+            kind: "p",
+            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Jump between projects",
+            code: "codes                     # pick from everything\ncodes front               # ambiguous names open the picker\ncodes coparticipacao/back # qualified jump",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {
