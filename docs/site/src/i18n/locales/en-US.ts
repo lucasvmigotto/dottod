@@ -638,7 +638,37 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "An exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. No plugins, no frameworks; PROMPT_COMMAND does the work.",
+            text: "Three styles in styles/ share one collector library (promptlib.sh: git state, project directory, language markers, disk and duration). robbyrussell is the default: an exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. Switch with DOT_PROMPT_STYLE=kali or powerline. No plugins, no frameworks; PROMPT_COMMAND does the work.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Switch styles",
+            code: "DOT_PROMPT_STYLE=kali      # two-line kali terminal\nDOT_PROMPT_STYLE=powerline  # segmented blocks (needs a Nerd Font)",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "robbyrussell (default)",
+            code: "➜  dottod git:(feat/prompt-styles) ✗",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "kali — red # as root, red $ on failure",
+            code: "┌──(user㉿host)-[dottod]\n└─$",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "powerline — shown with DOT_PROMPT_GLYPHS=ascii",
+            code: " user > dottod > feat/prompt-styles ✗    3s ✓ < 09:35 < 27G",
+          },
+          {
+            kind: "callout",
+            tone: "info",
+            title: "Nerd Font",
+            text: "The powerline separators render as angled blocks only with a Nerd Font installed; without one, set DOT_PROMPT_GLYPHS=ascii as above. The robbyrussell and kali styles work in any terminal.",
           },
         ],
       },
