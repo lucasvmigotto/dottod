@@ -60,6 +60,16 @@ setup() {
     assert_contains 'PS1 has the arrow prompt' '➜' "$output"
 }
 
+@test "kali variant renders the two-line frame" {
+    local ihome="$BATS_TEST_TMPDIR/ihome-kali"
+    mkdir -p "$ihome"
+    run env HOME="$ihome" DOT_PROMPT_STYLE=kali bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_kali; printf '%s' \"\$PS1\"" 2>/dev/null
+    assert_eq 'kali source rc 0' '0' "$status"
+    assert_contains 'kali top frame' '┌──(' "$output"
+    assert_contains 'kali bottom frame' '└─' "$output"
+    assert_contains 'kali user mark' '$' "$output"
+}
+
 @test "unknown style falls back to robbyrussell with a warning" {
     local ihome="$BATS_TEST_TMPDIR/ihome-fallback"
     mkdir -p "$ihome"
