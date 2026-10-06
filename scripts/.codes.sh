@@ -325,8 +325,12 @@ __codes_table() {
                     if (groupopt == 1 && key[i] != pt[i])
                         pre = D (lastc[i] ? "└─ " : "├─ ") R
                     fill = ""; for (k = length(sp[i]); k < ws; k++) fill = fill " "
+                    if (slash = index(nm[i], "/"))
+                        namef = D substr(nm[i], 1, slash) R B pad(substr(nm[i], slash + 1), wn - slash) R
+                    else
+                        namef = B pad(nm[i], wn) R
                     printf "%s\t%s%s  %s  %s  %s%s  %s\n", pt[i], pre,
-                        B pad(nm[i], wn) R, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
+                        namef, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
                         sc[i], fill, D dr[i] R
                 }
             }'
