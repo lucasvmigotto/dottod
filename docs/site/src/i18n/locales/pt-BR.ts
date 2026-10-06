@@ -713,6 +713,22 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "updates",
+        heading: "Atualizações",
+        blocks: [
+          {
+            kind: "p",
+            text: "Shells interativos verificam novos releases do dottod semanalmente: a verificação roda destacada e nunca bloqueia a inicialização, e uma atualização conhecida imprime um aviso com ambas as versões. dottod-update avança um checkout git (instalações via tarball recebem instruções de re-download). DOT_UPDATE_DAYS ajusta o intervalo, DOT_NO_UPDATE_CHECK=1 desativa.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Atualizar o dottod",
+            code: "dottod-update",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {

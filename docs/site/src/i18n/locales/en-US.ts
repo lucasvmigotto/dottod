@@ -712,6 +712,22 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "updates",
+        heading: "Updates",
+        blocks: [
+          {
+            kind: "p",
+            text: "Interactive shells check for newer dottod releases weekly: the check runs detached and never blocks startup, and a known update prints one notice with both versions. dottod-update fast-forwards a git checkout (tarball installs get re-download instructions instead). DOT_UPDATE_DAYS tunes the interval, DOT_NO_UPDATE_CHECK=1 disables it.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Update dottod",
+            code: "dottod-update",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {
