@@ -5,6 +5,27 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.3.0 — 2026-10-06
+
+### Added
+
+- **scripts:** self-update check with notify-only prompt
+- **codes:** grouped display and qualified matching
+- **codes:** keep linked nested checkouts in discovery
+- **styles:** add powerline prompt variant
+- **styles:** add kali prompt variant
+
+### Fixed
+
+- **codes:** no parent prefix on nested children
+- **styles:** hermetic prompt tests and shellcheck findings
+- **devcontainer:** drop stale env-file arg
+- **scripts:** scope ssh-agent bootstrap to WSL
+
+### Changed
+
+- **styles:** extract prompt library and robbyrussell variant
+
 ## 1.2.0 — 2026-10-05
 
 ### Added
