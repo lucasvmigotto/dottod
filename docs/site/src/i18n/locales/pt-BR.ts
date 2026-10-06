@@ -639,7 +639,37 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
+            text: "Três estilos em styles/ compartilham uma biblioteca de coletores (promptlib.sh: estado git, diretório do projeto, marcadores de linguagem, disco e duração). robbyrussell é o padrão: uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Troque com DOT_PROMPT_STYLE=kali ou powerline. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Trocar de estilo",
+            code: "DOT_PROMPT_STYLE=kali      # terminal kali em duas linhas\nDOT_PROMPT_STYLE=powerline  # blocos segmentados (precisa de Nerd Font)",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "robbyrussell (padrão)",
+            code: "➜  dottod git:(feat/prompt-styles) ✗",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "kali — # vermelho como root, $ vermelho na falha",
+            code: "┌──(user㉿host)-[dottod]\n└─$",
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "powerline — mostrado com DOT_PROMPT_GLYPHS=ascii",
+            code: " user > dottod > feat/prompt-styles ✗    3s ✓ < 09:35 < 27G",
+          },
+          {
+            kind: "callout",
+            tone: "info",
+            title: "Nerd Font",
+            text: "Os separadores do powerline só viram blocos angulados com uma Nerd Font instalada; sem uma, use DOT_PROMPT_GLYPHS=ascii como acima. Os estilos robbyrussell e kali funcionam em qualquer terminal.",
           },
         ],
       },
