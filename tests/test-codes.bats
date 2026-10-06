@@ -71,7 +71,11 @@ codes_find() {
     assert_contains 'sibling qualified' 'family/a' "$output"
     assert_contains 'sibling qualified' 'family/b' "$output"
     assert_contains 'top repo bare' 'solo' "$output"
-    assert_contains 'submodule nested' 'super/sub' "$output"
+    assert_contains 'submodule nested' '└─' "$output"
+    if printf '%s' "$output" | grep -q 'super/sub'; then
+        printf 'FAIL: nested child carries parent prefix\n%s\n' "$output" >&2
+        return 1
+    fi
 }
 
 @test "list with CODES_GROUP=0 stays flat" {

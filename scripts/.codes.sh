@@ -310,7 +310,7 @@ __codes_table() {
                     }
                     for (oi = 1; oi <= nog; oi++) {
                         i = ord[oi]
-                        if (key[i] != pt[i]) disp = ppb[i] "/" nm0[i]
+                        if (key[i] != pt[i]) disp = nm0[i]
                         else if (cnt[pdr[i]] > 1 && index(roots, "|" pdr[i] "|") == 0 \
                             && pdr[i] != home) disp = ppb[i] "/" nm0[i]
                         else disp = nm0[i]
