@@ -33,7 +33,11 @@ __codes_roots() {
 }
 
 # One path per git working tree (.git dir *or* file, so worktrees count).
-# Nested repos (submodules, vendored clones) below an already-found repo are dropped.
+# Nested checkouts whose .git is a *file* (submodules, linked worktrees)
+# are kept — they are live checkouts, not vendored code. Nested checkouts
+# whose .git is a *dir* (vendored clones) below an already-found repo are
+# dropped. Set CODES_SUBMODULES=0 to restore the old drop-everything-nested
+# behavior.
 __codes_find() {
     local depth=${CODES_DEPTH:-3} r
     local -a roots=()
@@ -45,14 +49,24 @@ __codes_find() {
                -o -name site-packages -o -name .tox \) -prune -o \
             -name .git -prune -print 2>/dev/null \
         | sed 's|/\.git$||' \
-        | awk '
-            { p[NR] = $0; s[$0] = 1 }
+        | while IFS= read -r p; do
+            if [[ "${CODES_SUBMODULES:-1}" == "1" && -f "${p}/.git" ]]; then
+                printf 'F\t%s\n' "$p"
+            else
+                printf 'D\t%s\n' "$p"
+            fi
+        done \
+        | awk -F'\t' '
+            { kind[NR] = $1; p[NR] = $2; s[$2] = 1 }
             END {
                 for (i = 1; i <= NR; i++) {
-                    x = p[i]; skip = 0
-                    while (sub(/\/[^\/]*$/, "", x) && x != "")
-                        if (x in s) { skip = 1; break }
-                    if (!skip && !seen[p[i]]++) print p[i]
+                    if (kind[i] == "D") {
+                        x = p[i]; skip = 0
+                        while (sub(/\/[^\/]*$/, "", x) && x != "")
+                            if (x in s) { skip = 1; break }
+                        if (skip) continue
+                    }
+                    if (!seen[p[i]]++) print p[i]
                 }
             }'
 }
