@@ -13,7 +13,8 @@ __dottod_glyph() {
     local name="${1:?glyph name required}"
     if [[ "${DOT_PROMPT_GLYPHS:-nerd}" == "ascii" ]]; then
         case "${name}" in
-            sep_left | sep_right | sep_left_thin | sep_right_thin) printf '' ;;
+            sep_left) printf '>' ;;
+            sep_right | sep_left_thin | sep_right_thin) printf '<' ;;
             branch) printf '' ;;
             folder) printf '' ;;
             user) printf '' ;;

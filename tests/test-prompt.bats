@@ -70,6 +70,15 @@ setup() {
     assert_contains 'kali user mark' '$' "$output"
 }
 
+@test "powerline variant renders blocks and the status cluster" {
+    local ihome="$BATS_TEST_TMPDIR/ihome-power"
+    mkdir -p "$ihome"
+    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline DOT_PROMPT_GLYPHS=ascii COLUMNS=200 bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
+    assert_eq 'powerline source rc 0' '0' "$status"
+    assert_contains 'powerline user block' 'lucas' "$output"
+    assert_contains 'powerline status cluster' '0s' "$output"
+}
+
 @test "unknown style falls back to robbyrussell with a warning" {
     local ihome="$BATS_TEST_TMPDIR/ihome-fallback"
     mkdir -p "$ihome"
