@@ -688,7 +688,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "scripts/.*.sh libraries load aliases (lll, git shortcuts), functions (mkcd, extract, ff, gr, psg, port, serve, gcl) and the ctr container dispatcher. Only the hidden library files load — scripts/*.sh are programs and are never sourced.",
+            text: "scripts/.*.sh libraries load aliases (lll, git shortcuts, clip, pclip, cclip), functions (mkcd, extract, ff, gr, psg, port, serve, gcl) and the ctr container dispatcher. Only the hidden library files load — scripts/*.sh are programs and are never sourced.",
           },
         ],
       },
