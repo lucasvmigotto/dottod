@@ -1,25 +1,28 @@
 #!/usr/bin/env bash
+#
+# .xclip.utils.sh — clipboard helpers (X11 `xclip`).
+#   clip   copy stdin → clipboard          (`xclip -sel clipboard`)
+#   pclip  paste clipboard → stdout        (`xclip -sel clipboard -o`)
+#   cclip  clear the clipboard
+#   eclip  copy arguments as one line      (`eclip hello world`)
+#   fclip  copy a file's contents
 
 alias clip='xclip -sel clipboard'
+alias pclip='xclip -sel clipboard -o'
+alias cclip='xclip -sel clipboard < /dev/null'
 
-function eclip() {
-
-    echo "$@" | clip
-
+eclip() {
+    printf '%s\n' "$*" | xclip -sel clipboard
 }
 
-function fclip() {
-
-    local filename
-    filename=${1:?'File name must be informed'}
+fclip() {
+    local filename=${1:?'File name must be informed'}
 
     if [[ ! -f "${filename}" ]]; then
-        echo "File '${filename}' does not exists" >&2
+        echo "File '${filename}' does not exist" >&2
         return 1
     fi
 
-    cat "${filename}" | clip
-
+    xclip -sel clipboard <"${filename}"
     return 0
-
 }

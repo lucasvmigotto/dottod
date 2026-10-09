@@ -196,16 +196,52 @@ seed_store() {
     fi
 }
 
-@test "differing shared token warns and both logins survive" {
+@test "differing shared token: launch stays quiet and both logins survive" {
     seed_store
     mkdir -p "$FAKE_HOME/.claude-personal"
     printf 'overlay-token' >"$FAKE_HOME/.claude-personal/.credentials.json"
     printf 'shared-token' >"$FAKE_HOME/.claude/.credentials.json"
     run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=personal claude --version" 2>&1
     assert_eq 'launch rc 0' '0' "$status"
-    assert_contains 'stray login warning' 'ignoring a login in the shared store' "$output"
+    if printf '%s' "$output" | grep -q 'ignoring a login'; then
+        printf 'FAIL: launch should be quiet\n%s\n' "$output" >&2
+        return 1
+    fi
     assert_eq 'overlay token kept' 'overlay-token' "$(cat "$FAKE_HOME/.claude-personal/.credentials.json")"
     assert_eq 'shared token kept' 'shared-token' "$(cat "$FAKE_HOME/.claude/.credentials.json")"
+}
+
+@test "differing shared token warns on explicit add" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-personal"
+    printf 'overlay-token' >"$FAKE_HOME/.claude-personal/.credentials.json"
+    printf 'shared-token' >"$FAKE_HOME/.claude/.credentials.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile add personal" 2>&1
+    assert_eq 'add rc 0' '0' "$status"
+    assert_contains 'stray login warning' 'ignoring a login in the shared store' "$output"
+}
+
+@test "profile info shows account, plan and prefs" {
+    local d="$FAKE_HOME/.claude-work"
+    mkdir -p "$d"
+    printf '%s\n' '{"claudeAiOauth":{"subscriptionType":"team","rateLimitTier":"default_raven"}}' >"$d/.credentials.json"
+    printf '%s\n' '{"oauthAccount":{"emailAddress":"x@y.org","displayName":"X Y","organizationName":"Acme"}}' >"$d/.claude.json"
+    printf '%s\n' '{"model":"sonnet","theme":"dark"}' >"$d/settings.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'authenticated' 'authenticated' "$output"
+    assert_contains 'email' 'x@y.org' "$output"
+    assert_contains 'name' 'X Y' "$output"
+    assert_contains 'plan' 'team' "$output"
+    assert_contains 'prefs' 'model=sonnet' "$output"
+}
+
+@test "profile info degrades without login" {
+    local d="$FAKE_HOME/.claude-brandnew"
+    mkdir -p "$d"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'not authenticated' 'not authenticated' "$output"
 }
 
 @test "missing binary fails without launching" {

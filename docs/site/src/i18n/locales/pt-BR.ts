@@ -689,7 +689,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Bibliotecas scripts/.*.sh carregam aliases (lll, atalhos git), funções (mkcd, extract, ff, gr, psg, port, serve, gcl) e o despachante ctr. Só os arquivos ocultos de biblioteca carregam — scripts/*.sh são programas e nunca têm source.",
+            text: "Bibliotecas scripts/.*.sh carregam aliases (lll, atalhos git, clip, pclip, cclip), funções (mkcd, extract, ff, gr, psg, port, serve, gcl) e o despachante ctr. Só os arquivos ocultos de biblioteca carregam — scripts/*.sh são programas e nunca têm source.",
           },
         ],
       },
