@@ -75,9 +75,9 @@ __dottod_claude_ensure_profile() {
     fi
     if [[ "${name}" == "personal" && -f "${HOME}/.claude/.credentials.json" ]]; then
         if [[ ! -e "${dir}/.credentials.json" ]]; then
-            mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null \
-                && chmod 600 -- "${dir}/.credentials.json" 2>/dev/null \
-                && printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
+            mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null &&
+                chmod 600 -- "${dir}/.credentials.json" 2>/dev/null &&
+                printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
         elif ! cmp -s -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null; then
             printf 'claude: ignoring a login in the shared store (log in through claudew/claudep instead)\n' >&2
         fi
@@ -90,8 +90,8 @@ __dottod_claude_fzf() {
     local wdir pdir
     wdir="$(__dottod_claude_profile_dir work)"
     pdir="$(__dottod_claude_profile_dir personal)"
-    printf 'work\npersonal\n' \
-        | CLAUDE_WD="${wdir}" CLAUDE_PD="${pdir}" fzf --prompt='profile> ' \
+    printf 'work\npersonal\n' |
+        CLAUDE_WD="${wdir}" CLAUDE_PD="${pdir}" fzf --prompt='profile> ' \
             --height=40% --layout=reverse --border \
             --header='enter: launch   esc: cancel' \
             --preview='if [ "{}" = work ]; then d="$CLAUDE_WD"; else d="$CLAUDE_PD"; fi; if [ -s "$d/.credentials.json" ]; then echo authenticated; else echo "needs /login"; fi; ls "$d" 2>/dev/null'
@@ -106,8 +106,7 @@ __dottod_claude_pick_profile() {
             printf '%s' "${choice}"
             return 0
             ;;
-        "")
-            ;;
+        "") ;;
         *)
             printf 'claude: unknown CLAUDE_PROFILE=%s (want work|personal)\n' "${choice}" >&2
             return 2

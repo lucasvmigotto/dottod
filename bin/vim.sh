@@ -43,8 +43,8 @@ function _vim_vimplug_install() {
 function _vim_wanted_plugins() {
     local vimrc=${1:?'vimrc must be informed'}
 
-    grep -oE "^[[:space:]]*Plug[[:space:]]+'[^']+'" "${vimrc}" 2>/dev/null \
-        | sed -E "s/.*'([^']+)'.*/\\1/; s#.*/##" || true
+    grep -oE "^[[:space:]]*Plug[[:space:]]+'[^']+'" "${vimrc}" 2>/dev/null |
+        sed -E "s/.*'([^']+)'.*/\\1/; s#.*/##" || true
 }
 
 function _vim_plugins_installed() {

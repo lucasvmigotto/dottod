@@ -12,7 +12,7 @@ _total=0
 # Plain-bash suites are retired: every tests/test-*.sh must have a .bats
 # twin. Fail loudly instead of silently skipping, so a stray .sh suite
 # can never go unexecuted.
-if compgen -G "${_TEST_DIR}/test-*.sh" > /dev/null; then
+if compgen -G "${_TEST_DIR}/test-*.sh" >/dev/null; then
     printf -- 'ERROR: tests/test-*.sh suites must be ported to .bats:\n' >&2
     compgen -G "${_TEST_DIR}/test-*.sh" >&2
     exit 1
@@ -36,4 +36,4 @@ for t in "${_TEST_DIR}"/test-*.bats; do
 done
 
 printf 'suites: %d run, %d failed\n' "${_total}" "${_failures}"
-exit $(( _failures > 0 ))
+exit $((_failures > 0))

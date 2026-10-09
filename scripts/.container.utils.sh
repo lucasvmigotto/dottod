@@ -33,7 +33,7 @@ function _ctr_configured() {
     raw="${_DOT_CONTAINER_RUNTIME:-podman}"
     norm="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
     case "${norm}" in
-        podman|docker|auto)
+        podman | docker | auto)
             printf '%s' "${norm}"
             return 0
             ;;
@@ -47,7 +47,7 @@ function _ctr_configured() {
 # _ctr_installed <podman|docker>: binary present on PATH.
 function _ctr_installed() {
     case "${1:?'runtime required'}" in
-        podman|docker) command -v "$1" >/dev/null 2>&1 ;;
+        podman | docker) command -v "$1" >/dev/null 2>&1 ;;
         *) return 1 ;;
     esac
 }
@@ -95,7 +95,7 @@ function _ctr_resolve() {
     local cfg
     cfg="$(_ctr_configured)" || return 1
     case "${cfg}" in
-        podman|docker)
+        podman | docker)
             printf '%s' "${cfg}"
             ;;
         auto)

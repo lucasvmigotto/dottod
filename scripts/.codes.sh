@@ -48,21 +48,21 @@ __codes_find() {
     local depth=${CODES_DEPTH:-3} r
     local -a roots=()
     while IFS= read -r r; do roots+=("$r"); done < <(__codes_roots)
-    (( ${#roots[@]} )) || return 1
+    ((${#roots[@]})) || return 1
 
     find "${roots[@]}" -maxdepth "$((depth + 1))" \
-            \( -name node_modules -o -name .venv -o -name venv -o -name .cache \
-               -o -name site-packages -o -name .tox \) -prune -o \
-            -name .git -prune -print 2>/dev/null \
-        | sed 's|/\.git$||' \
-        | while IFS= read -r p; do
+        \( -name node_modules -o -name .venv -o -name venv -o -name .cache \
+        -o -name site-packages -o -name .tox \) -prune -o \
+        -name .git -prune -print 2>/dev/null |
+        sed 's|/\.git$||' |
+        while IFS= read -r p; do
             if [[ "${CODES_SUBMODULES:-1}" == "1" && -f "${p}/.git" ]]; then
                 printf 'F\t%s\n' "$p"
             else
                 printf 'D\t%s\n' "$p"
             fi
-        done \
-        | awk -F'\t' '
+        done |
+        awk -F'\t' '
             { kind[NR] = $1; p[NR] = $2; s[$2] = 1 }
             END {
                 for (i = 1; i <= NR; i++) {
@@ -162,19 +162,21 @@ __codes_info() {
     fi
 
     # last activity = newest of: HEAD commit, .git/index, .git/HEAD
-    ts=$(git -C "$p" log -1 --format=%ct 2>/dev/null); ts=${ts:-0}
+    ts=$(git -C "$p" log -1 --format=%ct 2>/dev/null)
+    ts=${ts:-0}
     while read -r m; do
-        (( m > ts )) && ts=$m
+        ((m > ts)) && ts=$m
     done < <(
-        if [[ $flavor == gnu ]]; then stat -c %Y -- "$gd/index" "$gd/HEAD" 2>/dev/null
+        if [[ $flavor == gnu ]]; then
+            stat -c %Y -- "$gd/index" "$gd/HEAD" 2>/dev/null
         else stat -f %m "$gd/index" "$gd/HEAD" 2>/dev/null; fi
     )
 
     [[ -s $gd/logs/refs/stash ]] && stash=$(wc -l <"$gd/logs/refs/stash")
     stash=${stash//[[:space:]]/}
 
-    summary=$($tm git -C "$p" status --porcelain=v2 --branch --untracked-files=normal 2>/dev/null \
-        | awk '
+    summary=$($tm git -C "$p" status --porcelain=v2 --branch --untracked-files=normal 2>/dev/null |
+        awk '
             /^# branch.oid/      { oid = $3 }
             /^# branch.head/     { head = $3 }
             /^# branch.upstream/ { up = $3 }
@@ -197,9 +199,9 @@ __codes_table() {
     fn=$(declare -f __codes_info)
     rts=$(__codes_roots | paste -sd'|' -)
 
-    tr '\n' '\0' \
-        | xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" \
-        | awk -F'\t' -v OFS='\t' -v visits="$visits" '
+    tr '\n' '\0' |
+        xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" |
+        awk -F'\t' -v OFS='\t' -v visits="$visits" '
             BEGIN {
                 while ((getline l < visits) > 0) {
                     n = split(l, a, "\t")
@@ -207,9 +209,9 @@ __codes_table() {
                 }
                 close(visits)
             }
-            { if (($2 in v) && v[$2] + 0 > $1 + 0) $1 = v[$2]; print }' \
-        | sort -t $'\t' -k1,1nr \
-        | awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" '
+            { if (($2 in v) && v[$2] + 0 > $1 + 0) $1 = v[$2]; print }' |
+        sort -t $'\t' -k1,1nr |
+        awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
@@ -345,9 +347,9 @@ __codes_visit() {
     mkdir -p -- "${f%/*}" 2>/dev/null || return 0
     printf '%s\t%s\n' "$(date +%s)" "$1" >>"$f"
     if [[ $(wc -l <"$f") -gt 1000 ]]; then
-        tmp=$(mktemp) \
-            && awk -F'\t' '{ l[$2] = $0 } END { for (k in l) print l[k] }' "$f" >"$tmp" \
-            && mv -- "$tmp" "$f"
+        tmp=$(mktemp) &&
+            awk -F'\t' '{ l[$2] = $0 } END { for (k in l) print l[k] }' "$f" >"$tmp" &&
+            mv -- "$tmp" "$f"
     fi
 }
 
@@ -385,35 +387,51 @@ EOF
 codes() {
     local list=0 printpath=0 fetch=0 always=0
     local -a args=()
-    while (( $# )); do
+    while (($#)); do
         case $1 in
-            -l|--list)        list=1 ;;
-            -p|--path)        printpath=1 ;;
-            -f|--fetch)       fetch=1 ;;
-            -i|--interactive) always=1 ;;
-            -h|--help)        __codes_usage; return 0 ;;
-            --)               shift; args+=("$@"); break ;;
-            -*)               echo "codes: unknown option '$1'" >&2; return 2 ;;
-            *)                args+=("$1") ;;
+            -l | --list) list=1 ;;
+            -p | --path) printpath=1 ;;
+            -f | --fetch) fetch=1 ;;
+            -i | --interactive) always=1 ;;
+            -h | --help)
+                __codes_usage
+                return 0
+                ;;
+            --)
+                shift
+                args+=("$@")
+                break
+                ;;
+            -*)
+                echo "codes: unknown option '$1'" >&2
+                return 2
+                ;;
+            *) args+=("$1") ;;
         esac
         shift
     done
     local query="${args[*]}"
-    (( list )) && always=1
+    ((list)) && always=1
 
     local d
     for d in git awk find xargs sort; do
-        command -v "$d" >/dev/null 2>&1 || { echo "codes: '$d' is required but not on PATH" >&2; return 1; }
+        command -v "$d" >/dev/null 2>&1 || {
+            echo "codes: '$d' is required but not on PATH" >&2
+            return 1
+        }
     done
-    if (( ! list )); then
-        command -v fzf >/dev/null 2>&1 || [[ -n $query ]] \
-            || { echo "codes: 'fzf' is required for the interactive picker" >&2; return 1; }
+    if ((!list)); then
+        command -v fzf >/dev/null 2>&1 || [[ -n $query ]] ||
+            {
+                echo "codes: 'fzf' is required for the interactive picker" >&2
+                return 1
+            }
     fi
 
     local line
     local -a all=()
     while IFS= read -r line; do all+=("$line"); done < <(__codes_find)
-    if (( ${#all[@]} == 0 )); then
+    if ((${#all[@]} == 0)); then
         echo "codes: no git projects found (roots: $(__codes_roots | paste -sd: -)); set CODES_ROOTS" >&2
         return 1
     fi
@@ -429,23 +447,23 @@ codes() {
             local -a cand=()
             while IFS= read -r line; do cand+=("$line"); done < <(printf '%s\n' "${all[@]}" | __codes_match "$query")
 
-            if (( ${#cand[@]} == 0 )); then
+            if ((${#cand[@]} == 0)); then
                 echo "codes: no project resembles '$query' — showing everything" >&2
             else
                 local k1 s1 p1 k2 s2 auto=0
                 IFS=$'\t' read -r k1 s1 _ p1 <<<"${cand[0]}"
-                if (( ${#cand[@]} == 1 )); then
+                if ((${#cand[@]} == 1)); then
                     auto=1
                 else
                     IFS=$'\t' read -r k2 s2 _ _ <<<"${cand[1]}"
                     # typo tier: jump only if the best candidate is strictly closer than the runner-up
-                    (( k1 == 3 && s1 < s2 )) && auto=1
+                    ((k1 == 3 && s1 < s2)) && auto=1
                     # exact/prefix/substring tiers with several hits are ambiguous -> picker
                 fi
-                (( always )) && auto=0
+                ((always)) && auto=0
                 [[ $k1 == 3 && ${CODES_CONFIRM_FUZZY:-0} == 1 ]] && auto=0
 
-                if (( auto )); then
+                if ((auto)); then
                     picked=$p1
                     [[ $k1 == 3 ]] && echo "codes: '$query' → ${p1##*/}  (edit distance $s1)" >&2
                 else
@@ -459,25 +477,26 @@ codes() {
     if [[ -z $picked ]]; then
         local table
         table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch")
-        if (( list )); then
-            if [[ -t 1 ]]; then printf '%s\n' "$table" | cut -f2-
+        if ((list)); then
+            if [[ -t 1 ]]; then
+                printf '%s\n' "$table" | cut -f2-
             else printf '%s\n' "$table" | cut -f2- | sed $'s/\033\\[[0-9;]*m//g'; fi
             return 0
         fi
-        picked=$(printf '%s\n' "$table" \
-            | fzf --ansi --delimiter=$'\t' --with-nth=2 --tiebreak=index \
-                  --height=70% --layout=reverse --border \
-                  --prompt='codes> ' \
-                  --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  local=no upstream' \
-                  --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 12 --oneline --decorate --color=always' \
-                  --preview-window='right,45%,border-left,<110(down,40%,border-top)' \
-                  --bind='ctrl-/:toggle-preview' \
-            | cut -f1)
+        picked=$(printf '%s\n' "$table" |
+            fzf --ansi --delimiter=$'\t' --with-nth=2 --tiebreak=index \
+                --height=70% --layout=reverse --border \
+                --prompt='codes> ' \
+                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  local=no upstream' \
+                --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 12 --oneline --decorate --color=always' \
+                --preview-window='right,45%,border-left,<110(down,40%,border-top)' \
+                --bind='ctrl-/:toggle-preview' |
+            cut -f1)
         [[ -z $picked ]] && return 130
     fi
 
     __codes_visit "$picked"
-    if (( printpath )); then
+    if ((printpath)); then
         printf '%s\n' "$picked"
     else
         cd -- "$picked"

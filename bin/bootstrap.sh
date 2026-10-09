@@ -124,7 +124,7 @@ function _main() {
             --runtime)
                 _DOT_CONTAINER_RUNTIME="$(printf '%s' "${2:?'--runtime requires podman, docker, or auto'}" | tr '[:upper:]' '[:lower:]')"
                 case "${_DOT_CONTAINER_RUNTIME}" in
-                    podman|docker|auto)
+                    podman | docker | auto)
                         export _DOT_CONTAINER_RUNTIME
                         ;;
                     *)
@@ -150,15 +150,15 @@ function _main() {
                 export DOT_ASSUME_YES=1
                 shift
                 ;;
-            --verbose|-v)
+            --verbose | -v)
                 verbose=1
                 shift
                 ;;
-            --list|-l)
+            --list | -l)
                 printf '%s\n' "${DOT_TASKS[@]}"
                 return 0
                 ;;
-            --help|-h)
+            --help | -h)
                 _usage
                 return 0
                 ;;
