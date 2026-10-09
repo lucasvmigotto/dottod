@@ -142,6 +142,23 @@ Scripts are configurable via `_DOT_*` environment variables:
 _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ```
 
+### Claude profiles
+
+The interactive shell offers `work` and `personal` Claude Code profiles over
+one shared store (`~/.claude` holds memory, skills, projects; each profile
+keeps its own login and settings):
+
+```bash
+claude    # pick a profile (fzf) — defaults to personal without a tty
+claudew   # work profile directly
+claudep   # personal profile directly
+```
+
+First run builds the overlays (`claude-profiles-init` does both at once);
+`claudew` on a fresh work profile asks for `/login`. Configure with
+`CLAUDE_PROFILE=work|personal`, `CLAUDE_NO_PICKER=1`,
+`CLAUDE_WORK_DIR` / `CLAUDE_PERSONAL_DIR`.
+
 ### Tests
 
 ```bash
