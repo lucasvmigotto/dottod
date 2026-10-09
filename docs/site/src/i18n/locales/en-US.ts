@@ -734,13 +734,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "The shell offers work and personal Claude Code profiles over one shared store: memory, skills, plugins and projects live in ~/.claude, while each profile keeps its own login and settings. claude picks a profile (fzf), claudew and claudep jump straight in. First run builds the overlays; a fresh work profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
+            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Launch with a profile",
-            code: "claude    # pick: work or personal\nclaudew   # work directly\nclaudep   # personal directly",
+            code: "claude              # pick from all profiles\nclaude -P work      # one profile for this run\nclaude-profile add extra  # new overlay",
           },
         ],
       },

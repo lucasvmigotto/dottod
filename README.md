@@ -158,20 +158,20 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 
 ### Claude profiles
 
-The interactive shell offers `work` and `personal` Claude Code profiles over
-one shared store (`~/.claude` holds memory, skills, projects; each profile
-keeps its own login and settings):
+The interactive shell offers named Claude Code profiles (`work`,
+`personal`, …) over one shared store (`~/.claude` holds memory, skills,
+projects; each `~/.claude-<name>` overlay keeps its own login, settings
+and identity dirs):
 
 ```bash
-claude    # pick a profile (fzf) — defaults to personal without a tty
-claudew   # work profile directly
-claudep   # personal profile directly
+claude              # pick a profile (fzf) — defaults to personal headless
+claude -P work      # one profile for this invocation (--profile works too)
+claude-profile add extra   # new overlay (links shared store, own login)
+claude-profile ls          # profiles with login state
 ```
 
-First run builds the overlays (`claude-profiles-init` does both at once);
-`claudew` on a fresh work profile asks for `/login`. Configure with
-`CLAUDE_PROFILE=work|personal`, `CLAUDE_NO_PICKER=1`,
-`CLAUDE_WORK_DIR` / `CLAUDE_PERSONAL_DIR`.
+First run builds the overlay; a fresh profile asks for `/login`. Configure
+with `CLAUDE_PROFILE=<name>`, `CLAUDE_NO_PICKER=1`.
 
 ### Tests
 
