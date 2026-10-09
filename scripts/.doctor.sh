@@ -47,7 +47,7 @@ _dottod_doctor_root() {
 
 dottod-doctor() {
     __dottod_doc_init_tally
-    local t d root branch dirty tag checked remote days
+    local t d root branch dirty tag checked remote days found
 
     # Shell basics.
     if [[ -z "${HOME:-}" ]]; then
@@ -126,9 +126,12 @@ dottod-doctor() {
         __dottod_doc_warn "update library not loaded"
     fi
 
-    # Claude profiles: overlays exist, links unbroken, logins present.
-    if declare -F __dottod_claude_profile_dir >/dev/null 2>&1; then
-        for t in work personal; do
+    # Claude profiles: every discovered overlay with unbroken links, an
+    # isolated identity and a login present.
+    if declare -F __dottod_claude_profiles >/dev/null 2>&1; then
+        found=0
+        while IFS= read -r t; do
+            found=1
             d="$(__dottod_claude_profile_dir "${t}")" || continue
             if [[ -d "${d}" ]]; then
                 __dottod_doc_ok "claude ${t} overlay present"
@@ -150,7 +153,8 @@ dottod-doctor() {
             else
                 __dottod_doc_warn "claude ${t} overlay missing (run it once)"
             fi
-        done
+        done < <(__dottod_claude_profiles)
+        ((found == 1)) || __dottod_doc_warn "no claude profiles (run claude once)"
     else
         __dottod_doc_warn "claude library not loaded"
     fi

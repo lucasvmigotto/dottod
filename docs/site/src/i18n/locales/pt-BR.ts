@@ -735,13 +735,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "O shell oferece perfis Claude Code work e personal sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada perfil guarda seu próprio login e configurações. claude escolhe o perfil (fzf), claudew e claudep entram direto. A primeira execução monta os overlays; um perfil work novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis.",
+            text: "O shell oferece perfis Claude Code nomeados (work, personal, …) sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada overlay ~/.claude-<nome> guarda seu próprio login, configurações e diretórios de identidade. claude escolhe o perfil (fzf), claude -P seleciona para a execução, claude-profile gerencia overlays. A primeira execução monta o overlay; um perfil novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Iniciar com um perfil",
-            code: "claude    # escolhe: work ou personal\nclaudew   # work direto\nclaudep   # personal direto",
+            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay",
           },
         ],
       },

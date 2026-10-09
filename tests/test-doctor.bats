@@ -40,6 +40,8 @@ seed_profiles() {
     mkdir -p "$FAKE_HOME/.claude/projects" "$FAKE_HOME/.claude-work" "$FAKE_HOME/.claude-personal"
     printf 'x' >"$FAKE_HOME/.claude-work/.credentials.json"
     printf 'x' >"$FAKE_HOME/.claude-personal/.credentials.json"
+    printf 'work\n' >"$FAKE_HOME/.claude-work/.dottod-profile"
+    printf 'personal\n' >"$FAKE_HOME/.claude-personal/.dottod-profile"
     ln -s "$FAKE_HOME/.claude/projects" "$FAKE_HOME/.claude-work/projects"
     ln -s "$FAKE_HOME/.claude/projects" "$FAKE_HOME/.claude-personal/projects"
 }
