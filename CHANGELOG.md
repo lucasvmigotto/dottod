@@ -5,6 +5,22 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.4.0 — 2026-10-09
+
+### Added
+
+- **scripts:** multi-profile Claude setup with marker discovery
+- **devx:** add justfile task runner
+- **scripts:** add dottod-doctor health check
+- **scripts:** work/personal Claude profiles over shared store
+
+### Fixed
+
+- **scripts:** isolate profile identity dirs
+- **scripts:** guard intentional word splitting in claude lib
+- **scripts:** silence shellcheck on unused match var and bare cd
+- **scripts:** warn on stray shared login
+
 ## 1.3.0 — 2026-10-06
 
 ### Added
