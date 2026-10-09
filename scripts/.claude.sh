@@ -59,6 +59,7 @@ __dottod_claude_ensure_profile() {
         return 1
     }
     chmod 700 -- "${dir}" 2>/dev/null || true
+    # shellcheck disable=SC2086 # intentional word splitting on the entry list
     for entry in ${__DOTTOD_CLAUDE_SHARED}; do
         src="${HOME}/.claude/${entry}"
         [[ -e "${src}" ]] || continue
