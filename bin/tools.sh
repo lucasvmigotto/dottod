@@ -162,7 +162,7 @@ function _main() {
     rust_arch="$(_rust_arch)"
 
     log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf'
+    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
 
     _github_cli_install
 

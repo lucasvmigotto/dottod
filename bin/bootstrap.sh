@@ -45,7 +45,7 @@ Tasks:
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely) + ed25519 key
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh
+  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
 EOF
