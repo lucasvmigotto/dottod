@@ -729,6 +729,22 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "profiles",
+        heading: "Perfis Claude",
+        blocks: [
+          {
+            kind: "p",
+            text: "O shell oferece perfis Claude Code work e personal sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada perfil guarda seu próprio login e configurações. claude escolhe o perfil (fzf), claudew e claudep entram direto. A primeira execução monta os overlays; um perfil work novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Iniciar com um perfil",
+            code: "claude    # escolhe: work ou personal\nclaudew   # work direto\nclaudep   # personal direto",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {

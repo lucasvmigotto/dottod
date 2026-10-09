@@ -728,6 +728,22 @@ const pages: Record<PageId, DocPage> = {
           },
         ],
       },
+      {
+        id: "profiles",
+        heading: "Claude profiles",
+        blocks: [
+          {
+            kind: "p",
+            text: "The shell offers work and personal Claude Code profiles over one shared store: memory, skills, plugins and projects live in ~/.claude, while each profile keeps its own login and settings. claude picks a profile (fzf), claudew and claudep jump straight in. First run builds the overlays; a fresh work profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Launch with a profile",
+            code: "claude    # pick: work or personal\nclaudew   # work directly\nclaudep   # personal directly",
+          },
+        ],
+      },
     ],
   },
   "guide-neovim": {
