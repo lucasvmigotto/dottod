@@ -73,10 +73,14 @@ __dottod_claude_ensure_profile() {
     if [[ ! -e "${dir}/settings.json" && -f "${HOME}/.claude/settings.json" ]]; then
         cp -- "${HOME}/.claude/settings.json" "${dir}/settings.json" 2>/dev/null || true
     fi
-    if [[ "${name}" == "personal" && ! -e "${dir}/.credentials.json" && -f "${HOME}/.claude/.credentials.json" ]]; then
-        mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null \
-            && chmod 600 -- "${dir}/.credentials.json" 2>/dev/null \
-            && printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
+    if [[ "${name}" == "personal" && -f "${HOME}/.claude/.credentials.json" ]]; then
+        if [[ ! -e "${dir}/.credentials.json" ]]; then
+            mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null \
+                && chmod 600 -- "${dir}/.credentials.json" 2>/dev/null \
+                && printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
+        elif ! cmp -s -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null; then
+            printf 'claude: ignoring a login in the shared store (log in through claudew/claudep instead)\n' >&2
+        fi
     fi
     printf '%s' "${dir}"
 }

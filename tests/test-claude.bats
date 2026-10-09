@@ -93,6 +93,18 @@ seed_store() {
     fi
 }
 
+@test "differing shared token warns and both logins survive" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-personal"
+    printf 'overlay-token' >"$FAKE_HOME/.claude-personal/.credentials.json"
+    printf 'shared-token' >"$FAKE_HOME/.claude/.credentials.json"
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_NO_PICKER=1 claudep --version" 2>&1
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_contains 'stray login warning' 'ignoring a login in the shared store' "$output"
+    assert_eq 'overlay token kept' 'overlay-token' "$(cat "$FAKE_HOME/.claude-personal/.credentials.json")"
+    assert_eq 'shared token kept' 'shared-token' "$(cat "$FAKE_HOME/.claude/.credentials.json")"
+}
+
 @test "missing binary fails without launching" {
     seed_store
     mkdir -p "$BATS_TEST_TMPDIR/emptybin"
