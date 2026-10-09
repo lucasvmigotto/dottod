@@ -105,7 +105,7 @@ function _main() {
             _cargo_status
             return 0
             ;;
-        --help|-h)
+        --help | -h)
             _usage
             return 0
             ;;

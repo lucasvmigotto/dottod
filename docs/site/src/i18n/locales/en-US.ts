@@ -68,7 +68,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "GitHub host merge + ed25519 key"],
               [
                 "tools",
-                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh",
+                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just",
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
@@ -536,7 +536,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof and fzf from apt (skipped when all present), gh from its official apt repository (signed keyring), and lazygit, lazydocker, k9s and resterm from GitHub releases — sha256-verified against the release API digest, with warn-and-proceed when unpublished.",
+            text: "Installs btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from apt (skipped when all present), gh from its official apt repository (signed keyring), and lazygit, lazydocker, k9s and resterm from GitHub releases — sha256-verified against the release API digest, with warn-and-proceed when unpublished.",
           },
           {
             kind: "code",
@@ -725,6 +725,22 @@ const pages: Record<PageId, DocPage> = {
             lang: "bash",
             caption: "Update dottod",
             code: "dottod-update",
+          },
+        ],
+      },
+      {
+        id: "profiles",
+        heading: "Claude profiles",
+        blocks: [
+          {
+            kind: "p",
+            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Launch with a profile",
+            code: "claude              # pick from all profiles\nclaude -P work      # one profile for this run\nclaude-profile add extra  # new overlay",
           },
         ],
       },

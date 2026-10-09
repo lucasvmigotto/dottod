@@ -27,44 +27,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install shellcheck and bats
+      - name: Install toolchain (just, shellcheck, bats, shfmt)
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck bats
-          bats --version
+          sudo apt-get update -qq && sudo apt-get install -y -qq just shellcheck bats shfmt
+          just --version && bats --version
 
-      - name: Bash syntax check
-        # NB: tests/*.bats are intentionally absent here — `@test` is not
-        # valid bash, so `bash -n` cannot parse them. ShellCheck below
-        # understands .bats natively and covers them instead.
-        # (tests/test-*.sh suites were migrated to BATS; no such files exist.)
-        run: |
-          for f in \
-            bin/*.sh \
-            scripts/*.sh \
-            styles/*.sh \
-            config/.custom.bashrc \
-            scripts/.alias.sh scripts/.bat.utils.sh \
-            scripts/.sys.utils.sh scripts/.xclip.utils.sh \
-            scripts/.container.utils.sh scripts/.wsl.sh \
-            scripts/.update.sh \
-            scripts/nvim-headless-check.sh \
-            tests/run.sh; do
-            bash -n "${f}"
-          done
-
-      - name: ShellCheck (warnings are errors)
-        run: |
-          shellcheck -S warning \
-            bin/*.sh \
-            scripts/*.sh \
-            styles/*.sh \
-            scripts/.wsl.sh \
-            scripts/.update.sh \
-            config/.custom.bashrc \
-            tests/run.sh tests/test-*.bats tests/helpers.bash
+      - name: Check (syntax, lint, format)
+        # File lists live in the justfile — this step just runs them.
+        # NB: tests/*.bats are absent from `bash -n` (`@test` is not valid
+        # bash); ShellCheck understands .bats natively and covers them.
+        run: just check
 
       - name: Tests
-        run: ./tests/run.sh
+        run: just test
 
       - name: Release-logic tests
-        run: bash scripts/test-release.sh
+        run: just release

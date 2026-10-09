@@ -142,8 +142,8 @@ function _github_cli_install() {
     _priv install -m 0644 "${tmp_key}" "${keyring}"
     rm -f "${tmp_key}"
 
-    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" \
-        | _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" |
+        _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
 
     log_step 'Installing GitHub CLI (gh)'
     _install_packages 'gh'
@@ -162,7 +162,7 @@ function _main() {
     rust_arch="$(_rust_arch)"
 
     log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf'
+    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
 
     _github_cli_install
 

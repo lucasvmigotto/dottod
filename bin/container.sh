@@ -160,21 +160,21 @@ EOF
 
 function _main() {
     case "${1:-}" in
-        '' )
+        '')
             log_step 'Ensuring container runtime'
             _container_ensure
             log_ok 'Container runtime ready'
             return 0
             ;;
-        status )
+        status)
             _container_status
             return 0
             ;;
-        --help|-h )
+        --help | -h)
             _usage
             return 0
             ;;
-        * )
+        *)
             log_error "Unknown action: ${1} (want empty or 'status')"
             _usage
             return 1

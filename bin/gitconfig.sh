@@ -47,12 +47,12 @@ function _main() {
         echo '[user]'
         echo "    name = ${git_name}"
         echo "    email = ${git_email}"
-    } >> "${target}"
+    } >>"${target}"
 
     # Post-verification: the values must read back (a bare `git config`
     # write never fails loudly, so check instead of assuming).
-    if [[ "$(git config --global user.name 2>/dev/null)" != "${git_name}" ]] \
-        || [[ "$(git config --global user.email 2>/dev/null)" != "${git_email}" ]]; then
+    if [[ "$(git config --global user.name 2>/dev/null)" != "${git_name}" ]] ||
+        [[ "$(git config --global user.email 2>/dev/null)" != "${git_email}" ]]; then
         log_error 'Git identity write could not be verified.'
         return 1
     fi

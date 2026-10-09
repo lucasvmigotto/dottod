@@ -5,8 +5,8 @@ set -Eeuo pipefail
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
 function _ghostty_set_default_terminal() {
-    if command -v gsettings >/dev/null 2>&1 \
-        && gsettings get org.gnome.desktop.default-applications.terminal >/dev/null 2>&1; then
+    if command -v gsettings >/dev/null 2>&1 &&
+        gsettings get org.gnome.desktop.default-applications.terminal >/dev/null 2>&1; then
         gsettings set org.gnome.desktop.default-applications.terminal exec 'ghostty'
         gsettings set org.gnome.desktop.default-applications.terminal exec-arg '-e'
         log_ok 'Ghostty set as default GNOME terminal'

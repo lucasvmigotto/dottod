@@ -71,7 +71,7 @@ HISTTIMEFORMAT='%F %T  '
 if ls --color=auto >/dev/null 2>&1; then
     alias ls='ls --color=auto'
 else
-    alias ls='ls -G'   # macOS/BSD
+    alias ls='ls -G' # macOS/BSD
 fi
 alias grep='grep --color=auto'
 
@@ -127,8 +127,11 @@ take() { mkcd "$@"; }
 # up [n]: go up n directories (default 1)
 up() {
     local n=${1:-1} path=""
-    [[ $n =~ ^[0-9]+$ ]] || { echo "usage: up [n]" >&2; return 1; }
-    while (( n-- > 0 )); do path+="../"; done
+    [[ $n =~ ^[0-9]+$ ]] || {
+        echo "usage: up [n]" >&2
+        return 1
+    }
+    while ((n-- > 0)); do path+="../"; done
     cd "${path:-.}" || return
 }
 
@@ -145,19 +148,19 @@ extract() {
             continue
         fi
         case "${f,,}" in
-            *.tar.bz2|*.tbz2) tar xjf "$f" ;;
-            *.tar.gz|*.tgz)   tar xzf "$f" ;;
-            *.tar.xz|*.txz)   tar xJf "$f" ;;
-            *.tar.zst)        tar --zstd -xf "$f" ;;
-            *.tar)            tar xf "$f" ;;
-            *.bz2)            bunzip2 "$f" ;;
-            *.gz)             gunzip "$f" ;;
-            *.xz)             unxz "$f" ;;
-            *.zip|*.jar)      unzip "$f" ;;
-            *.rar)            unrar x "$f" ;;
-            *.7z)             7z x "$f" ;;
-            *.zst)            unzstd "$f" ;;
-            *.z)              uncompress "$f" ;;
+            *.tar.bz2 | *.tbz2) tar xjf "$f" ;;
+            *.tar.gz | *.tgz) tar xzf "$f" ;;
+            *.tar.xz | *.txz) tar xJf "$f" ;;
+            *.tar.zst) tar --zstd -xf "$f" ;;
+            *.tar) tar xf "$f" ;;
+            *.bz2) bunzip2 "$f" ;;
+            *.gz) gunzip "$f" ;;
+            *.xz) unxz "$f" ;;
+            *.zip | *.jar) unzip "$f" ;;
+            *.rar) unrar x "$f" ;;
+            *.7z) 7z x "$f" ;;
+            *.zst) unzstd "$f" ;;
+            *.z) uncompress "$f" ;;
             *) echo "extract: unknown archive type '$f'" >&2 ;;
         esac
     done
@@ -165,7 +168,10 @@ extract() {
 
 # bak: quick timestamped backup of a file/dir
 bak() {
-    [[ $# -ge 1 ]] || { echo "usage: bak <path>..." >&2; return 1; }
+    [[ $# -ge 1 ]] || {
+        echo "usage: bak <path>..." >&2
+        return 1
+    }
     local p
     for p in "$@"; do
         cp -a -- "$p" "${p%/}.bak.$(date +%Y%m%d-%H%M%S)"
@@ -192,7 +198,10 @@ psg() { ps aux | grep -i "[${1:0:1}]${1:1}"; }
 
 # port: what's listening on a TCP port
 port() {
-    [[ $# -eq 1 ]] || { echo "usage: port <number>" >&2; return 1; }
+    [[ $# -eq 1 ]] || {
+        echo "usage: port <number>" >&2
+        return 1
+    }
     if command -v ss >/dev/null 2>&1; then
         ss -ltnp "sport = :$1" 2>/dev/null
     else
@@ -210,13 +219,18 @@ mkcdt() { cd "$(mktemp -d)" || return; }
 dirsize() { du -sh -- * .[!.]* 2>/dev/null | sort -h; }
 
 # weather-free "what's my IP"
-myip() { curl -s https://ifconfig.me; echo; }
+myip() {
+    curl -s https://ifconfig.me
+    echo
+}
 
 # gcl: git clone and cd into the repo
 gcl() {
     git clone "$@" || return
     local last="${!#}"
-    last="${last%/}"; last="${last##*/}"; last="${last%.git}"
+    last="${last%/}"
+    last="${last##*/}"
+    last="${last%.git}"
     [[ -d $last ]] && cd -- "$last" || return
 }
 

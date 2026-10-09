@@ -45,7 +45,7 @@ Tasks:
   ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely) + ed25519 key
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh
+  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
 EOF
@@ -124,7 +124,7 @@ function _main() {
             --runtime)
                 _DOT_CONTAINER_RUNTIME="$(printf '%s' "${2:?'--runtime requires podman, docker, or auto'}" | tr '[:upper:]' '[:lower:]')"
                 case "${_DOT_CONTAINER_RUNTIME}" in
-                    podman|docker|auto)
+                    podman | docker | auto)
                         export _DOT_CONTAINER_RUNTIME
                         ;;
                     *)
@@ -150,15 +150,15 @@ function _main() {
                 export DOT_ASSUME_YES=1
                 shift
                 ;;
-            --verbose|-v)
+            --verbose | -v)
                 verbose=1
                 shift
                 ;;
-            --list|-l)
+            --list | -l)
                 printf '%s\n' "${DOT_TASKS[@]}"
                 return 0
                 ;;
-            --help|-h)
+            --help | -h)
                 _usage
                 return 0
                 ;;

@@ -51,10 +51,10 @@ __dottod_glyph() {
 # to the original .custom.bashrc rendering for the default style.
 __dottod_git_info() {
     local ref
-    ref=$(git symbolic-ref --short -q HEAD 2>/dev/null) \
-        || ref=$(git describe --tags --exact-match HEAD 2>/dev/null) \
-        || ref=$(git rev-parse --short HEAD 2>/dev/null) \
-        || return
+    ref=$(git symbolic-ref --short -q HEAD 2>/dev/null) ||
+        ref=$(git describe --tags --exact-match HEAD 2>/dev/null) ||
+        ref=$(git rev-parse --short HEAD 2>/dev/null) ||
+        return
 
     local dirty=""
     if [[ $(git config --get dottod.hide-dirty 2>/dev/null) != 1 ]]; then

@@ -122,11 +122,11 @@ function _merge_github_config() {
     # Locate the first Host block naming exact (case-insensitive,
     # double-quote-tolerant) github.com.
     local start=-1 end=${n} i line low rest tok tok_low
-    for (( i = 0; i < n; i++ )); do
+    for ((i = 0; i < n; i++)); do
         line="${lines[i]}"
         low="${line,,}"
         if [[ "${low}" =~ ^[[:space:]]*(host|match)([[:space:]]|$) ]]; then
-            if (( start >= 0 )); then
+            if ((start >= 0)); then
                 end=${i}
                 break
             fi
@@ -142,7 +142,7 @@ function _merge_github_config() {
                         *\** | *\?* | *\!* | *\[*) continue ;;
                         github.com) start=${i} ;;
                     esac
-                    (( start >= 0 )) && break
+                    ((start >= 0)) && break
                 done
             fi
         fi
@@ -151,11 +151,11 @@ function _merge_github_config() {
     # Which required options are missing from that block?
     local -a missing=()
     local ki found j
-    if (( start >= 0 )); then
+    if ((start >= 0)); then
         for ki in "${!want_keys[@]}"; do
             k="${want_keys[ki]}"
             found=0
-            for (( j = start; j < end; j++ )); do
+            for ((j = start; j < end; j++)); do
                 low="${lines[j],,}"
                 # Option names are matched whole (boundary after the key),
                 # so `User` never matches `UserKnownHostsFile`, and commented
@@ -165,7 +165,7 @@ function _merge_github_config() {
                     break
                 fi
             done
-            (( found == 0 )) && missing+=("${ki}")
+            ((found == 0)) && missing+=("${ki}")
         done
         if [[ ${#missing[@]} -eq 0 ]]; then
             log_info "GitHub SSH config already present in ${target}"
@@ -179,11 +179,11 @@ function _merge_github_config() {
 
     local tmp
     tmp="$(mktemp "$(dirname "${target}")/.ssh-config.XXXXXX")"
-    if (( start < 0 )); then
+    if ((start < 0)); then
         # No github.com block: append the canonical one (once).
-        (( n > 0 )) && printf '%s\n' "${lines[@]}" >"${tmp}"
+        ((n > 0)) && printf '%s\n' "${lines[@]}" >"${tmp}"
         # Ensure exactly one blank line separates the appended block.
-        if (( n > 0 )) && [[ -n "${lines[n-1]}" ]]; then
+        if ((n > 0)) && [[ -n "${lines[n - 1]}" ]]; then
             printf '\n' >>"${tmp}"
         fi
         printf 'Host github.com\n' >>"${tmp}"
@@ -191,13 +191,13 @@ function _merge_github_config() {
             printf '    %s %s\n' "${want_keys[ki]}" "${want_vals[ki]}" >>"${tmp}"
         done
     else
-        for (( i = 0; i < end; i++ )); do
+        for ((i = 0; i < end; i++)); do
             printf '%s\n' "${lines[i]}" >>"${tmp}"
         done
         for ki in "${missing[@]}"; do
             printf '    %s %s\n' "${want_keys[ki]}" "${want_vals[ki]}" >>"${tmp}"
         done
-        for (( i = end; i < n; i++ )); do
+        for ((i = end; i < n; i++)); do
             printf '%s\n' "${lines[i]}" >>"${tmp}"
         done
     fi

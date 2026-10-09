@@ -68,7 +68,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "merge do host GitHub + chave ed25519"],
               [
                 "tools",
-                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh",
+                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just",
               ],
               ["cargo", "toolchain Rust via rustup"],
               ["bun", "runtime Bun + CLI devcontainer"],
@@ -537,7 +537,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof e fzf via apt (pulado quando tudo presente), gh do repositório apt oficial (keyring assinado), e lazygit, lazydocker, k9s e resterm dos releases do GitHub — verificados por sha256 contra a API, com aviso-e-segue quando não publicado.",
+            text: "Instala btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt e just via apt (pulado quando tudo presente), gh do repositório apt oficial (keyring assinado), e lazygit, lazydocker, k9s e resterm dos releases do GitHub — verificados por sha256 contra a API, com aviso-e-segue quando não publicado.",
           },
           {
             kind: "code",
@@ -726,6 +726,22 @@ const pages: Record<PageId, DocPage> = {
             lang: "bash",
             caption: "Atualizar o dottod",
             code: "dottod-update",
+          },
+        ],
+      },
+      {
+        id: "profiles",
+        heading: "Perfis Claude",
+        blocks: [
+          {
+            kind: "p",
+            text: "O shell oferece perfis Claude Code nomeados (work, personal, …) sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada overlay ~/.claude-<nome> guarda seu próprio login, configurações e diretórios de identidade. claude escolhe o perfil (fzf), claude -P seleciona para a execução, claude-profile gerencia overlays. A primeira execução monta o overlay; um perfil novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Iniciar com um perfil",
+            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay",
           },
         ],
       },

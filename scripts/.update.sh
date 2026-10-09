@@ -54,8 +54,8 @@ _dottod_update_root() {
 _dottod_local_tag() {
     local root="${1:-$(_dottod_update_root)}"
     [[ -n "${root}" ]] || return 1
-    git -C "${root}" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n 1 | grep -q . \
-        && git -C "${root}" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n 1
+    git -C "${root}" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n 1 | grep -q . &&
+        git -C "${root}" tag --list '[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname 2>/dev/null | head -n 1
 }
 
 # _dottod_repo_slug [root]: owner/repo for the remote release lookup.
@@ -112,14 +112,14 @@ _dottod_update_check() {
     root="$(_dottod_update_root)" || return 0
     state="$(_dottod_update_state_file)"
     now="$(date +%s 2>/dev/null)" || return 0
-    maxage=$(( ${DOT_UPDATE_DAYS:-7} * 86400 ))
+    maxage=$((${DOT_UPDATE_DAYS:-7} * 86400))
     if [[ -s "${state}" ]]; then
         read -r checked remote <"${state}" || return 0
         if [[ ! "${checked}" =~ ^[0-9]+$ ]] || ((now - checked >= maxage)); then
-            ( _dottod_update_refresh </dev/null >/dev/null 2>&1 & )
+            (_dottod_update_refresh </dev/null >/dev/null 2>&1 &)
         fi
     else
-        ( _dottod_update_refresh </dev/null >/dev/null 2>&1 & )
+        (_dottod_update_refresh </dev/null >/dev/null 2>&1 &)
         return 0
     fi
     [[ -n "${remote:-}" ]] || return 0

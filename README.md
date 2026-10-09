@@ -121,6 +121,20 @@ Flags:
 - `--verbose` / `-v` — stream full output
 - `--list` / `-l` — list available tasks
 
+### Task runner
+
+Day-to-day checks run through `just` (installed by the `tools` task):
+
+```bash
+just          # the gate: syntax + lint + format drift
+just test     # hermetic bats suites
+just fmt      # rewrite shell formatting in place
+just site     # docs site typecheck + tests + lint
+just smoke    # boot a pristine login shell and assert the surface
+just doctor   # health report: tools, prompt, projects, updates, profiles
+just --list   # every recipe
+```
+
 ### Individual scripts
 
 Each task can be run on its own; some accept arguments:
@@ -141,6 +155,23 @@ Scripts are configurable via `_DOT_*` environment variables:
 ```bash
 _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 ```
+
+### Claude profiles
+
+The interactive shell offers named Claude Code profiles (`work`,
+`personal`, …) over one shared store (`~/.claude` holds memory, skills,
+projects; each `~/.claude-<name>` overlay keeps its own login, settings
+and identity dirs):
+
+```bash
+claude              # pick a profile (fzf) — defaults to personal headless
+claude -P work      # one profile for this invocation (--profile works too)
+claude-profile add extra   # new overlay (links shared store, own login)
+claude-profile ls          # profiles with login state
+```
+
+First run builds the overlay; a fresh profile asks for `/login`. Configure
+with `CLAUDE_PROFILE=<name>`, `CLAUDE_NO_PICKER=1`.
 
 ### Tests
 
