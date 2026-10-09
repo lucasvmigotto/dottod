@@ -70,11 +70,13 @@ __dottod_claude_binary() {
     return 1
 }
 
-# __dottod_claude_ensure_profile <name>: builds the overlay (idempotent,
-# never overwrites real files), stamps the marker, and prints its dir.
-# Migrates the shared personal token into the personal overlay once.
+# __dottod_claude_ensure_profile <name> [quiet]: builds the overlay
+# (idempotent, never overwrites real files), stamps the marker, and prints
+# its dir. With a second arg, cosmetic layout chatter is suppressed — the
+# launch path uses it so `claude --continue` stays silent. Migrates the
+# shared personal token into the personal overlay once.
 __dottod_claude_ensure_profile() {
-    local name="${1:?profile required}" dir entry src
+    local name="${1:?profile required}" quiet="${2:-}" dir entry src
     dir="$(__dottod_claude_profile_dir "${name}")" || return 1
     [[ -n "${HOME:-}" ]] || {
         echo 'claude: HOME is empty' >&2
@@ -92,7 +94,7 @@ __dottod_claude_ensure_profile() {
         if [[ -L "${dir}/${entry}" ]]; then
             continue
         elif [[ -e "${dir}/${entry}" ]]; then
-            printf 'claude: keeping existing %s (not replacing with a link)\n' "${dir}/${entry}" >&2
+            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (not replacing with a link)\n' "${dir}/${entry}" >&2
             continue
         fi
         ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
@@ -104,9 +106,9 @@ __dottod_claude_ensure_profile() {
         if [[ ! -e "${dir}/.credentials.json" ]]; then
             mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null &&
                 chmod 600 -- "${dir}/.credentials.json" 2>/dev/null &&
-                printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
+                { [[ -n "${quiet}" ]] || printf 'claude: adopted the shared login into the personal profile\n' >&2; } || true
         elif ! cmp -s -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null; then
-            printf 'claude: ignoring a login in the shared store (log in through a profile instead)\n' >&2
+            [[ -n "${quiet}" ]] || printf 'claude: ignoring a login in the shared store (log in through a profile instead)\n' >&2
         fi
     fi
     if [[ ! -f "${dir}/${__DOTTOD_CLAUDE_MARKER}" ]]; then
@@ -115,16 +117,48 @@ __dottod_claude_ensure_profile() {
     printf '%s' "${dir}"
 }
 
+# __dottod_claude_profile_info <dir>: prints a short account summary for the
+# fzf side panel — auth state, account, org, plan and preferences. Best
+# effort: missing or unreadable files degrade to fewer lines, never fail.
+__dottod_claude_profile_info() {
+    local d="${1:?dir required}"
+    if [[ -s "${d}/.credentials.json" ]]; then
+        printf 'authenticated\n'
+    else
+        printf 'not authenticated — run and /login\n'
+    fi
+    command -v jq >/dev/null 2>&1 || return 0
+    if [[ -s "${d}/.claude.json" ]]; then
+        jq -r '
+            (.oauthAccount // {}) as $o |
+            "account  \($o.emailAddress // "n/a")",
+            "name     \($o.displayName // $o.fullName // "n/a")",
+            "org      \($o.organizationName // "n/a")",
+            "role     \($o.organizationRole // $o.workspaceRole // "n/a")"
+        ' "${d}/.claude.json" 2>/dev/null
+    fi
+    if [[ -s "${d}/.credentials.json" ]]; then
+        jq -r '
+            (.claudeAiOauth // {}) as $c |
+            "plan     \($c.subscriptionType // "n/a") · \($c.rateLimitTier // "n/a")"
+        ' "${d}/.credentials.json" 2>/dev/null
+    fi
+    if [[ -s "${d}/settings.json" ]]; then
+        jq -r '"prefs    " + (to_entries | map("\(.key)=\(.value)") | join(" "))' "${d}/settings.json" 2>/dev/null
+    fi
+}
+
 # __dottod_claude_fzf: profile picker, prints the chosen name (fails on esc
 # or when no profiles exist yet).
 __dottod_claude_fzf() {
     local names choice
     names="$(__dottod_claude_profiles)"
     [[ -n "${names}" ]] || return 1
+    export -f __dottod_claude_profile_info
     choice="$(printf '%s\n' "${names}" | fzf --prompt='profile> ' \
         --height=40% --layout=reverse --border \
         --header='enter: launch   esc: cancel' \
-        --preview='d="$HOME/.claude-{}"; if [ -s "$d/.credentials.json" ]; then echo authenticated; else echo "needs /login"; fi; ls "$d" 2>/dev/null | head -n 12')" || return $?
+        --preview='bash -c '"'"'__dottod_claude_profile_info "$HOME/.claude-{}"'"'"'')" || return $?
     [[ -n "${choice}" ]] || return 130
     printf '%s' "${choice}"
 }
@@ -283,6 +317,6 @@ claude() {
         esac
     done
     profile="$(__dottod_claude_pick_profile)" || return $?
-    dir="$(__dottod_claude_ensure_profile "${profile}")" || return $?
+    dir="$(__dottod_claude_ensure_profile "${profile}" quiet)" || return $?
     CLAUDE_CONFIG_DIR="${dir}" command claude "${args[@]}"
 }
