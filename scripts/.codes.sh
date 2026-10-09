@@ -450,12 +450,12 @@ codes() {
             if ((${#cand[@]} == 0)); then
                 echo "codes: no project resembles '$query' — showing everything" >&2
             else
-                local k1 s1 p1 k2 s2 auto=0
+                local k1 s1 p1 _k2 s2 auto=0
                 IFS=$'\t' read -r k1 s1 _ p1 <<<"${cand[0]}"
                 if ((${#cand[@]} == 1)); then
                     auto=1
                 else
-                    IFS=$'\t' read -r k2 s2 _ _ <<<"${cand[1]}"
+                    IFS=$'\t' read -r _k2 s2 _ _ <<<"${cand[1]}"
                     # typo tier: jump only if the best candidate is strictly closer than the runner-up
                     ((k1 == 3 && s1 < s2)) && auto=1
                     # exact/prefix/substring tiers with several hits are ambiguous -> picker
@@ -499,7 +499,7 @@ codes() {
     if ((printpath)); then
         printf '%s\n' "$picked"
     else
-        cd -- "$picked"
+        cd -- "$picked" || return
     fi
 }
 
