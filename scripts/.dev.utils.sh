@@ -19,7 +19,6 @@ function loadenv() {
 
 }
 
-
 ocresume() {
     local dir
     dir=$(cd "${1:-$PWD}" && pwd) || return 1
@@ -56,12 +55,12 @@ ocresume() {
     fi
 
     local picked
-    picked=$(printf '%s\n' "$rows" \
-        | fzf --delimiter='\t' \
-              --with-nth=2,3 \
-              --prompt='opencode session> ' \
-              --header='enter: resume   esc: cancel' \
-        | cut -f1)
+    picked=$(printf '%s\n' "$rows" |
+        fzf --delimiter='\t' \
+            --with-nth=2,3 \
+            --prompt='opencode session> ' \
+            --header='enter: resume   esc: cancel' |
+        cut -f1)
 
     [[ -z "$picked" ]] && return 130
 

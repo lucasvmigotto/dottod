@@ -20,7 +20,10 @@
 #   CLAUDE_NO_PICKER     set (any value) to never show the picker
 
 # Entries shared from ~/.claude into each overlay (symlinked when present).
-__DOTTOD_CLAUDE_SHARED="projects plans plugins skills history.jsonl file-history downloads cache backups shell-snapshots paste-cache sessions session-env state"
+# Identity-bearing dirs stay OUT on purpose: backups/ (holds oauthAccount
+# snapshots), state/, sessions/ and session-env/ are per-profile, otherwise
+# one profile's login recovery restores another profile's account.
+__DOTTOD_CLAUDE_SHARED="projects plans plugins skills history.jsonl file-history downloads cache paste-cache shell-snapshots"
 
 # __dottod_claude_profile_dir <work|personal>: prints the overlay dir.
 __dottod_claude_profile_dir() {
@@ -59,6 +62,7 @@ __dottod_claude_ensure_profile() {
         return 1
     }
     chmod 700 -- "${dir}" 2>/dev/null || true
+    # shellcheck disable=SC2086 # intentional word splitting on the entry list
     for entry in ${__DOTTOD_CLAUDE_SHARED}; do
         src="${HOME}/.claude/${entry}"
         [[ -e "${src}" ]] || continue
@@ -75,9 +79,9 @@ __dottod_claude_ensure_profile() {
     fi
     if [[ "${name}" == "personal" && -f "${HOME}/.claude/.credentials.json" ]]; then
         if [[ ! -e "${dir}/.credentials.json" ]]; then
-            mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null \
-                && chmod 600 -- "${dir}/.credentials.json" 2>/dev/null \
-                && printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
+            mv -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null &&
+                chmod 600 -- "${dir}/.credentials.json" 2>/dev/null &&
+                printf 'claude: adopted the shared login into the personal profile\n' >&2 || true
         elif ! cmp -s -- "${HOME}/.claude/.credentials.json" "${dir}/.credentials.json" 2>/dev/null; then
             printf 'claude: ignoring a login in the shared store (log in through claudew/claudep instead)\n' >&2
         fi
@@ -90,8 +94,8 @@ __dottod_claude_fzf() {
     local wdir pdir
     wdir="$(__dottod_claude_profile_dir work)"
     pdir="$(__dottod_claude_profile_dir personal)"
-    printf 'work\npersonal\n' \
-        | CLAUDE_WD="${wdir}" CLAUDE_PD="${pdir}" fzf --prompt='profile> ' \
+    printf 'work\npersonal\n' |
+        CLAUDE_WD="${wdir}" CLAUDE_PD="${pdir}" fzf --prompt='profile> ' \
             --height=40% --layout=reverse --border \
             --header='enter: launch   esc: cancel' \
             --preview='if [ "{}" = work ]; then d="$CLAUDE_WD"; else d="$CLAUDE_PD"; fi; if [ -s "$d/.credentials.json" ]; then echo authenticated; else echo "needs /login"; fi; ls "$d" 2>/dev/null'
@@ -106,8 +110,7 @@ __dottod_claude_pick_profile() {
             printf '%s' "${choice}"
             return 0
             ;;
-        "")
-            ;;
+        "") ;;
         *)
             printf 'claude: unknown CLAUDE_PROFILE=%s (want work|personal)\n' "${choice}" >&2
             return 2

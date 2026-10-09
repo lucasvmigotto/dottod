@@ -91,8 +91,8 @@ function _nvim_apt_candidate() {
 
 function _nvim_arch() {
     case "$(uname -m)" in
-        x86_64|amd64) printf 'x86_64' ;;
-        arm64|aarch64) printf 'arm64' ;;
+        x86_64 | amd64) printf 'x86_64' ;;
+        arm64 | aarch64) printf 'arm64' ;;
         *) return 1 ;;
     esac
 }
@@ -245,8 +245,8 @@ function _nvim_ensure_binary() {
     _nvim_install_tarball "${tar_ver}" "$(id -un)"
     # Scope ~/.local/bin into PATH for the check: a bare `neovim.sh` run
     # may not have sourced the repo bashrc that adds it yet.
-    if ver="$(PATH="$(_ensure_local_bin):${PATH}" _nvim_version 2>/dev/null)" \
-        && _nvim_ver_ge "${ver}" "${min}"; then
+    if ver="$(PATH="$(_ensure_local_bin):${PATH}" _nvim_version 2>/dev/null)" &&
+        _nvim_ver_ge "${ver}" "${min}"; then
         log_ok "Neovim ${ver} ready (tarball)"
         return 0
     fi
@@ -347,7 +347,7 @@ EOF
 function _main() {
     local profile=${_DOT_NVIM_PROFILE:-"${_DOT_NVIM_PROFILE_DEFAULT}"}
     case "${profile}" in
-        minimal|terminal|development|full) ;;
+        minimal | terminal | development | full) ;;
         *)
             log_error "Invalid _DOT_NVIM_PROFILE='${profile}' (want minimal|terminal|development|full)"
             return 1
@@ -365,7 +365,7 @@ function _main() {
             _nvim_status
             return 0
             ;;
-        --help|-h)
+        --help | -h)
             _usage
             return 0
             ;;

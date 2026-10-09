@@ -121,6 +121,20 @@ Flags:
 - `--verbose` / `-v` — stream full output
 - `--list` / `-l` — list available tasks
 
+### Task runner
+
+Day-to-day checks run through `just` (installed by the `tools` task):
+
+```bash
+just          # the gate: syntax + lint + format drift
+just test     # hermetic bats suites
+just fmt      # rewrite shell formatting in place
+just site     # docs site typecheck + tests + lint
+just smoke    # boot a pristine login shell and assert the surface
+just doctor   # health report: tools, prompt, projects, updates, profiles
+just --list   # every recipe
+```
+
 ### Individual scripts
 
 Each task can be run on its own; some accept arguments:

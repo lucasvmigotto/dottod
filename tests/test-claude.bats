@@ -93,6 +93,20 @@ seed_store() {
     fi
 }
 
+@test "identity dirs are never symlinked into overlays" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude/backups" "$FAKE_HOME/.claude/state"
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_NO_PICKER=1 claudew true" 2>/dev/null
+    assert_eq 'launch rc 0' '0' "$status"
+    local entry
+    for entry in backups state sessions session-env; do
+        if [[ -L "$FAKE_HOME/.claude-work/${entry}" ]]; then
+            printf 'FAIL: identity dir linked: %s\n' "$entry" >&2
+            return 1
+        fi
+    done
+}
+
 @test "differing shared token warns and both logins survive" {
     seed_store
     mkdir -p "$FAKE_HOME/.claude-personal"

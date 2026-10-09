@@ -53,8 +53,8 @@ function _docker_install() {
         _priv chmod a+r "${keyrings_dir}/docker.gpg"
         rm -f "${tmp_key}"
 
-        echo "deb [arch=${arch} signed-by=${keyrings_dir}/docker.gpg] ${repo_url} ${codename} stable" \
-            | _priv tee "${source_file}" >/dev/null
+        echo "deb [arch=${arch} signed-by=${keyrings_dir}/docker.gpg] ${repo_url} ${codename} stable" |
+            _priv tee "${source_file}" >/dev/null
 
         _priv apt-get update -qq --yes >/dev/null 2>&1
     fi

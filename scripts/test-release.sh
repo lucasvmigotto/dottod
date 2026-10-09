@@ -38,7 +38,10 @@ git -C "$base" commit -q -m "chore: initial"
 git -C "$base" tag -a 1.2.3 -m 1.2.3
 
 repo="" out="" rc=0
-fresh() { repo="$SANDBOX/r$RANDOM$RANDOM"; git clone -q "$base" "$repo"; }
+fresh() {
+    repo="$SANDBOX/r$RANDOM$RANDOM"
+    git clone -q "$base" "$repo"
+}
 edit() { # edit <file> <commit subject> [<body>]
     echo "change $RANDOM" >>"$repo/$1"
     git -C "$repo" add -A

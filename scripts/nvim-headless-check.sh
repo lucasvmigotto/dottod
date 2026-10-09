@@ -93,4 +93,4 @@ else
 fi
 
 printf 'headless checks: %d failure(s) (profile: %s)\n' "${failures}" "${_PROFILE}"
-exit $(( failures > 0 ))
+exit $((failures > 0))

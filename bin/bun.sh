@@ -27,8 +27,8 @@ _DOT_BUN_GITHUB_DEFAULT='https://github.com'
 
 function _bun_arch() {
     case "$(uname -m)" in
-        x86_64|amd64) printf 'linux-x64' ;;
-        arm64|aarch64) printf 'linux-aarch64' ;;
+        x86_64 | amd64) printf 'linux-x64' ;;
+        arm64 | aarch64) printf 'linux-aarch64' ;;
         *) return 1 ;;
     esac
 }
@@ -172,9 +172,9 @@ function _bun_devcontainer() {
     # (~/.bun/bin by default), which config/.custom.bashrc already puts on
     # PATH — accept that location as well as ~/.local/bin.
     local bun_home_bin="${BUN_INSTALL:-"${HOME}/.bun"}/bin/devcontainer"
-    if [[ ! -x "$(_ensure_local_bin)/devcontainer" ]] \
-        && [[ ! -x "${bun_home_bin}" ]] \
-        && ! _is_installed devcontainer; then
+    if [[ ! -x "$(_ensure_local_bin)/devcontainer" ]] &&
+        [[ ! -x "${bun_home_bin}" ]] &&
+        ! _is_installed devcontainer; then
         log_error 'devcontainer CLI install did not yield a devcontainer binary on PATH.'
         return 1
     fi
@@ -214,7 +214,7 @@ function _main() {
             _bun_status
             return 0
             ;;
-        --help|-h)
+        --help | -h)
             _usage
             return 0
             ;;

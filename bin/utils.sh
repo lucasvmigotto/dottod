@@ -17,7 +17,7 @@ function _color_supported() {
     [[ -n "${NO_COLOR:-}" ]] && return 1
     [[ -t 2 ]] || return 1
     case "${TERM:-}" in
-        ''|dumb) return 1 ;;
+        '' | dumb) return 1 ;;
     esac
     if command -v tput >/dev/null 2>&1; then
         [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]] || return 1
@@ -53,10 +53,10 @@ else
     readonly DOT_SYM_ERR='XX'
 fi
 
-function log_step()  { printf "${DOT_C_BOLD}${DOT_C_CYAN}${DOT_SYM_STEP} %s${DOT_C_RESET}\n" "$*" >&2; }
-function log_info()  { printf "${DOT_C_BLUE}  ${DOT_SYM_INFO} %s${DOT_C_RESET}\n" "$*" >&2; }
-function log_ok()    { printf "${DOT_C_GREEN}  ${DOT_SYM_OK} %s${DOT_C_RESET}\n" "$*" >&2; }
-function log_warn()  { printf "${DOT_C_YELLOW}  ${DOT_SYM_WARN} %s${DOT_C_RESET}\n" "$*" >&2; }
+function log_step() { printf "${DOT_C_BOLD}${DOT_C_CYAN}${DOT_SYM_STEP} %s${DOT_C_RESET}\n" "$*" >&2; }
+function log_info() { printf "${DOT_C_BLUE}  ${DOT_SYM_INFO} %s${DOT_C_RESET}\n" "$*" >&2; }
+function log_ok() { printf "${DOT_C_GREEN}  ${DOT_SYM_OK} %s${DOT_C_RESET}\n" "$*" >&2; }
+function log_warn() { printf "${DOT_C_YELLOW}  ${DOT_SYM_WARN} %s${DOT_C_RESET}\n" "$*" >&2; }
 function log_error() { printf "${DOT_C_RED}  ${DOT_SYM_ERR} %s${DOT_C_RESET}\n" "$*" >&2; }
 
 readonly DOT_SUDO_PASS_FILE="${DOT_LOG_DIR}/.sudo-pass"
@@ -112,7 +112,7 @@ function _sudo_nopasswd() {
 }
 
 function _sudo_askpass_script() {
-    cat > "${DOT_SUDO_ASKPASS_FILE}" <<EOF
+    cat >"${DOT_SUDO_ASKPASS_FILE}" <<EOF
 #!/usr/bin/env bash
 cat '${DOT_SUDO_PASS_FILE}'
 EOF
@@ -155,7 +155,7 @@ function _sudo_preflight() {
         read -rsp 'sudo password: ' password
         printf '\n' >&2
 
-        printf '%s\n' "${password}" > "${DOT_SUDO_PASS_FILE}"
+        printf '%s\n' "${password}" >"${DOT_SUDO_PASS_FILE}"
         chmod 600 "${DOT_SUDO_PASS_FILE}"
         _sudo_askpass_script
 
@@ -289,11 +289,11 @@ function _github_asset_url() {
     local pattern=${2:?'Asset name pattern must be informed'}
 
     local url
-    url="$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" \
-        | grep -oE '"browser_download_url": *"[^"]+"' \
-        | cut -d'"' -f4 \
-        | grep -E "${pattern}" \
-        | head -n1)"
+    url="$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
+        grep -oE '"browser_download_url": *"[^"]+"' |
+        cut -d'"' -f4 |
+        grep -E "${pattern}" |
+        head -n1)"
 
     if [[ -z "${url}" ]]; then
         log_error "No release asset matching '${pattern}' for ${repo}"
@@ -338,8 +338,8 @@ function _prompt() {
 
 function _go_arch() {
     case "$(uname -m)" in
-        x86_64|amd64) echo 'x86_64' ;;
-        arm64|aarch64) echo 'arm64' ;;
+        x86_64 | amd64) echo 'x86_64' ;;
+        arm64 | aarch64) echo 'arm64' ;;
         *) echo "$(uname -m)" ;;
     esac
 }
@@ -347,7 +347,7 @@ function _go_arch() {
 function _rust_arch() {
     case "$(uname -m)" in
         x86_64) echo 'amd64' ;;
-        arm64|aarch64) echo 'arm64' ;;
+        arm64 | aarch64) echo 'arm64' ;;
         *) echo "$(uname -m)" ;;
     esac
 }
