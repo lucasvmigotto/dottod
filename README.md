@@ -161,7 +161,8 @@ _DOT_NERDFONT_VERSION=v3.5.0 ./bin/fonts.sh
 The interactive shell offers named Claude Code profiles (`work`,
 `personal`, …) over one shared store (`~/.claude` holds memory, skills,
 projects; each `~/.claude-<name>` overlay keeps its own login, settings
-and identity dirs):
+and identity dirs). The fzf picker previews each profile's account, plan
+and preferences:
 
 ```bash
 claude              # pick a profile (fzf) — defaults to personal headless
