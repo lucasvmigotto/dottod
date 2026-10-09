@@ -73,6 +73,15 @@ seed_update_state() {
     assert_contains 'missing tool warns' 'definitely-not-a-tool-xyz missing' "$output"
 }
 
+@test "legacy shared-identity layout warns" {
+    seed_profiles
+    mkdir -p "$FAKE_HOME/.claude/backups"
+    ln -s "$FAKE_HOME/.claude/backups" "$FAKE_HOME/.claude-work/backups"
+    run doctor_run
+    assert_eq 'doctor rc 0' '0' "$status"
+    assert_contains 'identity warning' 'shares identity dirs' "$output"
+}
+
 @test "broken overlay link warns" {
     seed_profiles
     ln -s "$FAKE_HOME/.claude/nope" "$FAKE_HOME/.claude-work/skills"

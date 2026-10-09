@@ -142,6 +142,11 @@ dottod-doctor() {
                 else
                     __dottod_doc_warn "claude ${t} has broken links"
                 fi
+                if __dottod_doc_identity_isolated "${d}"; then
+                    __dottod_doc_ok "claude ${t} identity isolated"
+                else
+                    __dottod_doc_warn "claude ${t} shares identity dirs (rebuild the overlay)"
+                fi
             else
                 __dottod_doc_warn "claude ${t} overlay missing (run it once)"
             fi
@@ -165,6 +170,18 @@ dottod-doctor() {
     ((_DOTTOD_DOC_FAIL == 0))
 }
 
+# __dottod_doc_identity_isolated <dir>: true when no identity-bearing entry
+# (backups, state, sessions, session-env) is a symlink into another store —
+# a shared identity lets one profile restore another profile's account.
+__dottod_doc_identity_isolated() {
+    local entry
+    for entry in backups state sessions session-env; do
+        if [[ -L "${1:?dir required}/${entry}" ]]; then
+            return 1
+        fi
+    done
+    return 0
+}
 # __dottod_doc_broken_links <dir>: true when no symlink inside is dangling.
 __dottod_doc_broken_links() {
     local entry

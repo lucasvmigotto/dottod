@@ -20,7 +20,10 @@
 #   CLAUDE_NO_PICKER     set (any value) to never show the picker
 
 # Entries shared from ~/.claude into each overlay (symlinked when present).
-__DOTTOD_CLAUDE_SHARED="projects plans plugins skills history.jsonl file-history downloads cache backups shell-snapshots paste-cache sessions session-env state"
+# Identity-bearing dirs stay OUT on purpose: backups/ (holds oauthAccount
+# snapshots), state/, sessions/ and session-env/ are per-profile, otherwise
+# one profile's login recovery restores another profile's account.
+__DOTTOD_CLAUDE_SHARED="projects plans plugins skills history.jsonl file-history downloads cache paste-cache shell-snapshots"
 
 # __dottod_claude_profile_dir <work|personal>: prints the overlay dir.
 __dottod_claude_profile_dir() {
