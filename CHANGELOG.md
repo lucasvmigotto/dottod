@@ -5,6 +5,12 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.6.0 — 2026-10-11
+
+### Added
+
+- **claude:** usage bars and resets in profile picker
+
 ## 1.5.0 — 2026-10-09
 
 ### Added
