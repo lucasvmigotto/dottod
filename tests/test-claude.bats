@@ -173,6 +173,71 @@ seed_store() {
     }
 }
 
+@test "claude-profile rename moves the overlay and rewrites the marker" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude/projects"
+    # Build a real overlay via add, then rename it.
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile add temp >/dev/null
+        claude-profile rename temp temp2
+        claude-profile ls
+    " 2>/dev/null
+    assert_eq 'rename rc 0' '0' "$status"
+    assert_contains 'confirm rename' 'claude profile renamed: temp -> temp2' "$output"
+    assert_contains 'new name listed' 'temp2' "$output"
+    assert_eq 'marker rewritten' 'temp2' "$(cat "$FAKE_HOME/.claude-temp2/.dottod-profile")"
+    [ ! -e "$FAKE_HOME/.claude-temp" ] || {
+        printf 'FAIL: old dir still present\n' >&2
+        return 1
+    }
+    [ -L "$FAKE_HOME/.claude-temp2/projects" ] || {
+        printf 'FAIL: shared symlink lost after rename\n' >&2
+        return 1
+    }
+}
+
+@test "claude-profile rename refuses an existing target" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-a" "$FAKE_HOME/.claude-b"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    printf 'b\n' >"$FAKE_HOME/.claude-b/.dottod-profile"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename a b
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero renaming onto existing profile\n' >&2
+        return 1
+    fi
+    assert_contains 'already exists' 'already exists' "$output"
+    assert_eq 'source untouched' 'a' "$(cat "$FAKE_HOME/.claude-a/.dottod-profile")"
+}
+
+@test "claude-profile rename refuses a non-profile and a bad name" {
+    mkdir -p "$FAKE_HOME/.claude-bak"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename bak foo
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero for non-profile source\n' >&2
+        return 1
+    fi
+    assert_contains 'not a profile' 'not a profile' "$output"
+    mkdir -p "$FAKE_HOME/.claude-a"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename a '../evil'
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero for bad target name\n' >&2
+        return 1
+    fi
+    assert_contains 'bad name' 'bad profile name' "$output"
+}
+
 @test "non-interactive launch defaults to personal" {
     seed_store
     run bash -c "
@@ -274,6 +339,42 @@ seed_store() {
     assert_contains 'green under 50' '3   2   m' "$output"
     assert_contains 'yellow under 80' '3   3   m' "$output"
     assert_contains 'red at/above 80' '3   1   m' "$output"
+}
+
+@test "picker exports every preview helper" {
+    # fzf can't run hermetically, so assert the fix directly: the picker's
+    # export must cover all callees of __dottod_claude_profile_info, or the
+    # preview subshell logs "command not found" for bar/until/ago.
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        declare -f __dottod_claude_fzf
+    "
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'exports profile info' 'export -f __dottod_claude_profile_info' "$output"
+    assert_contains 'exports bar' '__dottod_claude_bar' "$output"
+    assert_contains 'exports until' '__dottod_claude_until' "$output"
+    assert_contains 'exports ago' '__dottod_claude_ago' "$output"
+}
+
+@test "profile info resolves helpers in a child shell" {
+    # Simulates the preview subshell: a fresh bash that inherits ONLY the
+    # exported functions (as the picker does), not the sourced definitions.
+    # Guards against any future callee left unexported.
+    local d="$FAKE_HOME/.claude-metered"
+    mkdir -p "$d"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_until __dottod_claude_ago
+        bash -c \"__dottod_claude_profile_info '$d'\"
+    "
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'bar rendered' '69%' "$output"
+    assert_contains 'reset shown' 'resets ' "$output"
+    if printf '%s' "$output" | grep -q 'command not found'; then
+        printf 'FAIL: helper command not found in preview subshell\n%s\n' "$output" >&2
+        return 1
+    fi
 }
 
 @test "profile info degrades without login" {
