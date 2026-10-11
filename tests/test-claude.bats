@@ -392,6 +392,33 @@ seed_store() {
     assert_contains 'exports ago' '__dottod_claude_ago' "$output"
 }
 
+@test "fzf cancel aborts the launch" {
+    # The exact user report: ESC/Ctrl+C in the picker (fzf rc 130) must
+    # abort, never fall through to the default profile and launch.
+    mkdir -p "$FAKE_HOME/.claude-work"
+    printf 'work\n' >"$FAKE_HOME/.claude-work/.dottod-profile"
+    cat >"$STUBBIN/fzf" <<'STUBEOF'
+#!/usr/bin/env bash
+exit 130
+STUBEOF
+    chmod +x "$STUBBIN/fzf"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        __dottod_claude_fzf
+    "
+    assert_eq 'helper propagates cancel' '130' "$status"
+}
+
+@test "aborted pick never launches the binary" {
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        __dottod_claude_pick_profile() { return 130; }
+        claude --version
+    "
+    assert_eq 'launch aborted' '130' "$status"
+    assert_eq 'nothing launched' '' "$(cat "$CALLS_LOG")"
+}
+
 @test "profile info resolves helpers in a child shell" {
     # Simulates the preview subshell: a fresh bash that inherits ONLY the
     # exported functions (as the picker does), not the sourced definitions.
