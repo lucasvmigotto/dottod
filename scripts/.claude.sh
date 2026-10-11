@@ -117,9 +117,75 @@ __dottod_claude_ensure_profile() {
     printf '%s' "${dir}"
 }
 
+# __dottod_claude_bar <pct> <width>: a usage bar, colored by level
+# (green <50, yellow <80, red at/above). fzf renders the ANSI colors.
+__dottod_claude_bar() {
+    local pct="${1:-0}" width="${2:-10}" filled i bar color
+    ((pct < 0)) && pct=0
+    ((pct > 100)) && pct=100
+    filled=$((pct * width / 100))
+    bar=""
+    for ((i = 0; i < filled; i++)); do bar+=$'\u2588'; done
+    for ((i = filled; i < width; i++)); do bar+=$'\u2591'; done
+    if ((pct < 50)); then
+        color=$'\e[32m'
+    elif ((pct < 80)); then
+        color=$'\e[33m'
+    else
+        color=$'\e[31m'
+    fi
+    printf '%s%s%s' "${color}" "${bar}" $'\e[0m'
+}
+
+# __dottod_claude_until <iso8601>: resets_at stamp as "today 20:00 (in 6h)".
+# Past stamps show "(any moment)"; unparseable stamps print raw.
+__dottod_claude_until() {
+    local iso="${1:?stamp required}" now target diff h when mwhen
+    now="$(date +%s 2>/dev/null)" || {
+        printf '%s' "${iso}"
+        return 0
+    }
+    target="$(date -d "${iso}" +%s 2>/dev/null)" || {
+        printf '%s' "${iso}"
+        return 0
+    }
+    when="$(date -d "${iso}" +"%a %H:%M" 2>/dev/null || printf '%s' "${iso}")"
+    diff=$((target - now))
+    if ((diff <= 0)); then
+        mwhen="any moment"
+    elif ((diff < 3600)); then
+        mwhen="in $((diff / 60))m"
+    elif ((diff < 172800)); then
+        h=$((diff / 3600))
+        mwhen="in ${h}h"
+    else
+        mwhen="in $((diff / 86400))d"
+    fi
+    printf '%s (%s)' "${when}" "${mwhen}"
+}
+
+# __dottod_claude_ago <epoch_ms>: fetchedAtMs stamp as "updated 2h ago".
+__dottod_claude_ago() {
+    local ms="${1:?stamp required}" now diff
+    now="$(date +%s 2>/dev/null)" || return 0
+    [[ "${ms}" =~ ^[0-9]+$ ]] || return 0
+    diff=$((now - ms / 1000))
+    ((diff < 0)) && diff=0
+    if ((diff < 300)); then
+        printf 'updated just now'
+    elif ((diff < 3600)); then
+        printf 'updated %dm ago' $((diff / 60))
+    elif ((diff < 86400)); then
+        printf 'updated %dh ago' $((diff / 3600))
+    else
+        printf 'updated %dd ago' $((diff / 86400))
+    fi
+}
+
 # __dottod_claude_profile_info <dir>: prints a short account summary for the
-# fzf side panel — auth state, account, org, plan and preferences. Best
-# effort: missing or unreadable files degrade to fewer lines, never fail.
+# fzf side panel — auth state, account, org, plan, preferences and usage
+# (5h/7d bars with reset times). Best effort: missing or unreadable files
+# degrade to fewer lines, never fail.
 __dottod_claude_profile_info() {
     local d="${1:?dir required}"
     if [[ -s "${d}/.credentials.json" ]]; then
@@ -145,6 +211,23 @@ __dottod_claude_profile_info() {
     fi
     if [[ -s "${d}/settings.json" ]]; then
         jq -r '"prefs    " + (to_entries | map("\(.key)=\(.value)") | join(" "))' "${d}/settings.json" 2>/dev/null
+    fi
+    if [[ -s "${d}/.claude.json" ]]; then
+        local five five_reset seven seven_reset fetched
+        five="$(jq -r '.cachedUsageUtilization.utilization.five_hour.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
+        five_reset="$(jq -r '.cachedUsageUtilization.utilization.five_hour.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
+        seven="$(jq -r '.cachedUsageUtilization.utilization.seven_day.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
+        seven_reset="$(jq -r '.cachedUsageUtilization.utilization.seven_day.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
+        fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // empty' "${d}/.claude.json" 2>/dev/null)"
+        if [[ "${five}" =~ ^[0-9]+$ && -n "${five_reset}" ]]; then
+            printf 'usage    5h %s %s%% \u00b7 resets %s\n' "$(__dottod_claude_bar "${five}")" "${five}" "$(__dottod_claude_until "${five_reset}")"
+        fi
+        if [[ "${seven}" =~ ^[0-9]+$ && -n "${seven_reset}" ]]; then
+            printf '         7d %s %s%% \u00b7 resets %s\n' "$(__dottod_claude_bar "${seven}")" "${seven}" "$(__dottod_claude_until "${seven_reset}")"
+        fi
+        if [[ -n "${fetched}" ]]; then
+            __dottod_claude_ago "${fetched}" && printf '\n'
+        fi
     fi
 }
 
