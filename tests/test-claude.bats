@@ -255,6 +255,24 @@ seed_store() {
     assert_eq 'no match' '' "$output"
 }
 
+@test "live scan skips unreadable entries silently" {
+    # Reproduces other-user processes (EACCES on environ): an unreadable
+    # entry must be skipped with no "Permission denied" noise, while a
+    # readable match is still found.
+    local fake="$BATS_TEST_TMPDIR/fakeproc" d="$BATS_TEST_TMPDIR/.claude-x"
+    mkdir -p "$fake/111" "$fake/222"
+    printf 'PATH=/x\x00HOME=/y' >"$fake/111/environ"
+    chmod 000 "$fake/111/environ"
+    printf 'CLAUDE_CONFIG_DIR=%s\x00HOME=/y' "$d" >"$fake/222/environ"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid '$d' '$fake'" 2>&1
+    assert_eq 'rc 0' '0' "$status"
+    assert_eq 'found the readable match' '222' "$output"
+    if printf '%s' "$output" | grep -qi 'denied'; then
+        printf 'FAIL: permission noise leaked\n%s\n' "$output" >&2
+        return 1
+    fi
+}
+
 @test "rename refuses a live profile" {
     seed_store
     mkdir -p "$FAKE_HOME/.claude-a"

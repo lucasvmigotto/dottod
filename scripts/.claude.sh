@@ -273,18 +273,22 @@ __dottod_claude_pick_profile() {
 }
 
 # claude-profile: manage overlays — add <name> | ls | rm [--force] <name>.
-# __dottod_claude_live_pid <dir>: PID of a running claude process whose
-# environment pins CLAUDE_CONFIG_DIR to <dir>, or empty when none. Scans
-# /proc/*/environ (Linux, same-user processes); returns empty — no refusal —
-# when /proc is unavailable so the guard degrades to a warning instead of
-# blocking renames on non-Linux or locked-down systems.
+# __dottod_claude_live_pid <dir> [procdir]: PID of a running claude process
+# whose environment pins CLAUDE_CONFIG_DIR to <dir>, or empty when none.
+# Scans procdir/*/environ (/proc on Linux, same-user processes); unreadable
+# entries are skipped silently (other users' processes must never print
+# "Permission denied" noise). Returns empty — no refusal — when the proc
+# tree is unavailable, so the guard degrades instead of blocking renames on
+# non-Linux or locked-down systems.
 __dottod_claude_live_pid() {
-    local dir="${1:?dir required}" pid
-    [[ -d /proc ]] || return 0
-    for pid in /proc/[0-9]*; do
+    local dir="${1:?dir required}" procdir="${2:-/proc}" pid envfile
+    [[ -d "${procdir}" ]] || return 0
+    for pid in "${procdir}"/[0-9]*; do
         [[ -d "${pid}" ]] || continue
         pid="${pid##*/}"
-        if tr '\0' '\n' <"/proc/${pid}/environ" 2>/dev/null | grep -Fqx "CLAUDE_CONFIG_DIR=${dir}"; then
+        envfile="${procdir}/${pid}/environ"
+        [[ -r "${envfile}" ]] || continue
+        if tr '\0' '\n' 2>/dev/null <"${envfile}" | grep -Fqx "CLAUDE_CONFIG_DIR=${dir}"; then
             printf '%s' "${pid}"
             return 0
         fi
