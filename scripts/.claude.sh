@@ -253,7 +253,7 @@ __dottod_claude_fzf() {
 # __dottod_claude_pick_profile: prints the profile to use (fails on esc, on
 # an unknown CLAUDE_PROFILE value, or when the named profile is missing).
 __dottod_claude_pick_profile() {
-    local choice="${CLAUDE_PROFILE:-}" picked
+    local choice="${CLAUDE_PROFILE:-}" picked rc
     if [[ -n "${choice}" ]]; then
         if ! __dottod_claude_valid_name "${choice}"; then
             printf 'claude: bad profile name %s\n' "${choice}" >&2
@@ -263,11 +263,15 @@ __dottod_claude_pick_profile() {
         return 0
     fi
     if [[ $- == *i* ]] && [[ -t 0 ]] && [[ -z "${CLAUDE_NO_PICKER:-}" ]] && command -v fzf >/dev/null 2>&1; then
-        if picked="$(__dottod_claude_fzf)"; then
+        picked="$(__dottod_claude_fzf)"
+        rc=$?
+        if ((rc == 0)); then
             printf '%s' "${picked}"
             return 0
+        elif ((rc == 130)); then
+            return 130 # user cancelled: abort the launch, never default
         fi
-        # Empty registry (or esc): fall through to the default below.
+        # Any other failure (e.g. empty registry): fall through to default.
     fi
     printf '%s' "${CLAUDE_DEFAULT_PROFILE:-personal}"
 }
