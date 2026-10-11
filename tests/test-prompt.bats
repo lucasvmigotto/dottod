@@ -80,10 +80,12 @@ setup() {
     git -C "$repo" config user.name t
     git -C "$repo" commit -q --allow-empty -m init
     touch "$repo/package.json"
-    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline DOT_PROMPT_GLYPHS=ascii COLUMNS=200 bash -i -c "cd '$repo' && source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
+    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline DOT_PROMPT_GLYPHS=ascii COLUMNS=200 bash -i -c "cd '$repo' && source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; sleep 2; __DOTTD_PW_PREV_SECONDS=\$SECONDS; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
     assert_eq 'powerline source rc 0' '0' "$status"
     assert_contains 'powerline project block' 'pwproj' "$output"
     assert_contains 'powerline language block' 'node' "$output"
+    # Duration is wall-clock (SECONDS delta): pin the timer so the worker
+    # speed never decides between 0s and 1s. The sleep above proves it.
     assert_contains 'powerline status cluster' '0s' "$output"
     assert_contains 'powerline ok status' '✓' "$output"
 }
