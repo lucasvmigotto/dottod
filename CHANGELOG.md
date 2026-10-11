@@ -5,6 +5,20 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.7.0 — 2026-10-11
+
+### Added
+
+- **gitconfig:** conditional work identity via includeIf
+- **claude:** add profile rename subcommand
+
+### Fixed
+
+- **claude:** abort launch when the picker is cancelled
+- **claude:** silence live-session scan on unreadable processes
+- **claude:** refuse rename/rm while a session is live
+- **claude:** export preview helpers so the picker resolves them
+
 ## 1.6.0 — 2026-10-11
 
 ### Added
