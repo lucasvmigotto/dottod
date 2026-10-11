@@ -237,7 +237,11 @@ __dottod_claude_fzf() {
     local names choice
     names="$(__dottod_claude_profiles)"
     [[ -n "${names}" ]] || return 1
-    export -f __dottod_claude_profile_info
+    # The preview subshell inherits only exported functions — export every
+    # callee of __dottod_claude_profile_info, or the picker logs
+    # "command not found" for the bar/until/ago helpers.
+    export -f __dottod_claude_profile_info __dottod_claude_bar \
+        __dottod_claude_until __dottod_claude_ago
     choice="$(printf '%s\n' "${names}" | fzf --prompt='profile> ' \
         --height=40% --layout=reverse --border \
         --header='enter: launch   esc: cancel' \

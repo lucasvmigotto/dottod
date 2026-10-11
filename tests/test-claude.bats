@@ -276,6 +276,42 @@ seed_store() {
     assert_contains 'red at/above 80' '3   1   m' "$output"
 }
 
+@test "picker exports every preview helper" {
+    # fzf can't run hermetically, so assert the fix directly: the picker's
+    # export must cover all callees of __dottod_claude_profile_info, or the
+    # preview subshell logs "command not found" for bar/until/ago.
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        declare -f __dottod_claude_fzf
+    "
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'exports profile info' 'export -f __dottod_claude_profile_info' "$output"
+    assert_contains 'exports bar' '__dottod_claude_bar' "$output"
+    assert_contains 'exports until' '__dottod_claude_until' "$output"
+    assert_contains 'exports ago' '__dottod_claude_ago' "$output"
+}
+
+@test "profile info resolves helpers in a child shell" {
+    # Simulates the preview subshell: a fresh bash that inherits ONLY the
+    # exported functions (as the picker does), not the sourced definitions.
+    # Guards against any future callee left unexported.
+    local d="$FAKE_HOME/.claude-metered"
+    mkdir -p "$d"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_until __dottod_claude_ago
+        bash -c \"__dottod_claude_profile_info '$d'\"
+    "
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'bar rendered' '69%' "$output"
+    assert_contains 'reset shown' 'resets ' "$output"
+    if printf '%s' "$output" | grep -q 'command not found'; then
+        printf 'FAIL: helper command not found in preview subshell\n%s\n' "$output" >&2
+        return 1
+    fi
+}
+
 @test "profile info degrades without login" {
     local d="$FAKE_HOME/.claude-brandnew"
     mkdir -p "$d"
