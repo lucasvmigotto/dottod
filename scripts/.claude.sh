@@ -273,6 +273,25 @@ __dottod_claude_pick_profile() {
 }
 
 # claude-profile: manage overlays — add <name> | ls | rm [--force] <name>.
+# __dottod_claude_live_pid <dir>: PID of a running claude process whose
+# environment pins CLAUDE_CONFIG_DIR to <dir>, or empty when none. Scans
+# /proc/*/environ (Linux, same-user processes); returns empty — no refusal —
+# when /proc is unavailable so the guard degrades to a warning instead of
+# blocking renames on non-Linux or locked-down systems.
+__dottod_claude_live_pid() {
+    local dir="${1:?dir required}" pid
+    [[ -d /proc ]] || return 0
+    for pid in /proc/[0-9]*; do
+        [[ -d "${pid}" ]] || continue
+        pid="${pid##*/}"
+        if tr '\0' '\n' <"/proc/${pid}/environ" 2>/dev/null | grep -Fqx "CLAUDE_CONFIG_DIR=${dir}"; then
+            printf '%s' "${pid}"
+            return 0
+        fi
+    done
+    return 0
+}
+
 claude-profile() {
     local cmd="${1:-ls}"
     case "${cmd}" in
@@ -311,6 +330,12 @@ claude-profile() {
             dir="$(__dottod_claude_profile_dir "${name}")"
             if [[ ! -f "${dir}/${__DOTTOD_CLAUDE_MARKER}" ]]; then
                 echo "claude-profile: not a profile: ${name}" >&2
+                return 1
+            fi
+            local live
+            live="$(__dottod_claude_live_pid "${dir}")"
+            if [[ -n "${live}" ]]; then
+                printf 'claude-profile: %s is in use by claude (pid %s); close the session first\n' "${name}" "${live}" >&2
                 return 1
             fi
             local entry bn real
@@ -364,6 +389,12 @@ claude-profile() {
                 echo "claude-profile: ${new} already exists" >&2
                 return 1
             fi
+            local live
+            live="$(__dottod_claude_live_pid "${olddir}")"
+            if [[ -n "${live}" ]]; then
+                printf 'claude-profile: %s is in use by claude (pid %s); close the session first\n' "${old}" "${live}" >&2
+                return 1
+            fi
             mv -- "${olddir}" "${newdir}" || {
                 echo "claude-profile: cannot rename ${old}" >&2
                 return 1
@@ -376,6 +407,7 @@ claude-profile() {
             ;;
         -h | --help | help)
             printf '%s\n' "usage: claude-profile add <name> | ls | rename <old> <new> | rm [--force] <name>"
+            printf '%s\n' "rename/rm refuse while a claude session is using the profile."
             ;;
         *)
             printf 'claude-profile: unknown command %s\n' "${cmd}" >&2
