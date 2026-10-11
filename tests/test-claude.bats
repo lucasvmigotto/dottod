@@ -173,6 +173,71 @@ seed_store() {
     }
 }
 
+@test "claude-profile rename moves the overlay and rewrites the marker" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude/projects"
+    # Build a real overlay via add, then rename it.
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile add temp >/dev/null
+        claude-profile rename temp temp2
+        claude-profile ls
+    " 2>/dev/null
+    assert_eq 'rename rc 0' '0' "$status"
+    assert_contains 'confirm rename' 'claude profile renamed: temp -> temp2' "$output"
+    assert_contains 'new name listed' 'temp2' "$output"
+    assert_eq 'marker rewritten' 'temp2' "$(cat "$FAKE_HOME/.claude-temp2/.dottod-profile")"
+    [ ! -e "$FAKE_HOME/.claude-temp" ] || {
+        printf 'FAIL: old dir still present\n' >&2
+        return 1
+    }
+    [ -L "$FAKE_HOME/.claude-temp2/projects" ] || {
+        printf 'FAIL: shared symlink lost after rename\n' >&2
+        return 1
+    }
+}
+
+@test "claude-profile rename refuses an existing target" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-a" "$FAKE_HOME/.claude-b"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    printf 'b\n' >"$FAKE_HOME/.claude-b/.dottod-profile"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename a b
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero renaming onto existing profile\n' >&2
+        return 1
+    fi
+    assert_contains 'already exists' 'already exists' "$output"
+    assert_eq 'source untouched' 'a' "$(cat "$FAKE_HOME/.claude-a/.dottod-profile")"
+}
+
+@test "claude-profile rename refuses a non-profile and a bad name" {
+    mkdir -p "$FAKE_HOME/.claude-bak"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename bak foo
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero for non-profile source\n' >&2
+        return 1
+    fi
+    assert_contains 'not a profile' 'not a profile' "$output"
+    mkdir -p "$FAKE_HOME/.claude-a"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        claude-profile rename a '../evil'
+    " 2>&1
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: expected nonzero for bad target name\n' >&2
+        return 1
+    fi
+    assert_contains 'bad name' 'bad profile name' "$output"
+}
+
 @test "non-interactive launch defaults to personal" {
     seed_store
     run bash -c "

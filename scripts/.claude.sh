@@ -338,8 +338,40 @@ claude-profile() {
             }
             printf 'claude profile removed: %s\n' "${name}"
             ;;
+        rename | mv)
+            local old new olddir newdir
+            old="${2:?usage: claude-profile rename <old> <new>}"
+            new="${3:?usage: claude-profile rename <old> <new>}"
+            __dottod_claude_valid_name "${old}" || {
+                echo "claude-profile: bad profile name ${old}" >&2
+                return 2
+            }
+            __dottod_claude_valid_name "${new}" || {
+                echo "claude-profile: bad profile name ${new}" >&2
+                return 2
+            }
+            olddir="$(__dottod_claude_profile_dir "${old}")"
+            newdir="$(__dottod_claude_profile_dir "${new}")"
+            if [[ ! -f "${olddir}/${__DOTTOD_CLAUDE_MARKER}" ]]; then
+                echo "claude-profile: not a profile: ${old}" >&2
+                return 1
+            fi
+            if [[ -e "${newdir}" ]]; then
+                echo "claude-profile: ${new} already exists" >&2
+                return 1
+            fi
+            mv -- "${olddir}" "${newdir}" || {
+                echo "claude-profile: cannot rename ${old}" >&2
+                return 1
+            }
+            printf '%s\n' "${new}" >"${newdir}/${__DOTTOD_CLAUDE_MARKER}" || {
+                echo "claude-profile: renamed dir but could not update marker" >&2
+                return 1
+            }
+            printf 'claude profile renamed: %s -> %s\n' "${old}" "${new}"
+            ;;
         -h | --help | help)
-            printf '%s\n' "usage: claude-profile add <name> | ls | rm [--force] <name>"
+            printf '%s\n' "usage: claude-profile add <name> | ls | rename <old> <new> | rm [--force] <name>"
             ;;
         *)
             printf 'claude-profile: unknown command %s\n' "${cmd}" >&2
