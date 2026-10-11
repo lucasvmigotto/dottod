@@ -64,3 +64,36 @@ setup() {
     assert_eq 'reuse rc 0' '0' "$status"
     assert_contains 'skip message' 'already set' "$output"
 }
+
+@test "gitconfig writes work identity and includeIf from env" {
+    export GIT_NAME="Personal User" GIT_EMAIL="personal@example.com"
+    export GIT_WORK_NAME="Work User" GIT_WORK_EMAIL="work@example.com"
+    run _main
+    assert_eq 'write rc 0' '0' "$status"
+    assert_eq 'personal name' 'Personal User' "$(git config --global user.name)"
+    assert_eq 'work name in file' 'Work User' "$(git config --file "$FAKE_HOME/.gitconfig-work" user.name)"
+    assert_eq 'work email in file' 'work@example.com' "$(git config --file "$FAKE_HOME/.gitconfig-work" user.email)"
+    assert_contains 'includeIf present' 'includeIf "gitdir:~/codes/**"' "$(cat "$FAKE_HOME/.gitconfig")"
+}
+
+@test "gitconfig resolves work identity inside ~/codes and personal outside" {
+    export GIT_NAME="Personal User" GIT_EMAIL="personal@example.com"
+    export GIT_WORK_NAME="Work User" GIT_WORK_EMAIL="work@example.com"
+    _main >/dev/null
+    mkdir -p "$FAKE_HOME/codes/workproj" "$FAKE_HOME/other"
+    git -C "$FAKE_HOME/codes/workproj" init -q
+    git -C "$FAKE_HOME/other" init -q
+    assert_eq 'work email in codes repo' 'work@example.com' "$(git -C "$FAKE_HOME/codes/workproj" config user.email)"
+    assert_eq 'personal email outside codes' 'personal@example.com' "$(git -C "$FAKE_HOME/other" config user.email)"
+}
+
+@test "gitconfig without work env writes no work file and no includeIf" {
+    export GIT_NAME="Test User" GIT_EMAIL="test@example.com"
+    run _main
+    assert_eq 'write rc 0' '0' "$status"
+    assert_eq 'no work file' '0' "$([[ -e "$FAKE_HOME/.gitconfig-work" ]] && echo 1 || echo 0)"
+    if grep -q 'includeIf' "$FAKE_HOME/.gitconfig"; then
+        printf 'FAIL: includeIf present without work identity\n' >&2
+        return 1
+    fi
+}
