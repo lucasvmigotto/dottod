@@ -150,6 +150,15 @@ Identity for `gitconfig` can be supplied non-interactively:
 GIT_NAME="Your Name" GIT_EMAIL="you@example.com" ./bin/gitconfig.sh
 ```
 
+Add a distinct work identity for repositories under `~/codes/` (optional —
+falls back to personal) via `[includeIf]`:
+
+```bash
+GIT_NAME="You" GIT_EMAIL="you@example.com" \
+GIT_WORK_NAME="You At Work" GIT_WORK_EMAIL="you@work.example.com" \
+  ./bin/gitconfig.sh
+```
+
 Scripts are configurable via `_DOT_*` environment variables:
 
 ```bash
