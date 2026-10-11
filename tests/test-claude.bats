@@ -238,6 +238,42 @@ seed_store() {
     assert_contains 'bad name' 'bad profile name' "$output"
 }
 
+@test "live profile detection finds a matching process" {
+    local d="$BATS_TEST_TMPDIR/.claude-work"
+    mkdir -p "$d"
+    CLAUDE_CONFIG_DIR="$d" sleep 60 &
+    local pid=$!
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid '$d'"
+    kill "$pid" 2>/dev/null || true
+    assert_eq 'rc 0' '0' "$status"
+    assert_eq 'found the pid' "$pid" "$output"
+}
+
+@test "live profile detection is empty when nothing matches" {
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid '$BATS_TEST_TMPDIR/.claude-nope'"
+    assert_eq 'rc 0' '0' "$status"
+    assert_eq 'no match' '' "$output"
+}
+
+@test "rename refuses a live profile" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-a"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    CLAUDE_CONFIG_DIR="$FAKE_HOME/.claude-a" sleep 60 &
+    local pid=$!
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile rename a b" 2>&1
+    kill "$pid" 2>/dev/null || true
+    if [[ "$status" == "0" ]]; then
+        printf 'FAIL: rename should refuse a live profile\n' >&2
+        return 1
+    fi
+    assert_contains 'in use' 'in use by claude' "$output"
+    [ -d "$FAKE_HOME/.claude-a" ] || {
+        printf 'FAIL: live profile was renamed anyway\n' >&2
+        return 1
+    }
+}
+
 @test "non-interactive launch defaults to personal" {
     seed_store
     run bash -c "
