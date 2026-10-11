@@ -236,6 +236,46 @@ seed_store() {
     assert_contains 'prefs' 'model=sonnet' "$output"
 }
 
+@test "profile info shows usage bars with resets" {
+    local d="$FAKE_HOME/.claude-metered"
+    mkdir -p "$d"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'five-hour percent' '69%' "$output"
+    assert_contains 'seven-day percent' '15%' "$output"
+    assert_contains 'five-hour row' 'usage    5h' "$output"
+    assert_contains 'seven-day row' '7d' "$output"
+    assert_contains 'reset labels' 'resets ' "$output"
+    assert_contains 'staleness line' 'updated' "$output"
+}
+
+@test "profile info omits usage without cached data" {
+    local d="$FAKE_HOME/.claude-fresh"
+    mkdir -p "$d"
+    printf '%s\n' '{"oauthAccount":{"emailAddress":"x@y.org"}}' >"$d/.claude.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'account still shown' 'x@y.org' "$output"
+    if printf '%s' "$output" | grep -q 'usage'; then
+        printf 'FAIL: usage section without cached data\n%s\n' "$output" >&2
+        return 1
+    fi
+}
+
+@test "bar colors follow consume level" {
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh'
+        __dottod_claude_bar 10 | od -An -c | head -n1
+        __dottod_claude_bar 60 | od -An -c | head -n1
+        __dottod_claude_bar 95 | od -An -c | head -n1
+    "
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'green under 50' '3   2   m' "$output"
+    assert_contains 'yellow under 80' '3   3   m' "$output"
+    assert_contains 'red at/above 80' '3   1   m' "$output"
+}
+
 @test "profile info degrades without login" {
     local d="$FAKE_HOME/.claude-brandnew"
     mkdir -p "$d"

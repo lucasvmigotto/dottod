@@ -734,7 +734,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
+            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. The picker side panel shows each profile's account, plan and 5h/7d usage with reset times. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
           },
           {
             kind: "code",
