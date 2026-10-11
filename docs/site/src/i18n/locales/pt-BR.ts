@@ -469,13 +469,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Define user.name e user.email a partir de GIT_NAME/GIT_EMAIL, da config global existente, ou de um prompt no TTY — depois escreve ~/.gitconfig (com backup). Valores iguais são deixados intactos: sem backup, sem reescrita.",
+            text: "Define user.name e user.email a partir de GIT_NAME/GIT_EMAIL, da config global existente, ou de um prompt no TTY — depois escreve ~/.gitconfig (com backup). Uma identidade de trabalho distinta para repositórios sob ~/codes/ é gravada em ~/.gitconfig-work e ligada via [includeIf]; ela volta para a pessoal quando GIT_WORK_NAME/GIT_WORK_EMAIL não são definidos. Valores iguais são deixados intactos: sem backup, sem reescrita.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Não interativo",
-            code: 'GIT_NAME="Seu Nome" GIT_EMAIL="voce@exemplo.com" ./bin/gitconfig.sh',
+            code: 'GIT_NAME="Seu Nome" GIT_EMAIL="voce@exemplo.com" \\\nGIT_WORK_NAME="Seu Nome no Trabalho" GIT_WORK_EMAIL="voce@trabalho.exemplo.com" \\\n  ./bin/gitconfig.sh',
           },
         ],
       },
