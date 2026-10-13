@@ -5,6 +5,12 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 1.8.0 — 2026-10-13
+
+### Added
+
+- **scripts:** container listing aliases on the runtime dispatcher
+
 ## 1.7.1 — 2026-10-11
 
 ### Fixed
