@@ -104,15 +104,17 @@ function _bun_install_runtime() {
         log_error "Unsupported architecture '$(uname -m)' for Bun."
         return 1
     }
-    read -r url digest <<<"$(_bun_zip_asset "${version}" "${target}")"
     dest="$(_ensure_local_bin)/bun"
 
+    # Prerequisites first: the checksum lookup below needs curl, and on a
+    # fresh system it would otherwise come back empty (installing unverified).
     log_step 'Installing Bun prerequisites'
     _install_packages curl ca_certificates unzip
     # The musl build links the C++ runtime, absent from a base Alpine.
     if [[ "$(_os_libc)" == musl ]]; then
         _install_packages cxx_runtime
     fi
+    read -r url digest <<<"$(_bun_zip_asset "${version}" "${target}")"
 
     tmpdir="$(mktemp -d)"
     log_step "Installing Bun ${version} (${target}) with sha256 verification"

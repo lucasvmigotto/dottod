@@ -69,6 +69,7 @@ EOF
     # Modes: sums (default) | sums-missing | sums-garbage | dl-fail.
     cat >"$STUBBIN/curl" <<'EOF'
 #!/usr/bin/env bash
+echo "CURL:$*" >>"$CALLS"
 dest=""
 prev=""
 for a in "$@"; do
@@ -282,6 +283,17 @@ probe() {
     assert_eq 'mismatch rc 1' '1' "$status"
     assert_contains 'names the mismatch' 'checksum mismatch' "$output"
     assert_eq 'nothing installed' '0' "$([[ -e "$FAKE_HOME/.local/bin/bun" ]] && echo 1 || echo 0)"
+}
+
+@test "bun: prerequisites install before the checksum lookup" {
+    # Regression: the lookup ran first, so on a fresh system without curl
+    # the digest came back empty and Bun installed unverified.
+    bun_absent
+    export CURL_STUB_DIGEST
+    CURL_STUB_DIGEST="$(printf 'BUNZIP-DUMMY' | sha256sum | cut -d' ' -f1)"
+    probe bun '_bun_install_runtime >/dev/null'
+    assert_eq 'rc 0' '0' "$status"
+    assert_eq 'first call is the package install' 'PKGS:curl ca_certificates unzip' "$(grep -m1 -E '^(PKGS|CURL):' "$CALLS")"
 }
 
 @test "bun: a garbage SHASUMS file counts as no digest" {
