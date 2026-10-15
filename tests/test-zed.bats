@@ -21,6 +21,11 @@ setup() {
     export _DOT_NO_PACKAGES=1
     unset _DOT_ZED_INSTALLER_URL _DOT_ZED_CHANNEL _DOT_ZED_VERSION
     export PATH="$STUBBIN:/usr/bin:/bin"
+    # libc pinned to glibc whatever the host (tests opt into musl).
+    printf '#!/usr/bin/env bash\nprintf "glibc 2.41\\n"\n' >"$STUBBIN/getconf"
+    chmod +x "$STUBBIN/getconf"
+    mkdir -p "$BATS_TEST_TMPDIR/libc-root/lib"
+    export _DOT_LIBC_ROOT="$BATS_TEST_TMPDIR/libc-root"
 
     # Fake `zed`: present only when ZED_STUB_VERSION is set.
     cat >"$STUBBIN/zed" <<'EOF'
@@ -87,4 +92,28 @@ probe() {
     probe '_zed_ensure >/dev/null'
     assert_eq 'pin rc 0' '0' "$status"
     assert_contains 'version passed through' 'version=v0.199.0' "$(cat "$FAKE_HOME/stub-env.txt")"
+}
+
+@test "zed: skips with a reason on musl, downloading nothing" {
+    zed_absent
+    : >"$_DOT_LIBC_ROOT/lib/ld-musl-x86_64.so.1"
+    export _DOT_ZED_INSTALLER_URL="file://$BATS_TEST_TMPDIR/stub-install.sh"
+    probe '_zed_ensure'
+    assert_eq 'skip rc 0' '0' "$status"
+    assert_contains 'explains' 'glibc builds only' "$output"
+    assert_eq 'nothing installed' '0' "$([[ -e "$FAKE_HOME/.local/bin/zed" ]] && echo 1 || echo 0)"
+}
+
+@test "zed: an installed binary that does not run fails the task" {
+    zed_absent
+    cat >"$BATS_TEST_TMPDIR/broken-install.sh" <<'EOF'
+#!/usr/bin/env sh
+mkdir -p "$HOME/.local/bin"
+printf '#!/usr/bin/env bash\nexit 126\n' >"$HOME/.local/bin/zed"
+chmod +x "$HOME/.local/bin/zed"
+EOF
+    export _DOT_ZED_INSTALLER_URL="file://$BATS_TEST_TMPDIR/broken-install.sh"
+    probe '_zed_ensure'
+    assert_eq 'rc 1' '1' "$status"
+    assert_contains 'explains' 'does not run on this system' "$output"
 }

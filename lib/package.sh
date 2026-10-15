@@ -96,6 +96,7 @@ function _pkg_gentoo_install() {
     # --autounmask=n: a needed USE/keyword change fails with emerge's own
     # message instead of writing to /etc/portage. The user's
     # EMERGE_DEFAULT_OPTS (binhost, jobs) still apply.
+    log_warn "emerge may build from source (${*}); this can take a while"
     _priv emerge --noreplace --ask=n --autounmask=n "$@"
 }
 

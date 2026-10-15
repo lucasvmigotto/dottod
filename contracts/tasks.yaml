@@ -27,4 +27,4 @@ conventions:
   exit_codes: "0 all pass; 1 on any failure (bootstrap counts failures)"
   privilege: "sudo|doas once per run, cached; TTY required unless passwordless"
   ui: "GUI tasks (zed) are skipped by default; --ui includes them"
-  extras: "tools extras (gh, lazygit, lazydocker, k9s, resterm, httpie, chafa) are off by default; --extras / DOT_TOOLS_EXTRA opts in"
+  extras: "tools extras (gh, httpie, chafa) are off by default; --extras / DOT_TOOLS_EXTRA opts in"

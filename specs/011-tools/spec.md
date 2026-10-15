@@ -5,9 +5,9 @@
   installs from apt: btop, bat, xclip, jq, curl, tar, ca-certificates,
   lsof, fzf, shellcheck, bats, shfmt, just.
 - US2: As a user I opt in to extras with `--extras <list>` (or
-  `DOT_TOOLS_EXTRA`, `all` for every one): gh (official GitHub CLI apt
-  repo), lazygit, lazydocker, k9s, resterm (GitHub releases), httpie,
-  chafa (apt). None install by default.
+  `DOT_TOOLS_EXTRA`, `all` for every one): gh, httpie, chafa (native
+  packages; gh from the official GitHub CLI apt repo on Debian/Ubuntu).
+  None install by default.
 
 ## Acceptance scenarios
 - Given no `DOT_TOOLS_EXTRA`, when the task runs, then only the apt
@@ -16,11 +16,9 @@
   before any install.
 - Given a tool already on PATH (or `~/.local/bin`), when the task runs,
   then it skips.
-- Given a tool missing, when the task runs, then the GitHub release
-  asset matching the arch pattern downloads and installs to
-  `~/.local/bin`.
-- Given an archive without the binary, when installing, then loud error,
-  temp cleanup.
+
+- Given Debian (batcat, fdfind), when the task runs, then `bat` and `fd`
+  also resolve; elsewhere `batcat`/`fdfind` resolve too.
 
 ## Status
 Implemented. Verified: no.

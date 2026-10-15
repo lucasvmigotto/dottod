@@ -81,10 +81,9 @@ if it pulled it); CI additionally sweeps the `dottod-test=1` label.
 ## Compatibility and limitations
 
 * No Compose abstraction.
-* No Podman socket/`DOCKER_HOST` management: tools like `lazydocker`
-  (an opt-in `tools` extra) speak the Docker API; point `DOCKER_HOST` at a
-  user-managed `podman system service` socket yourself if you combine
-  them — dottod won't open that interface for you.
+* No Podman socket/`DOCKER_HOST` management: tools that speak the Docker
+  API need `DOCKER_HOST` pointed at a user-managed `podman system service`
+  socket — dottod won't open that interface for you.
 * No systemd units, no daemon management (rootless needs none for CLI use).
 
 ## Files

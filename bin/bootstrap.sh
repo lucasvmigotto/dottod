@@ -27,8 +27,8 @@ Options:
   --only <list>      Comma-separated list of tasks to run (default: all)
   --skip <list>      Comma-separated list of tasks to skip
   --parallel         Run tasks concurrently instead of sequentially
-  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,
-                     k9s, resterm, httpie, chafa, or all); default none
+  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or
+                     all); default none
   --ui               Include GUI tasks (zed); default skips them
   --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)
   --yes              Assume yes for any prompts

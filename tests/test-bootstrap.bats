@@ -84,9 +84,9 @@ setup() {
     cp -R "$REPO_ROOT/lib" "$fakeroot/lib"
     { printf '#!/usr/bin/env bash\n'; printf 'echo "EXTRA:${DOT_TOOLS_EXTRA:-}" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/tools.sh"
     chmod +x "$fakeroot/bin/tools.sh"
-    run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --only tools --extras gh,lazygit --verbose
+    run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --only tools --extras gh,httpie --verbose
     assert_eq 'run rc 0' '0' "$status"
-    assert_eq 'extras exported' 'EXTRA:gh,lazygit' "$(cat "$BATS_TEST_TMPDIR/calls.log")"
+    assert_eq 'extras exported' 'EXTRA:gh,httpie' "$(cat "$BATS_TEST_TMPDIR/calls.log")"
 }
 
 @test "bootstrap rejects the retired runtime flag" {

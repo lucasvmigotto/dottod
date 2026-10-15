@@ -67,7 +67,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "GitHub host merge + ed25519 key"],
               [
                 "tools",
-                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, lazygit, lazydocker, k9s, resterm, httpie, chafa",
+                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, httpie, chafa",
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
@@ -500,7 +500,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from apt (skipped when all present). Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie and chafa from apt, gh from its official apt repository (signed keyring), and lazygit, lazydocker, k9s and resterm from GitHub releases — sha256-verified against the release API digest, with warn-and-proceed when unpublished.",
+            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from the distro's packages (skipped when all present), and links bat/batcat and fd/fdfind so both spellings work. Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie, chafa and gh from the distro's packages — gh from its official apt repository (signed keyring) on Debian/Ubuntu.",
           },
           {
             kind: "code",
@@ -754,7 +754,7 @@ const pages: Record<PageId, DocPage> = {
               ["<C-h/j/k/l>", "window navigation"],
               ["]b [b", "next/prev buffer"],
               ["<leader>tt/th/tv", "terminal float/horizontal/vertical"],
-              ["<leader>gg/dk/kk/bt", "lazygit, lazydocker, k9s, btop"],
+              ["<leader>bt", "btop"],
               ["<leader>Du/Dc/Dd/De", "devcontainer up/connect/down/exec"],
               ["<leader>e/pe", "toggle explorer"],
             ],
@@ -881,7 +881,7 @@ const pages: Record<PageId, DocPage> = {
               ["--skip <list>", "skip these tasks"],
               [
                 "--extras <list>",
-                "opt-in tools for the tools task (gh, lazygit, lazydocker, k9s, resterm, httpie, chafa, or all)",
+                "opt-in tools for the tools task (gh, httpie, chafa, or all)",
               ],
               ["--parallel", "run tasks concurrently"],
               ["--ui", "include GUI tasks (zed)"],
@@ -900,7 +900,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Common invocations",
-            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --only tools --extras gh,lazygit",
+            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --only tools --extras gh,httpie",
           },
         ],
       },
@@ -924,7 +924,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "status-report.gif",
             alt: "Terminal recording: bootstrap.sh --status printing the shell, vim and tools reports.",
             transcript:
-              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/7 present (missing: gh lazygit lazydocker k9s resterm httpie chafa)\nSelected:  none (DOT_TOOLS_EXTRA)",
+              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/3 present (missing: gh httpie chafa)\nSelected:  none (DOT_TOOLS_EXTRA)",
           },
         ],
       },
@@ -937,7 +937,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Terminal recording: bootstrap.sh --help output, then the task list.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,\n                     k9s, resterm, httpie, chafa, or all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or\n                     all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
           },
         ],
       },

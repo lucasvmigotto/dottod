@@ -52,11 +52,11 @@ Same smoke on Arch, Fedora, Alpine, Debian before moving on.
 - [x] T062 tests for each finding; integration `podman-hello.sh` unchanged
 
 ## Phase 7 — tools and zed (`feat/tools-distro`)
-- [ ] T070 `bat`/`batcat` and `fd`/`fdfind` aliases both directions; `.bat.utils.sh` and nvim health use whichever exists
-- [ ] T071 `gh` extra: apt repo on Debian only, native package elsewhere
-- [ ] T072 extras native-first where the distro ships them (lazygit, k9s…), upstream release otherwise, musl-checked
-- [ ] T073 zed: refuse on musl with a reason; runnable check after install
-- [ ] T074 Gentoo: warn before heavy builds; `-bin` atoms where available
+- [x] T070 `bat`/`batcat` and `fd`/`fdfind` aliases both directions; `.bat.utils.sh` and nvim health use whichever exists
+- [x] T071 `gh` extra: apt repo on Debian only, native package elsewhere
+- [x] T072 ~~extras native-first (lazygit, k9s…)~~ dropped: lazygit, lazydocker, k9s and resterm removed from dottod (2026-10-15)
+- [x] T073 zed: refuse on musl with a reason; runnable check after install
+- [x] T074 Gentoo: warn before heavy builds; `-bin` atoms where available
 
 ## Phase 8 — CI (`ci/distro-matrix`)
 - [ ] T080 `distro.yml`: L1 mapping gate per distro, path-filtered on `lib/**`, `bin/**`

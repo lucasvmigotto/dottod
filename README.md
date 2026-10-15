@@ -109,12 +109,11 @@ Select or exclude tasks:
 GUI tasks (`zed`) are skipped by default — the CLI is terminal-first.
 Pass `--ui` to include them.
 
-The `tools` task installs only the apt baseline. Extra tools are opt-in
-(all off by default): `gh`, `lazygit`, `lazydocker`, `k9s`, `resterm`,
-`httpie`, `chafa`, or `all`:
+The `tools` task installs only the native-package baseline. Extra tools
+are opt-in (all off by default): `gh`, `httpie`, `chafa`, or `all`:
 
 ```bash
-./bin/bootstrap.sh --only tools --extras gh,lazygit
+./bin/bootstrap.sh --only tools --extras gh,httpie
 DOT_TOOLS_EXTRA=all ./bin/tools.sh
 ```
 

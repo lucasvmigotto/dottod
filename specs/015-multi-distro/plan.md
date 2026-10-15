@@ -233,3 +233,19 @@ exposed "ensure fails when podman is missing" passing through a host
 `/usr/bin/podman`. Three more suites now re-arm bats' trap. The status
 suite's "writes nothing" check depended on the host's real cargo and
 podman; it now stubs them.
+
+**Phase 7 (2026-10-15)**, `bootstrap.sh --only tools --extras gh` in
+containers (2 GiB / 2 CPU):
+
+| Distro | gh | bat names |
+|---|---|---|
+| debian:trixie | official apt repository → 2.102.0 | `bat` linked to `batcat` |
+| arch | `github-cli` package → 2.102.0 | `batcat` linked to `bat` |
+| fedora:42 | `gh` package → 2.87.3 | `batcat` linked to `bat` |
+| alpine:3.22 | `github-cli` package → 2.72.0 | `batcat` linked to `bat` |
+
+lazygit, lazydocker, k9s and resterm were dropped at the maintainer's
+request, and with them every upstream-release download in `tools.sh`
+(the python3-dependent digest lookup and an early-exit `head` pipe that
+the per-line guard could not see). Zed now skips musl with a reason and
+must run after install; emerge warns before source builds.

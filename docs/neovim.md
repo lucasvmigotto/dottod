@@ -82,7 +82,7 @@ relink needed), validated by the installer *and* the Lua layer.
 | Profile | Plugins at startup |
 | ------- | ------------------ |
 | `minimal` | options, keymaps, colorscheme, statusline only (SSH/recovery) |
-| `terminal` | + gitsigns, toggleterm, lazygit/lazydocker/k9s/btop launchers, devcontainer CLI |
+| `terminal` | + gitsigns, toggleterm, btop launcher, devcontainer CLI |
 | `development` | same as `terminal` (default) |
 | `full` | same as `terminal` |
 
@@ -159,8 +159,7 @@ Core (all profiles):
 | `<Esc><Esc>` | exit terminal mode |
 
 Terminal profile: `<C-\>` toggle, `<leader>tt/th/tv` float/horizontal/vertical,
-`<leader>gg` lazygit, `<leader>dk` lazydocker, `<leader>kk` k9s, `<leader>bt`
-btop (each degrades with an actionable warning when the tool is missing),
+`<leader>bt` btop (degrades with an actionable warning when it is missing),
 `<leader>Du/Dc/Dd/De` devcontainer up/connect/down/exec (needs the
 `devcontainer` CLI — `./bin/bun.sh` installs it).
 
@@ -180,9 +179,7 @@ when available, `timeoutlen=500`.
 
 ## Git
 
-gitsigns for the gutter/hunk workflow (see keymap table). lazygit stays the
-repository UI (`<leader>gg`, floating via toggleterm) — dottod composes
-with its CLI tools, it does not reimplement them.
+gitsigns for the gutter/hunk workflow (see keymap table).
 
 ## User customization
 
@@ -205,8 +202,8 @@ one reports its error once and continues.
 ```
 
 Reports: Neovim version vs policy, profile, lazy + lockfile state,
-rg/fd/git presence (with degrade notes for Telescope), dottod CLI tools
-(lazygit/lazydocker/k9s/btop), TERM/tmux context, user-override status.
+rg/fd/git presence (fd or Debian's fdfind; with degrade notes for
+Telescope), btop, TERM/tmux context, user-override status.
 Every failure line carries a fix.
 
 ## Offline / degraded behavior
@@ -265,7 +262,7 @@ the regression test asserts the shell survives sourcing it.
 | nvim-colorizer | color previews (coloresque successor) |
 | telescope + fzf-native + ui-select | fuzzy finding; native pickers lack rg integration; fzf-native is optional (needs `make`) |
 | neo-tree v3.x (+ nui) | single explorer (NERDTree successor; ignore list ported from `.nerdtree.vimrc`) |
-| gitsigns | gutter signs/hunks; lazygit owns the repo UI |
+| gitsigns | gutter signs/hunks |
 | toggleterm | float/h/v terminals wrapping native `:terminal` |
 
 Deliberately absent (kept out to honor the zero-dependency rule):

@@ -133,6 +133,12 @@ install_as() {
     assert_eq 'no apt fallback' '0' "$(grep -c 'apt-get' "$CALLS" || true)"
 }
 
+@test "gentoo warns that emerge may build from source" {
+    use_os gentoo
+    MISSING='app-misc/jq' run _install_packages jq
+    assert_contains 'warns before the build' 'emerge may build from source (app-misc/jq)' "$output"
+}
+
 @test "a failed transaction fails the call and explains" {
     export PRIV_RC=1 MISSING=jq
     run _install_packages curl jq
@@ -249,7 +255,7 @@ install_as() {
         {
             grep -ohE '_install_packages( [a-z0-9_]+)+' "$REPO_ROOT"/bin/*.sh | sed 's/^_install_packages //'
             grep -ohE "need\+=\([^)]*\)" "$REPO_ROOT"/bin/*.sh | sed -E "s/need\+=\(//; s/\)//; s/'//g"
-            grep -ohE "pkg_extras\+=' [a-z0-9_]+'" "$REPO_ROOT"/bin/*.sh | sed -E "s/.*' //; s/'//"
+            grep -ohE 'pkg_extras\+=\([a-z0-9_]+\)' "$REPO_ROOT"/bin/*.sh | sed -E 's/.*\(//; s/\)//'
         } | tr ' ' '\n' | sed '/^$/d' | sort -u
     )"
     assert_eq 'found requests' '1' "$([[ $(wc -l <<<"$requested") -ge 20 ]] && echo 1 || echo 0)"

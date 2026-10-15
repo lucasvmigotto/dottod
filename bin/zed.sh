@@ -30,6 +30,13 @@ function _zed_ensure() {
         return 0
     fi
 
+    # Zed ships glibc builds only: on musl (Alpine) it cannot run, so the
+    # optional GUI task skips with the reason instead of failing.
+    if [[ "$(_os_libc)" == musl ]]; then
+        log_warn 'Zed provides glibc builds only; skipping it on this musl system.'
+        return 0
+    fi
+
     local installer_url=${_DOT_ZED_INSTALLER_URL:-"${_DOT_ZED_INSTALLER_URL_DEFAULT}"}
 
     log_step 'Installing Zed prerequisites'
@@ -57,11 +64,18 @@ function _zed_ensure() {
 
     # Check the artifact path directly (a bare `zed.sh` run may not have
     # ~/.local/bin on its ambient PATH yet).
-    if [[ ! -x "${HOME}/.local/bin/zed" ]] && ! _is_installed zed; then
+    local bin="${HOME}/.local/bin/zed"
+    [[ -x "${bin}" ]] || bin="$(command -v zed 2>/dev/null)" || bin=''
+    if [[ -z "${bin}" ]]; then
         log_error 'Zed install did not yield a zed binary on PATH.'
         return 1
     fi
-    log_ok 'Zed installed'
+    # The installer exiting 0 is not proof: the binary must run here.
+    if ! "${bin}" --version >/dev/null 2>&1; then
+        log_error "Installed ${bin} does not run on this system."
+        return 1
+    fi
+    log_ok "Zed installed ($(_dot_first_line "${bin}" --version))"
     return 0
 }
 

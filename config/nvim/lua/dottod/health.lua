@@ -42,27 +42,27 @@ function M.check()
   end
 
   -- External tools
-  for _, bin in ipairs({ 'git', 'rg', 'fd', 'fdfind' }) do
+  -- fd is fdfind on Debian: either name counts.
+  for _, bin in ipairs({ 'git', 'rg' }) do
     if vim.fn.executable(bin) == 1 then
       vim.health.ok(bin .. ' found')
+    elseif bin == 'rg' then
+      vim.health.warn('ripgrep not found; Telescope live grep is unavailable. Install ripgrep from your distro or run the minimal profile.')
     else
-      local hint = { 'sudo apt-get install ripgrep fd-find' }
-      if bin == 'rg' then
-        vim.health.warn('ripgrep not found; Telescope live grep is unavailable. Install ripgrep or run the minimal profile.', hint)
-      elseif bin == 'fd' or bin == 'fdfind' then
-        vim.health.warn(bin .. ' not found; Telescope find_files falls back to find(1).', { 'sudo apt-get install fd-find' })
-      end
+      vim.health.warn(bin .. ' not found')
     end
   end
+  if vim.fn.executable('fd') == 1 or vim.fn.executable('fdfind') == 1 then
+    vim.health.ok('fd found')
+  else
+    vim.health.warn('fd not found; Telescope find_files falls back to find(1).', { "Install fd from your distro (Debian: fd-find)" })
+  end
 
-  -- dottod CLI composers
-  for _, bin in ipairs({ 'lazygit', 'lazydocker', 'k9s', 'btop' }) do
-    if vim.fn.executable(bin) == 1 then
-      vim.health.ok(bin .. ' found (<leader>g' .. (bin == 'lazygit' and 'g' or bin == 'lazydocker' and 'k' or bin == 'k9s' and 'k' or 't') .. ')')
-    else
-      local how = bin == 'btop' and './bin/tools.sh' or ('DOT_TOOLS_EXTRA=' .. bin .. ' ./bin/tools.sh')
-      vim.health.info(bin .. ' not found (' .. how .. ' installs it)')
-    end
+  -- dottod CLI launcher
+  if vim.fn.executable('btop') == 1 then
+    vim.health.ok('btop found (<leader>bt)')
+  else
+    vim.health.info('btop not found (./bin/tools.sh installs it)')
   end
 
   -- DevContainer workflow (devcontainer-cli.nvim, terminal profiles only)
