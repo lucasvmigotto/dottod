@@ -102,7 +102,6 @@ probe() {
 @test "bash stays the login shell when already set" {
     probe '
         getent() { printf "testuser:x:1000:1000::/home/testuser:/usr/bin/bash\n"; }
-        command() { [[ "$1" == "-v" && "$2" == "bash" ]] && printf "/usr/bin/bash\n" || return 1; }
         _bash_use_as_shell testuser >/dev/null
     '
     assert_eq 'skip rc 0' '0' "$status"
