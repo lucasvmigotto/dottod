@@ -77,7 +77,7 @@ Extract and run:
 
 ```bash
 mkdir -p ~/dottod
-tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
+tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + lib/ + config/ + scripts/
 ~/dottod/bin/bootstrap.sh
 ```
 
@@ -85,7 +85,7 @@ tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/d
 
 Each release ships two assets:
 
-- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/` + `scripts/`)
+- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `lib/` + `config/` + `scripts/`)
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
 
 ## Usage

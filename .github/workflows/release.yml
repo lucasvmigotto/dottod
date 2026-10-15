@@ -48,7 +48,7 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          for f in bin/*.sh scripts/*.sh config/.custom.bashrc tests/run.sh; do
+          for f in bin/*.sh lib/*.sh scripts/*.sh config/.custom.bashrc tests/run.sh; do
             bash -n "${f}"
           done
 
@@ -56,6 +56,7 @@ jobs:
         run: |
           shellcheck -S warning \
             bin/*.sh \
+            lib/*.sh \
             scripts/*.sh \
             config/.custom.bashrc \
             tests/run.sh tests/test-*.bats tests/helpers.bash
@@ -103,7 +104,7 @@ jobs:
           version="$(python3 scripts/release.py --initial 1.0.0)"
           python3 scripts/release.py --notes "$version" >"$RUNNER_TEMP/notes.md"
           V="$version"
-          tar -czf "dottod-scripts-${V}.tar.gz" bin config scripts
+          tar -czf "dottod-scripts-${V}.tar.gz" bin lib config scripts
           sha256sum "dottod-scripts-${V}.tar.gz" > "dottod-${V}-sha256sums.txt"
           {
             echo

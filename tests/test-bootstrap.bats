@@ -41,8 +41,9 @@ setup() {
     chmod +x "$BATS_TEST_TMPDIR/stubbin/sudo"
     export PATH="$BATS_TEST_TMPDIR/stubbin:$PATH"
     local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
-    mkdir -p "$fakeroot/bin"
+    mkdir -p "$fakeroot/bin" "$fakeroot/lib"
     cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
+    cp "$REPO_ROOT/lib/os.sh" "$fakeroot/lib/"
     for t in shell zed; do
         { printf '#!/usr/bin/env bash\n'; printf 'echo "RAN:$(basename "$0")" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/$t.sh"
         chmod +x "$fakeroot/bin/$t.sh"
@@ -60,8 +61,9 @@ setup() {
     chmod +x "$BATS_TEST_TMPDIR/stubbin/sudo"
     export PATH="$BATS_TEST_TMPDIR/stubbin:$PATH"
     local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
-    mkdir -p "$fakeroot/bin"
+    mkdir -p "$fakeroot/bin" "$fakeroot/lib"
     cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
+    cp "$REPO_ROOT/lib/os.sh" "$fakeroot/lib/"
     for t in shell zed; do
         { printf '#!/usr/bin/env bash\n'; printf 'echo "RAN:$(basename "$0")" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/$t.sh"
         chmod +x "$fakeroot/bin/$t.sh"
@@ -77,8 +79,9 @@ setup() {
     chmod +x "$BATS_TEST_TMPDIR/stubbin/sudo"
     export PATH="$BATS_TEST_TMPDIR/stubbin:$PATH"
     local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
-    mkdir -p "$fakeroot/bin"
+    mkdir -p "$fakeroot/bin" "$fakeroot/lib"
     cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
+    cp "$REPO_ROOT/lib/os.sh" "$fakeroot/lib/"
     { printf '#!/usr/bin/env bash\n'; printf 'echo "EXTRA:${DOT_TOOLS_EXTRA:-}" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/tools.sh"
     chmod +x "$fakeroot/bin/tools.sh"
     run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --only tools --extras gh,lazygit --verbose

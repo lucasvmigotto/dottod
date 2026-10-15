@@ -12,6 +12,10 @@ readonly DOT_LOG_DIR="/tmp/dottod"
 
 mkdir -p "${DOT_LOG_DIR}"
 
+# Platform detection (spec 015): definitions only; nothing runs on source.
+# shellcheck source=../lib/os.sh
+source "${DOT_REPO_ROOT}/lib/os.sh"
+
 function _color_supported() {
     [[ -n "${DOT_FORCE_COLOR:-}" ]] && return 0
     [[ -n "${NO_COLOR:-}" ]] && return 1
