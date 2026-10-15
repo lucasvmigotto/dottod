@@ -42,21 +42,25 @@ symlink detected). The installer only validates the binary version and
 links the config; plugin installation happens on the first `nvim` launch
 (lazy.nvim bootstraps itself, then follows the committed lockfile).
 
-## Version policy (important on Debian)
+## Version policy
 
 The configuration targets **Neovim >= 0.11.0** (enforced by the
 installer; kept as the floor for future language-tooling re-additions).
-Debian trixie's official archive ships **0.10.4** — below the floor. The
-installer:
+Most distributions package a new enough Neovim (Gentoo 0.11.7, Arch
+0.12.6, Fedora 42 0.11.5, Alpine 3.22 0.11.1), but Debian 13's official
+archive ships **0.10.4** — below the floor. The installer:
 
-1. Accepts any installed `nvim >= 0.11.0` (any source: apt, tarball, distro).
-2. Otherwise checks the apt **candidate**:
-   - candidate `>= 0.11.0` → installs via apt;
-   - candidate too old (or apt unusable) → **fails with instructions** by
-     default. It never silently installs an incompatible version and never
-     adds a third-party apt repository.
+1. Accepts any installed `nvim >= 0.11.0` (any source: package, tarball).
+2. Otherwise refreshes the package index and checks the distro package's
+   **candidate** version:
+   - candidate `>= 0.11.0` → installs the package;
+   - candidate too old → **fails with instructions** by default. It never
+     silently installs an incompatible version and never adds a third-party
+     package source. An unknown candidate is not "too old": the package is
+     tried, and the result is checked.
 3. Opt-in healing — install the official upstream tarball (rootless, into
-   `~/.local`), sha256-verified against the GitHub release API digest:
+   `~/.local`; glibc only, so not on Alpine), sha256-verified against the
+   GitHub release API digest (it installs curl, tar and python3 first):
 
    ```bash
    _DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh
@@ -209,8 +213,8 @@ Every failure line carries a fix.
 ## Offline / degraded behavior
 
 - No network on startup (checker disabled, plugins locked).
-- Missing rg ⇒ Telescope live grep degrades (install: `sudo apt-get install
-  ripgrep`); missing fd ⇒ find_files falls back to `find`.
+- Missing rg ⇒ Telescope live grep degrades (install `ripgrep` from your
+  distro); missing fd ⇒ find_files falls back to `find`.
 - `telescope-fzf-native` compiles once via `make`; without a compiler it is
   skipped and Telescope uses its Lua matcher.
 - `minimal` profile is the recovery mode (`DOTTOD_NVIM_PROFILE=minimal nvim`).
@@ -242,10 +246,10 @@ the regression test asserts the shell survives sourcing it.
 
 | Symptom | Fix |
 | ------- | --- |
-| `Neovim 0.10.4 via apt is below the minimum 0.11.0` | intended gate: use backports, a newer source, or `_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh` |
+| `Neovim 0.10.4 from the distro packages is below the minimum 0.11.0` | intended gate (Debian 13): use backports, a newer source, or `_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh` (glibc only) |
 | `nvim: command not found` after tarball install | `~/.local/bin` not on `PATH` (re-login or export it) |
 | plugins missing on a new machine | open nvim once online (`:Lazy sync`) — lazy bootstraps on first launch |
-| live grep empty | ripgrep missing: `sudo apt-get install ripgrep` |
+| live grep empty | ripgrep missing: install `ripgrep` from your distro |
 | which-key popup feels late | it is keyed to `timeoutlen=500`; tune in `dottod_local.lua` |
 
 ## Plugin policy (why each one exists)
