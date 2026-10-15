@@ -39,23 +39,23 @@ function _bun_arch() {
     printf '%s' "${arch}"
 }
 
-# Digest for a release asset from the public GitHub API. Prints the sha256
-# hex or nothing (mirror overrides have no API; caller warns and proceeds).
-function _bun_api_digest() {
-    local api_url=${1:?'API URL must be informed'}
+# sha256 for a release asset from the release's own SHASUMS256.txt
+# (published next to every Bun asset). Needs only curl: no JSON parser,
+# so minimal systems without python3 still verify, and mirrors that copy
+# the file verify too. Prints the hex digest, or nothing when the file or
+# the entry is missing (caller warns and proceeds).
+function _bun_shasum() {
+    local sums_url=${1:?'SHASUMS URL must be informed'}
     local asset_name=${2:?'Asset name must be informed'}
-
-    curl -fsSL "${api_url}" 2>/dev/null | python3 -c '
-import json,sys
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(1)
-for a in data.get("assets", []):
-    if a.get("name") == sys.argv[1]:
-        print((a.get("digest") or "").removeprefix("sha256:"))
-        break
-' "${asset_name}" 2>/dev/null || true
+    local sums hash name
+    sums="$(curl -fsSL "${sums_url}" 2>/dev/null)" || return 0
+    while read -r hash name; do
+        if [[ "${name#\*}" == "${asset_name}" && "${hash}" =~ ^[0-9a-f]{64}$ ]]; then
+            printf '%s' "${hash}"
+            return 0
+        fi
+    done <<<"${sums}"
+    return 0
 }
 
 # Resolve the zip download URL and its sha256 digest for a version.
@@ -68,19 +68,16 @@ function _bun_zip_asset() {
     local asset_name="bun-${target}.zip"
     local url digest=""
 
+    local base
     if [[ "${version}" == 'latest' ]]; then
-        url="${github}/oven-sh/bun/releases/latest/download/${asset_name}"
-        if [[ "${github}" == "${_DOT_BUN_GITHUB_DEFAULT}" ]]; then
-            digest="$(_bun_api_digest 'https://api.github.com/repos/oven-sh/bun/releases/latest' "${asset_name}")"
-        fi
+        base="${github}/oven-sh/bun/releases/latest/download"
     else
         local tag="${version}"
         [[ "${tag}" == bun-v* ]] || tag="bun-v${version#v}"
-        url="${github}/oven-sh/bun/releases/download/${tag}/${asset_name}"
-        if [[ "${github}" == "${_DOT_BUN_GITHUB_DEFAULT}" ]]; then
-            digest="$(_bun_api_digest "https://api.github.com/repos/oven-sh/bun/releases/tags/${tag}" "${asset_name}")"
-        fi
+        base="${github}/oven-sh/bun/releases/download/${tag}"
     fi
+    url="${base}/${asset_name}"
+    digest="$(_bun_shasum "${base}/SHASUMS256.txt" "${asset_name}")"
 
     if [[ -z "${url}" ]]; then
         log_error "No asset '${asset_name}' for Bun ${version}"
@@ -112,6 +109,10 @@ function _bun_install_runtime() {
 
     log_step 'Installing Bun prerequisites'
     _install_packages curl ca_certificates unzip
+    # The musl build links the C++ runtime, absent from a base Alpine.
+    if [[ "$(_os_libc)" == musl ]]; then
+        _install_packages cxx_runtime
+    fi
 
     tmpdir="$(mktemp -d)"
     log_step "Installing Bun ${version} (${target}) with sha256 verification"
