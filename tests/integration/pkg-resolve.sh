@@ -65,7 +65,7 @@ function _host() {
             echo "FAIL: unknown distro '${distro}' (want: ${DOT_IT_DISTROS[*]})" >&2
             return 1
         }
-        mapfile -t extra < <(_it_extra_args "${distro}")
+        mapfile -t extra < <(_it_run_args "${distro}")
         printf '=== %s\n' "${distro}"
         if ! podman run --rm "${extra[@]}" \
             -v "${repo}:/w:ro,Z" -e DOTTOD_TEST_INTEGRATION=1 \
