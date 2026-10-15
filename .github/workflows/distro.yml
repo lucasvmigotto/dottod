@@ -1,0 +1,77 @@
+name: distro
+
+# Spec 015 integration gates, one job per distro (images pinned by digest
+# in tests/integration/distros.sh, run with the runner's Podman):
+# - resolve: every logical package resolves in the distro's repositories
+#   (no installs) — on PRs that touch the package layer, and on pushes.
+# - core-smoke: the real core bootstrap, run twice (idempotency) — weekly
+#   and on demand only: it installs packages and fetches fonts/plugins.
+
+on:
+  push:
+    branches:
+      - "main"
+      - "develop"
+    paths:
+      - "bin/**"
+      - "lib/**"
+      - "tests/integration/**"
+      - ".github/workflows/distro.yml"
+  pull_request:
+    paths:
+      - "bin/**"
+      - "lib/**"
+      - "tests/integration/**"
+      - ".github/workflows/distro.yml"
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Package mapping (${{ matrix.distro }})
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [debian, ubuntu, gentoo, arch, fedora, alpine]
+    env:
+      DOTTOD_TEST_INTEGRATION: "1"
+      # Hosted runners have room; the local defaults cap memory/CPU.
+      DOT_IT_PODMAN_ARGS: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Podman
+        run: podman --version
+
+      - name: Resolve every mapped package
+        run: ./tests/integration/pkg-resolve.sh "${{ matrix.distro }}"
+
+  core-smoke:
+    name: Core bootstrap twice (${{ matrix.distro }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-26.04
+    # Gentoo builds git, vim and fontconfig from source.
+    timeout-minutes: ${{ matrix.distro == 'gentoo' && 120 || 45 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [debian, gentoo, arch, fedora, alpine]
+    env:
+      DOTTOD_TEST_INTEGRATION: "1"
+      DOT_IT_PODMAN_ARGS: ""
+      MAKEOPTS: "-j4"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Podman
+        run: podman --version
+
+      - name: Bootstrap shell, vim, gitconfig, ssh and fonts twice
+        run: ./tests/integration/core-smoke.sh "${{ matrix.distro }}"
