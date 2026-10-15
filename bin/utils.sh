@@ -296,25 +296,6 @@ function _download() {
     curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 -o "${destination}" "${url}"
 }
 
-function _github_asset_url() {
-    local repo=${1:?'GitHub repo (owner/name) must be informed'}
-    local pattern=${2:?'Asset name pattern must be informed'}
-
-    local url
-    url="$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
-        grep -oE '"browser_download_url": *"[^"]+"' |
-        cut -d'"' -f4 |
-        grep -E "${pattern}" |
-        head -n1)"
-
-    if [[ -z "${url}" ]]; then
-        log_error "No release asset matching '${pattern}' for ${repo}"
-        return 1
-    fi
-
-    echo "${url}"
-}
-
 function _link_file() {
     local source_file=${1:?'Source file must be informed'}
     local target_file=${2:?'Target file must be informed'}
@@ -387,20 +368,4 @@ function _prompt() {
     fi
 
     echo "${input:-${default}}"
-}
-
-function _go_arch() {
-    case "$(uname -m)" in
-        x86_64 | amd64) echo 'x86_64' ;;
-        arm64 | aarch64) echo 'arm64' ;;
-        *) echo "$(uname -m)" ;;
-    esac
-}
-
-function _rust_arch() {
-    case "$(uname -m)" in
-        x86_64) echo 'amd64' ;;
-        arm64 | aarch64) echo 'arm64' ;;
-        *) echo "$(uname -m)" ;;
-    esac
 }

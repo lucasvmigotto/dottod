@@ -28,7 +28,8 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
 2026-10-15: 008 ghostty removed; Docker dropped from 005 (Podman only);
-011 extras (gh, lazygit, lazydocker, k9s, resterm, httpie, chafa) opt-in.
+011 extras (gh, httpie, chafa) opt-in; lazygit, lazydocker, k9s and
+resterm dropped (no upstream release downloads).
 
 Status meanings (pipeline rule 6): **Implemented** = code path exists and
 runs (hermetic suites pass; "no e2e" where true). **Verified** = passing

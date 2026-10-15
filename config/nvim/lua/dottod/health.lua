@@ -55,14 +55,11 @@ function M.check()
     end
   end
 
-  -- dottod CLI composers
-  for _, bin in ipairs({ 'lazygit', 'lazydocker', 'k9s', 'btop' }) do
-    if vim.fn.executable(bin) == 1 then
-      vim.health.ok(bin .. ' found (<leader>g' .. (bin == 'lazygit' and 'g' or bin == 'lazydocker' and 'k' or bin == 'k9s' and 'k' or 't') .. ')')
-    else
-      local how = bin == 'btop' and './bin/tools.sh' or ('DOT_TOOLS_EXTRA=' .. bin .. ' ./bin/tools.sh')
-      vim.health.info(bin .. ' not found (' .. how .. ' installs it)')
-    end
+  -- dottod CLI launcher
+  if vim.fn.executable('btop') == 1 then
+    vim.health.ok('btop found (<leader>bt)')
+  else
+    vim.health.info('btop not found (./bin/tools.sh installs it)')
   end
 
   -- DevContainer workflow (devcontainer-cli.nvim, terminal profiles only)

@@ -111,7 +111,7 @@ snapshot() {
     DOT_TOOLS_EXTRA=gh run "$REPO_ROOT/bin/tools.sh" status
     assert_eq 'tools status rc' '0' "$status"
     assert_contains 'gh selected' 'Selected:  gh (DOT_TOOLS_EXTRA)' "$output"
-    assert_match 'extras counted' 'Extras: +[0-9]+/7 present' "$output"
+    assert_match 'extras counted' 'Extras: +[0-9]+/3 present' "$output"
     assert_match 'core counted' 'Core: +[0-9]+/12 present' "$output"
 }
 
