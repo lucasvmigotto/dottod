@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 #
-# container.sh — dottod container runtime task (Podman default, Docker
-# alternative). Ensures the selected runtime is installed, configured and
-# usable, without ever migrating or destroying the other runtime's setup.
-#
-# Selection: _DOT_CONTAINER_RUNTIME=podman|docker|auto (default: podman).
-# An explicit selection is never silently switched; usability problems
-# fail loudly with actionable messages.
+# container.sh — dottod container runtime task (rootless Podman). Ensures
+# Podman is installed, configured and usable; usability problems fail
+# loudly with actionable messages.
 #
 # Usage: container.sh [status]
-#   (no args)  ensure the selected runtime
+#   (no args)  ensure Podman
 #   status     print selection/installation/usability report (cheap probes)
 
 set -Eeuo pipefail
@@ -21,18 +17,11 @@ function _usage() {
     cat <<'EOF'
 Usage: container.sh [status]
 
-Ensures dottod's container runtime (Podman by default, Docker when
-explicitly selected via _DOT_CONTAINER_RUNTIME=podman|docker|auto).
+Ensures dottod's container runtime (rootless Podman).
 
-  (no args)  install/configure/validate the selected runtime (idempotent)
+  (no args)  install/configure/validate Podman (idempotent)
   status     print the runtime report without changing anything
 EOF
-}
-
-# Path to the explicit-Docker task script. Separate helper so tests can
-# redirect it at a stub; production always uses the real bin/docker.sh.
-function _container_docker_script() {
-    printf '%s' "${DOT_REPO_ROOT}/bin/docker.sh"
 }
 
 # subuid/subgid are plain shadow-utils files, NOT NSS databases, so `getent`
@@ -70,19 +59,19 @@ function _podman_ensure_subids() {
 }
 
 function _podman_ensure() {
-    if _ctr_usable_podman; then
+    if _ctr_usable; then
         log_info 'Podman already usable, skipping...'
         return 0
     fi
 
-    if ! _ctr_installed podman; then
+    if ! _ctr_installed; then
         log_step 'Installing Podman (uidmap for rootless operation)'
         _install_packages 'podman uidmap'
     fi
 
     _podman_ensure_subids "$(id -un)"
 
-    if ! _ctr_usable_podman; then
+    if ! _ctr_usable; then
         log_error 'Podman is installed but not usable rootlessly.'
         log_error 'Check user namespaces and subuid/subgid:'
         log_error '  grep "^$(id -un):" /etc/subuid /etc/subgid; podman info'
@@ -93,67 +82,18 @@ function _podman_ensure() {
     return 0
 }
 
-function _docker_ensure() {
-    local script
-    script="$(_container_docker_script)"
-
-    # Explicit Docker selection: the existing task owns installation and
-    # group setup. Podman is never installed on this path.
-    "${script}"
-
-    if ! _ctr_usable_docker; then
-        log_warn 'Docker is selected but its daemon is unreachable.'
-        log_warn 'A fresh install needs a re-login (docker group) or a daemon restart.'
-    fi
-    return 0
-}
-
-function _container_ensure() {
-    local runtime
-    runtime="$(_ctr_resolve)" || return 1
-
-    # No trailing `return 0`: the case result (ensure success/failure)
-    # must propagate to the caller.
-    case "${runtime}" in
-        podman) _podman_ensure ;;
-        docker) _docker_ensure ;;
-    esac
-}
-
 function _container_status() {
-    local configured selected
-    configured="${_DOT_CONTAINER_RUNTIME:-<unset>}"
-    if ! selected="$(_ctr_resolve)"; then
-        return 1
-    fi
-
-    local podman_state='missing' docker_state='missing' rootless='n/a' usable='no'
-    local ver
-    if ver="$(_ctr_version podman 2>/dev/null)"; then
+    local podman_state='missing' rootless='no' ver
+    if ver="$(_ctr_version 2>/dev/null)"; then
         podman_state="installed ${ver}"
     fi
-    if ver="$(_ctr_version docker 2>/dev/null)"; then
-        docker_state="installed ${ver}"
-    fi
-    if _ctr_usable_podman; then
-        rootless='yes'
-    elif _ctr_installed podman; then
-        rootless='no'
-    fi
-    case "${selected}" in
-        podman) _ctr_usable_podman && usable='yes' || true ;;
-        docker) _ctr_usable_docker && usable='yes' || true ;;
-    esac
+    _ctr_usable && rootless='yes' || true
 
     cat <<EOF
 Container runtime
 -----------------
-Configured: ${configured} (default: podman)
-Selected:   ${selected}
 Podman:     ${podman_state}
-Docker:     ${docker_state}
 Rootless:   ${rootless}
-Usable:     ${usable}
 EOF
     return 0
 }
@@ -162,7 +102,7 @@ function _main() {
     case "${1:-}" in
         '')
             log_step 'Ensuring container runtime'
-            _container_ensure
+            _podman_ensure
             log_ok 'Container runtime ready'
             return 0
             ;;

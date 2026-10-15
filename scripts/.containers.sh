@@ -2,26 +2,23 @@
 #
 # .containers.sh — container listing helpers on the runtime dispatcher.
 #
-# Thin wrappers around scripts/.container.utils.sh: every command resolves
-# the runtime first (podman default, docker alternative, _DOT_CONTAINER_RUNTIME
-# override), so these work on podman-only, docker-only and mixed hosts —
-# and fail loudly when no runtime answers. Destructive commands confirm.
+# Thin wrappers around scripts/.container.utils.sh: every command checks
+# podman is installed and usable first, and fails loudly when it is not.
+# Destructive commands confirm.
 
-# _csh_ready: prints the resolved runtime after verifying it is installed
+# _csh_ready: prints the runtime (podman) after verifying it is installed
 # and usable right now; fails loudly otherwise (never a bare
 # "command not found" from deep inside a listing).
 _csh_ready() {
-    local rt
-    rt="$(_ctr_resolve)" || return 1
-    _ctr_installed "${rt}" || {
-        echo "containers: '${rt}' not found on PATH (bin/tools.sh installs podman)" >&2
+    _ctr_installed || {
+        echo "containers: 'podman' not found on PATH (bin/container.sh installs it)" >&2
         return 1
     }
-    "_ctr_usable_${rt}" || {
-        echo "containers: '${rt}' is not usable right now" >&2
+    _ctr_usable || {
+        echo "containers: 'podman' is not usable right now" >&2
         return 1
     }
-    printf '%s' "${rt}"
+    printf 'podman'
 }
 
 # cps: running + stopped containers, compact table.
