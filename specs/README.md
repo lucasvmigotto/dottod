@@ -22,6 +22,7 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 | 011 | cli tools (apt baseline + opt-in extras) | P1 | — | Implemented |
 | 013 | cargo (rustup toolchain) | P1 | — | Implemented |
 | 014 | bun (JS runtime + devcontainer CLI) | P1 | — | Implemented |
+| 015 | multi-distro (Debian, Gentoo, Arch, Fedora, Alpine) | P0 | — | Planned |
 
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
