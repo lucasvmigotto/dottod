@@ -114,7 +114,7 @@ jobs:
             cat "dottod-${V}-sha256sums.txt"
             echo '```'
           } >>"$RUNNER_TEMP/notes.md"
-          git add CHANGELOG.md
+          git add CHANGELOG.md docs/site/package.json
           git commit -m "chore(release): $version"
           git tag -a "$version" -m "$version"
           # Rejected (and nothing published) if main moved since this run started;

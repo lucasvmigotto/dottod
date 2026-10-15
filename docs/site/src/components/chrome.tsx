@@ -237,6 +237,20 @@ export function Footer() {
   return (
     <footer className="border-t border-border py-6 text-sm text-muted">
       <p>{content.ui.footerNote}</p>
+      <p className="mt-2 font-display text-xs" title="Versions">
+        {__VERSIONS__.map((v, i) => (
+          <span key={v.name}>
+            {i > 0 && " · "}
+            {v.href ? (
+              <a href={v.href} rel="noreferrer" className="hover:text-accent">
+                {v.label}
+              </a>
+            ) : (
+              v.label
+            )}
+          </span>
+        ))}
+      </p>
     </footer>
   );
 }

@@ -5,6 +5,17 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## Unreleased
+
+### Fixed
+
+- **Docs footer versions.** The footer reads `dottod@vX.Y.Z · docs@vX.Y.Z`,
+  each linked to the repository tree at its release tag (or the commit
+  past it), and the site deploys after the release workflow, so it never
+  shows the previous version. The docs version (`docs/site/package.json`)
+  is raised by `scripts/release.py`, now able to bump the manifests listed
+  in `release.json`.
+
 ## 1.8.0 — 2026-10-13
 
 ### Added
