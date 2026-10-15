@@ -12,7 +12,7 @@
 #   _DOT_BUN_VERSION       bun tag (default latest; e.g. bun-v1.2.0)
 #   _DOT_BUN_GITHUB        GitHub base for mirror override (default https://github.com)
 #   _DOT_TARGET_USER       target user (default id -un)
-#   _DOT_NO_PACKAGES       1 skips apt (tests)
+#   _DOT_NO_PACKAGES       1 skips package installs (tests)
 #
 # Usage: bun.sh [""] | status | --help|-h
 #   ("")     ensure bun (idempotent skip when bun exists)

@@ -12,7 +12,7 @@
 #   _DOT_ZED_INSTALLER_URL   installer URL (default https://zed.dev/install.sh)
 #   _DOT_ZED_CHANNEL         release channel (default stable)
 #   _DOT_ZED_VERSION         version pin (default latest)
-#   _DOT_NO_PACKAGES         1 skips apt (tests)
+#   _DOT_NO_PACKAGES         1 skips package installs (tests)
 #
 # Usage: zed.sh [""] | status | --help|-h
 #   ("")     install Zed (skipped when it already runs)

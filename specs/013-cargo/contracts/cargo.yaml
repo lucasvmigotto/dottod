@@ -12,5 +12,5 @@ env:
 file_effects:
   - {path: "~/.cargo/ (rustup home)", action: install-if-cargo-missing}
   - {path: "~/.bashrc", action: never-modified (uses --no-modify-path)}
-needs_apt: true
+uses_packages: true
 idempotency: cargo presence probe skips everything

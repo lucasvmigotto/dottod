@@ -13,7 +13,7 @@
 #   _DOT_RUSTUP_PROFILE    rustup profile (default minimal)
 #   _DOT_CARGO_HOME        cargo home (default ~/.cargo)
 #   _DOT_TARGET_USER       target user (default id -un)
-#   _DOT_NO_PACKAGES       1 skips apt (tests)
+#   _DOT_NO_PACKAGES       1 skips package installs (tests)
 #
 # Usage: cargo.sh [""] | status | --help|-h
 #   ("")     ensure toolchain (idempotent skip when cargo exists)
