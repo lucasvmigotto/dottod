@@ -53,12 +53,11 @@ through `pass show`; container registries are its first consumer.
 - Re-running is a no-op.
 
 ## Open
-- Debian's packaged helper is 0.6.4 (T170 proved 0.9.10): confirm in
-  Milestone S1. Arch, Fedora and Alpine don't package the helper: the task
+- Arch, Fedora and Alpine don't package the helper: the task
   sets up pass and explains the manual install; Gentoo needs `USE=pass`.
-- Passphrase prompting from a terminal-only session (Milestone S1).
+- Passphrase prompting from a terminal-only session with nothing cached
+  (S1 ran with a cached passphrase; the docs say to export GPG_TTY).
 
 ## Status
-Implemented (2026-10-15), hermetic tests only. Milestone S1 (this
-machine: real key, store, `podman login` docker.io + dhi.io, a dhi.io
-pull) is the first real run.
+Implemented and verified on a real Debian host (Milestone S1,
+2026-10-15). Other distributions: hermetic tests and the resolve gate only.

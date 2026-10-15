@@ -31,6 +31,6 @@ ShellCheck/shfmt clean, each commit passing on its own).
   credentials warned (names only).
 - [x] T176 `docs/secrets.md`, README, site page in both locales, contract.
 
-**Milestone S1 — this machine:** you create the key and run `pass init`,
+**Milestone S1 — this machine:** ✅ 2026-10-15. you create the key and run `pass init`,
 `./bin/bootstrap.sh --only secrets`, then `podman login docker.io` and
 `podman login dhi.io` (tokens typed by you); a `dhi.io` pull works.

@@ -38,3 +38,15 @@ Consequences for the task:
 
 Debian's helper (0.6.4) is older than the one proven in T170 (0.9.10):
 Milestone S1 on this Debian host exercises it directly.
+
+**Milestone S1 (2026-10-15)**, the maintainer's Debian 13 host, real setup:
+the maintainer created an ed25519 key and ran `pass init`, then
+`./bin/bootstrap.sh --only secrets` (Debian `golang-docker-credential-helpers`
+0.6.4), `podman login docker.io` and `podman login dhi.io`.
+- `secrets.sh status`: key, store, helper, drop-in and redirect in place;
+  no plaintext registry credentials anywhere.
+- The store holds `docker-credential-helpers/<registry>/lucasvmigotto`
+  for docker.io and dhi.io; no containers `auth.json` exists.
+- `podman pull dhi.io/bun:1-debian13-dev` (login required) succeeds,
+  decrypting through the user's own agent with its cached passphrase;
+  Debian's older 0.6.4 helper behaves like the 0.9.10 proven in T170.
