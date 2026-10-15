@@ -7,10 +7,10 @@ didn't prove. Gentoo goes first among the new distros, since it's the
 maintainer's target.
 
 ## Phase 1 — OS detection (`feat/os-detect`)
-- [ ] T001 `tests/fixtures/os-release/{debian,ubuntu,gentoo,arch,fedora,alpine,unknown,malformed}`
-- [ ] T002 `lib/os.sh`: line parser (no `source`), `DOTTOD_OS_FAMILY`, `DOTTOD_PKG`, `DOTTOD_ARCH`, `DOTTOD_LIBC`; `ID` first, `ID_LIKE` only for listed families; manager presence check
-- [ ] T003 `tests/test-os.bats`: every fixture, unknown/malformed fail, `ID=fedora` without `dnf` fails
-- [ ] T004 `bin/utils.sh` sources `lib/`; nothing reads it yet (zero behavior change)
+- [x] T001 `tests/fixtures/os-release/{debian,ubuntu,gentoo,arch,fedora,alpine,unknown,malformed}`
+- [x] T002 `lib/os.sh`: line parser (no `source`), `DOTTOD_OS_FAMILY`, `DOTTOD_PKG`, `DOTTOD_ARCH`, `DOTTOD_LIBC`; `ID` first, `ID_LIKE` only for listed families; manager presence check
+- [x] T003 `tests/test-os.bats`: every fixture, unknown/malformed fail, `ID=fedora` without `dnf` fails
+- [x] T004 `bin/utils.sh` sources `lib/`; nothing reads it yet (zero behavior change)
 
 ## Phase 2 — package backend (`feat/pkg-backend`)
 - [ ] T010 `lib/package.sh`: `_pkg_install` / `_pkg_is_installed` / `_pkg_candidate_version`; array args; manager stderr visible on failure
