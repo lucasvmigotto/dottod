@@ -23,7 +23,7 @@ for t in "${_TEST_DIR}"/test-*.bats; do
     _total=$((_total + 1))
     printf '=== %s ===\n' "$(basename "${t}")"
     if ! command -v bats >/dev/null 2>&1; then
-        printf -- '--- ERROR: %s needs `bats` (Debian: sudo apt-get install -y bats)\n' "$(basename "${t}")"
+        printf -- '--- ERROR: %s needs `bats` (install it from your distro, or run: just tools)\n' "$(basename "${t}")"
         _failures=$((_failures + 1))
         continue
     fi
