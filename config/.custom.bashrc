@@ -7,7 +7,7 @@ export EDITOR='vim'
 export LANG=en_US.UTF-8
 
 # Tool paths: prepend each once (reload-safe, no duplicates on re-source).
-for _d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.opencode/bin" "${HOME}/.local/bin"; do
+for _d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.local/bin"; do
     if [[ -d "${_d}" ]]; then
         case ":${PATH}:" in
             *":${_d}:"*) ;;

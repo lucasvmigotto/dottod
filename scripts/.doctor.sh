@@ -69,7 +69,7 @@ dottod-doctor() {
     done
 
     # Tool dirs: present once each, never duplicated.
-    for d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.opencode/bin" "${HOME}/.local/bin"; do
+    for d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.local/bin"; do
         if [[ -d "${d}" ]]; then
             if [[ ":${PATH}:" == *":${d}:"* ]]; then
                 __dottod_doc_ok "PATH has ${d}"
