@@ -18,6 +18,16 @@ mkdir -p "${DOT_LOG_DIR}"
 source "${DOT_REPO_ROOT}/lib/os.sh"
 # shellcheck source=../lib/package.sh
 source "${DOT_REPO_ROOT}/lib/package.sh"
+# shellcheck source=../lib/packages/debian.sh
+source "${DOT_REPO_ROOT}/lib/packages/debian.sh"
+# shellcheck source=../lib/packages/gentoo.sh
+source "${DOT_REPO_ROOT}/lib/packages/gentoo.sh"
+# shellcheck source=../lib/packages/arch.sh
+source "${DOT_REPO_ROOT}/lib/packages/arch.sh"
+# shellcheck source=../lib/packages/redhat.sh
+source "${DOT_REPO_ROOT}/lib/packages/redhat.sh"
+# shellcheck source=../lib/packages/alpine.sh
+source "${DOT_REPO_ROOT}/lib/packages/alpine.sh"
 
 function _color_supported() {
     [[ -n "${DOT_FORCE_COLOR:-}" ]] && return 0
@@ -205,7 +215,8 @@ function _priv() {
     fi
 }
 
-# _install_packages <pkg...>: native packages through lib/package.sh.
+# _install_packages <logical...>: packages through lib/package.sh, by
+# logical name (DOT_PKG_LOGICAL).
 # Accepts separate arguments or one space-separated string (the original
 # form); words are split without glob expansion. _DOT_NO_PACKAGES=1 is the
 # test seam: nothing is detected or installed.

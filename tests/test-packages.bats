@@ -83,17 +83,18 @@ use_os() {
     unset _DOT_PKG_READY
 }
 
-# install_as <family>: install curl+jq with jq missing; prints the PRIV lines.
+# install_as <family>: install curl+jq with jq missing (under its native
+# name); prints the PRIV lines.
 install_as() {
     use_os "$1"
     : >"$CALLS"
-    MISSING=jq run _install_packages curl jq
+    MISSING='jq app-misc/jq' run _install_packages curl jq
     grep '^PRIV:' "$CALLS" || true
 }
 
 @test "each backend installs only what is missing, with exact argv" {
     assert_eq 'debian' $'PRIV:env DEBIAN_FRONTEND=noninteractive apt-get update -qq\nPRIV:env DEBIAN_FRONTEND=noninteractive apt-get install -qq --yes jq' "$(install_as debian)"
-    assert_eq 'gentoo' 'PRIV:emerge --noreplace --ask=n --autounmask=n jq' "$(install_as gentoo)"
+    assert_eq 'gentoo' 'PRIV:emerge --noreplace --ask=n --autounmask=n app-misc/jq' "$(install_as gentoo)"
     assert_eq 'arch' 'PRIV:pacman -S --needed --noconfirm jq' "$(install_as arch)"
     assert_eq 'fedora' 'PRIV:dnf install -y jq' "$(install_as fedora)"
     assert_eq 'alpine' $'PRIV:apk update -q\nPRIV:apk add -q jq' "$(install_as alpine)"
@@ -142,7 +143,7 @@ install_as() {
     assert_eq 'arch failure rc' '1' "$status"
     assert_contains 'arch remedy' 'pacman -Syu' "$output"
     use_os gentoo
-    run _install_packages jq
+    MISSING=app-misc/jq run _install_packages jq
     assert_contains 'gentoo remedy' 'never edits it' "$output"
     unset PRIV_RC MISSING
 }
@@ -218,10 +219,80 @@ install_as() {
     assert_eq 'alpine' '0.11.1' "$(_pkg_candidate_version neovim)"
     use_os gentoo
     printf '#!/usr/bin/env bash\n[[ "$1" == best_visible ]] && printf "app-editors/neovim-0.11.4-r1\\n"\n' >"$STUBBIN/portageq"
-    assert_eq 'gentoo atom stripped' '0.11.4' "$(_pkg_candidate_version app-editors/neovim)"
+    assert_eq 'gentoo atom stripped' '0.11.4' "$(_pkg_candidate_version neovim)"
     use_os unknown
     run _pkg_candidate_version neovim
     assert_eq 'unknown rc 2' '2' "$status"
+}
+
+@test "every logical package maps on all five families" {
+    local fam name native
+    for fam in debian gentoo arch redhat alpine; do
+        for name in "${DOT_PKG_LOGICAL[@]}"; do
+            native="$("_pkgmap_${fam}" "$name")" || {
+                printf 'FAIL: no %s mapping for %s\n' "$fam" "$name" >&2
+                return 1
+            }
+            assert_eq "$fam $name non-empty" '1' "$([[ -n "$native" ]] && echo 1 || echo 0)"
+            if [[ "$fam" == gentoo && "$native" != '-' ]]; then
+                assert_eq "gentoo $name is a full atom" '1' "$([[ "$native" == */* ]] && echo 1 || echo 0)"
+            fi
+        done
+        run "_pkgmap_${fam}" not_a_package
+        assert_eq "$fam rejects unknown names" '1' "$status"
+    done
+}
+
+@test "every package a task requests is a known logical name" {
+    local requested name
+    requested="$(
+        {
+            grep -ohE '_install_packages( [a-z_]+)+' "$REPO_ROOT"/bin/*.sh | sed 's/^_install_packages //'
+            grep -ohE "need\+=\([^)]*\)" "$REPO_ROOT"/bin/*.sh | sed -E "s/need\+=\(//; s/\)//; s/'//g"
+            grep -ohE "pkg_extras\+=' [a-z_]+'" "$REPO_ROOT"/bin/*.sh | sed -E "s/.*' //; s/'//"
+        } | tr ' ' '\n' | sed '/^$/d' | sort -u
+    )"
+    assert_eq 'found requests' '1' "$([[ $(wc -l <<<"$requested") -ge 20 ]] && echo 1 || echo 0)"
+    for name in $requested; do
+        if [[ " ${DOT_PKG_LOGICAL[*]} " != *" ${name} "* ]]; then
+            printf 'FAIL: bin/ requests %s, not in DOT_PKG_LOGICAL\n' "$name" >&2
+            return 1
+        fi
+    done
+}
+
+@test "logical names resolve to native packages, sets included" {
+    use_os fedora
+    : >"$CALLS"
+    MISSING='openssh-clients' run _install_packages openssh_client
+    assert_contains 'fedora name' 'dnf install -y openssh-clients' "$(cat "$CALLS")"
+    use_os alpine
+    : >"$CALLS"
+    MISSING='shadow-subids' run _install_packages podman_rootless
+    assert_contains 'only the missing member' 'apk add -q shadow-subids' "$(cat "$CALLS")"
+    use_os alpine
+    _pkg_ready
+    MISSING='shadow-subids' run _pkg_is_installed podman_rootless
+    assert_eq 'a set is installed only when all members are' '1' "$status"
+}
+
+@test "unknown logical name fails before any package command" {
+    MISSING=jq run _install_packages jq not_a_package
+    assert_eq 'rc 1' '1' "$status"
+    assert_contains 'names the table' 'lib/packages/debian.sh' "$output"
+    assert_eq 'no calls' '' "$(cat "$CALLS")"
+}
+
+@test "a family that lacks a package skips it with a warning" {
+    _pkgmap_debian() { [[ "$1" == chafa ]] && printf -- '-' || printf '%s' "$1"; }
+    MISSING='jq chafa' run _install_packages jq chafa
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'warns' 'chafa is not packaged for debian' "$output"
+    assert_contains 'installs the rest' 'apt-get install -qq --yes jq' "$(cat "$CALLS")"
+    : >"$CALLS"
+    run _install_packages chafa
+    assert_eq 'only unsupported: rc 0' '0' "$status"
+    assert_eq 'only unsupported: no calls' '' "$(cat "$CALLS")"
 }
 
 @test "runnable: true for a working binary" {

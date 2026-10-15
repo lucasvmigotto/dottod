@@ -26,7 +26,19 @@
 # Serialization: refresh + install run under flock(1) on
 # ${DOT_LOG_DIR}/pkg.lock, so dottod's own transactions never interleave.
 #
-# Package names here are native names; logical-name mapping is phase 3.
+# Tasks use logical names (DOT_PKG_LOGICAL); lib/packages/<family>.sh maps
+# them to native packages. A name with no entry is a bug (tests require
+# full coverage); '-' means the family deliberately lacks it, and the
+# install skips it with a warning.
+
+# Every logical package a task may request. Adding a name here requires an
+# entry in all five tables (tests/test-packages.bats enforces it).
+# shellcheck disable=SC2034 # read by tests and the resolve gate
+readonly DOT_PKG_LOGICAL=(
+    bash bat bats btop ca_certificates chafa curl fontconfig fzf gh git gnupg
+    httpie jq just lsof neovim nodejs openssh_client podman podman_rootless
+    shellcheck shfmt tar unzip vim xclip
+)
 
 # _pkg_ready: detect once per process and require the manager.
 function _pkg_ready() {
@@ -136,19 +148,49 @@ function _pkg_norm_ver() {
 
 # --- public API -------------------------------------------------------
 
-# _pkg_is_installed <name>: 0 when the native package is installed.
-function _pkg_is_installed() {
-    _pkg_ready || return 1
-    "_pkg_${DOTTOD_OS_FAMILY}_is_installed" "${1:?'package required'}"
+# _pkg_resolve <logical...>: fills _DOT_PKG_RESOLVED (native names, in
+# order) and _DOT_PKG_UNSUPPORTED (logical names the family lacks). Fails
+# on a name with no mapping entry.
+function _pkg_resolve() {
+    local name native
+    local -a words=()
+    _DOT_PKG_RESOLVED=()
+    _DOT_PKG_UNSUPPORTED=()
+    for name in "$@"; do
+        if ! native="$("_pkgmap_${DOTTOD_OS_FAMILY}" "${name}")"; then
+            log_error "No ${DOTTOD_OS_FAMILY} mapping for package '${name}' (add it to lib/packages/${DOTTOD_OS_FAMILY}.sh)"
+            return 1
+        fi
+        if [[ "${native}" == '-' ]]; then
+            _DOT_PKG_UNSUPPORTED+=("${name}")
+            continue
+        fi
+        read -ra words <<<"${native}"
+        _DOT_PKG_RESOLVED+=("${words[@]}")
+    done
 }
 
-# _pkg_candidate_version <name>: prints the upstream version the manager
+# _pkg_is_installed <logical>: 0 when every native package it maps to is
+# installed; 1 otherwise, including when the family lacks it.
+function _pkg_is_installed() {
+    local pkg
+    _pkg_ready || return 1
+    _pkg_resolve "${1:?'package required'}" || return 1
+    ((${#_DOT_PKG_RESOLVED[@]} > 0)) || return 1
+    for pkg in "${_DOT_PKG_RESOLVED[@]}"; do
+        "_pkg_${DOTTOD_OS_FAMILY}_is_installed" "${pkg}" || return 1
+    done
+}
+
+# _pkg_candidate_version <logical>: prints the upstream version the manager
 # would install. rc 0 = version printed, rc 1 = no candidate (absent or
 # masked), rc 2 = unknown (detection failed). Unknown is never "too old".
 function _pkg_candidate_version() {
     local raw
     _pkg_ready 2>/dev/null || return 2
-    raw="$("_pkg_${DOTTOD_OS_FAMILY}_candidate" "${1:?'package required'}")" || raw=''
+    _pkg_resolve "${1:?'package required'}" 2>/dev/null || return 2
+    ((${#_DOT_PKG_RESOLVED[@]} > 0)) || return 1
+    raw="$("_pkg_${DOTTOD_OS_FAMILY}_candidate" "${_DOT_PKG_RESOLVED[0]}")" || raw=''
     if [[ -z "${raw}" || "${raw}" == '(none)' ]]; then
         return 1
     fi
@@ -201,7 +243,7 @@ function _pkg_transaction() {
     return "${rc}"
 }
 
-# _pkg_install <pkg...>: installs what is missing; no privilege, refresh
+# _pkg_install <logical...>: installs what is missing; no privilege, refresh
 # or lock when everything is already installed. A failed transaction
 # fails with the manager's own output left visible.
 function _pkg_install() {
@@ -210,12 +252,17 @@ function _pkg_install() {
 
     (($# > 0)) || return 0
     _pkg_ready || return 1
+    _pkg_resolve "$@" || return 1
+    for pkg in "${_DOT_PKG_UNSUPPORTED[@]}"; do
+        log_warn "${pkg} is not packaged for ${DOTTOD_OS_FAMILY}; skipping it"
+    done
+    ((${#_DOT_PKG_RESOLVED[@]} > 0)) || return 0
 
-    for pkg in "$@"; do
+    for pkg in "${_DOT_PKG_RESOLVED[@]}"; do
         "_pkg_${DOTTOD_OS_FAMILY}_is_installed" "${pkg}" || missing+=("${pkg}")
     done
     if ((${#missing[@]} == 0)); then
-        log_info "Packages already installed, skipping: $*"
+        log_info "Packages already installed, skipping: ${_DOT_PKG_RESOLVED[*]}"
         return 0
     fi
 
