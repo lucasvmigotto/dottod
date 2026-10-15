@@ -61,6 +61,9 @@ detect_fixture() {
     assert_eq 'quoted id_like' 'ubuntu debian' "$DOTTOD_OS_ID_LIKE"
     detect_fixture fedora
     assert_eq 'bare version' '42' "$DOTTOD_OS_VERSION_ID"
+    detect_fixture gentoo
+    assert_eq 'single-quoted (real gentoo file)' 'Gentoo' "$DOTTOD_OS_NAME"
+    assert_eq 'single-quoted version' '2.18' "$DOTTOD_OS_VERSION_ID"
     printf "ID='alpine'\nNAME=\"a \\\\\"b\\\\\" \\\\\$c\"\n" >"$BATS_TEST_TMPDIR/quoted"
     assert_eq 'single quotes' 'alpine' "$(_os_release_get "$BATS_TEST_TMPDIR/quoted" ID)"
     assert_eq 'escapes' 'a "b" $c' "$(_os_release_get "$BATS_TEST_TMPDIR/quoted" NAME)"
