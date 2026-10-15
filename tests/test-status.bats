@@ -19,6 +19,17 @@ setup() {
     export HOME="$BATS_TEST_TMPDIR/home"
     mkdir -p "$HOME"
     export _DOT_NO_PACKAGES=1
+    # Tools that keep per-user state are stubbed: under the fake HOME, a
+    # real rustup proxy writes ~/.rustup/settings.toml and a real podman
+    # creates ~/.local/share/containers, so "status writes nothing" would
+    # depend on what the host has installed rather than on dottod's code.
+    local stubs="$BATS_TEST_TMPDIR/stubs" t
+    mkdir -p "$stubs"
+    for t in cargo rustup podman; do
+        printf '#!/usr/bin/env bash\n[[ "$1" == --version ]] && echo "%s 1.0.0"\nexit 0\n' "$t" >"$stubs/$t"
+        chmod +x "$stubs/$t"
+    done
+    export PATH="$stubs:$PATH"
 }
 
 snapshot() {
