@@ -58,12 +58,20 @@ function _podman_ensure() {
     _podman_ensure_subids "$(id -un)"
 
     if ! _ctr_usable; then
-        log_error 'Podman is installed but not usable rootlessly. Host findings:'
-        local state msg
+        log_error 'Podman is installed but not usable rootlessly.'
+        local state msg warned=0 err
         while IFS=$'\t' read -r state msg; do
-            [[ "${state}" == warn ]] && log_error "  ${msg}"
+            if [[ "${state}" == warn ]]; then
+                log_error "  ${msg}"
+                warned=1
+            fi
         done < <(_ctr_rootless_findings "$(id -un)")
-        log_error 'Details: podman info'
+        if [[ "${warned}" == 0 ]]; then
+            # Every host prerequisite looks fine: Podman's own error is
+            # the useful clue, so show it instead of an empty list.
+            err="$(podman info 2>&1 >/dev/null)" || true
+            log_error "  host prerequisites look fine; podman info says: ${err##*$'\n'}"
+        fi
         return 1
     fi
 
@@ -77,6 +85,16 @@ function _container_status() {
         podman_state="installed ${ver}"
     fi
     _ctr_usable && rootless='yes' || true
+    # Root runs Podman rootful: rootless and subid findings don't apply.
+    if [[ "$(id -u)" == 0 ]]; then
+        cat <<EOF
+Container runtime
+-----------------
+Podman:     ${podman_state}
+Rootless:   n/a (running as root: Podman is rootful)
+EOF
+        return 0
+    fi
 
     cat <<EOF
 Container runtime

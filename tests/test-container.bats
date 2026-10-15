@@ -201,3 +201,19 @@ fake_host() {
     run _podman_ensure
     assert_contains 'helpers requested' 'PKGS:podman podman_rootless' "$(cat "$CALLS")"
 }
+
+@test "an unusable podman on a fine host shows podman's own error" {
+    fake_host 15000 1 0
+    printf '#!/usr/bin/env bash\n[[ "$1" == info ]] && { echo "Error: cannot set up namespace" >&2; exit 125; }\nexit 0\n' >"$STUBBIN/podman"
+    chmod +x "$STUBBIN/podman"
+    run _podman_ensure
+    assert_eq 'rc 1' '1' "$status"
+    assert_contains "podman's error" 'podman info says: Error: cannot set up namespace' "$output"
+}
+
+@test "status as root says rootful, without rootless findings" {
+    id() { [[ "$1" == -u ]] && echo 0 || command id "$@"; }
+    run _container_status
+    assert_contains 'rootful' 'n/a (running as root: Podman is rootful)' "$output"
+    assert_eq 'no host findings' '0' "$(grep -c 'Host:' <<<"$output" || true)"
+}
