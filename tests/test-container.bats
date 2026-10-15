@@ -38,13 +38,18 @@ EOF
     export _DOT_CONTAINER_SUBGID_FILE="$BATS_TEST_TMPDIR/subgid"
     export PATH="$STUBBIN:$PATH"
 
+    # container.sh brings utils.sh, whose EXIT trap replaces bats' own:
+    # save and re-arm it. Errexit stays on so a failing assertion aborts
+    # and is reported (with `set +e`, every assertion but the last could
+    # fail silently); only nounset is relaxed for bats internals.
+    local _bats_exit_trap
+    _bats_exit_trap="$(trap -p EXIT)"
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../scripts/.container.utils.sh"
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../bin/container.sh"
-    # Sourced files enable strict mode; relax it — BATS manages errexit
-    # itself and assertions (not aborts) report failures.
-    set +e +u
+    eval "${_bats_exit_trap}"
+    set +u
 
     # Privilege safety: record-only, never executes.
     _priv() {
@@ -70,18 +75,18 @@ EOF
 }
 
 @test "subid lookup reads real files without stubs" {
-    _podman_have_subids "$FIXUID"
+    _ctr_have_subids "$FIXUID"
     assert_eq 'subids present rc 0' '0' "$?"
     printf 'other:200000:65536\n' >"$BATS_TEST_TMPDIR/subuid"
-    run _podman_have_subids "$FIXUID"
+    run _ctr_have_subids "$FIXUID"
     assert_eq 'user missing from subuid rc 1' '1' "$status"
     printf '%s:100000:65536\n' "$FIXUID" >"$BATS_TEST_TMPDIR/subuid"
     rm -f "$BATS_TEST_TMPDIR/subgid"
-    run _podman_have_subids "$FIXUID"
+    run _ctr_have_subids "$FIXUID"
     assert_eq 'subgid file absent rc 1' '1' "$status"
     printf '%s:100000:65536\n' "$FIXUID" >"$BATS_TEST_TMPDIR/subgid"
     printf 'garbage-without-colon\n' >"$BATS_TEST_TMPDIR/subuid"
-    run _podman_have_subids "$FIXUID"
+    run _ctr_have_subids "$FIXUID"
     assert_eq 'malformed subuid rc 1' '1' "$status"
 }
 
@@ -93,11 +98,15 @@ EOF
 }
 
 @test "ensure fails loudly when podman is missing" {
-    mv "$STUBBIN/podman" "$STUBBIN/podman.hidden"
+    # Absence through the probes, not PATH: hiding the stub let a host
+    # /usr/bin/podman answer instead (this test passed for the wrong
+    # reason while the suite ran with errexit off).
+    _ctr_installed() { return 1; }
+    _ctr_usable() { return 1; }
     run _podman_ensure
     assert_eq 'missing podman rc 1' '1' "$status"
+    assert_contains 'explains with host findings' 'not usable rootlessly' "$output"
     assert_eq 'no priv calls on missing' '0' "$(grep -c '^PRIV:' "$CALLS" || true)"
-    mv "$STUBBIN/podman.hidden" "$STUBBIN/podman"
 }
 
 @test "ensure attempts usermod exactly once when subids are missing" {
@@ -122,4 +131,89 @@ EOF
     _podman_ensure >/dev/null
     _podman_ensure >/dev/null
     assert_eq 'double ensure makes no priv calls' '0' "$(grep -c '^PRIV:' "$CALLS" || true)"
+}
+
+# fake_host <userns> <cgroup v2: 1|0> <openrc: 1|0>: a fake /proc, /sys,
+# /run under _DOT_CTR_ROOT for the rootless findings.
+fake_host() {
+    local root="$BATS_TEST_TMPDIR/host"
+    rm -rf "$root"
+    mkdir -p "$root/proc/sys/user" "$root/proc/sys/kernel" "$root/sys/fs/cgroup" "$root/run"
+    printf '%s\n' "$1" >"$root/proc/sys/user/max_user_namespaces"
+    [[ "$2" == 1 ]] && : >"$root/sys/fs/cgroup/cgroup.controllers"
+    [[ "$3" == 1 ]] && mkdir -p "$root/run/openrc"
+    export _DOT_CTR_ROOT="$root"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$STUBBIN/newuidmap"
+    chmod +x "$STUBBIN/newuidmap"
+}
+
+@test "findings: a ready host reports all ok" {
+    fake_host 15000 1 0
+    run _ctr_rootless_findings "$FIXUID"
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'four checks, all ok' '4' "$(grep -c $'^ok\t' <<<"$output")"
+}
+
+@test "findings: disabled user namespaces warn, either knob" {
+    fake_host 0 1 0
+    run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'max_user_namespaces' 'user.max_user_namespaces=0' "$output"
+    fake_host 15000 1 0
+    printf '0\n' >"$_DOT_CTR_ROOT/proc/sys/kernel/unprivileged_userns_clone"
+    run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'debian knob' 'kernel.unprivileged_userns_clone=0' "$output"
+}
+
+@test "findings: missing subids and newuidmap warn" {
+    fake_host 15000 1 0
+    printf 'other:100000:65536\n' >"$BATS_TEST_TMPDIR/subuid"
+    run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'subids' "no subuid/subgid ranges for $FIXUID" "$output"
+    local bare="$BATS_TEST_TMPDIR/bare"
+    mkdir -p "$bare"
+    ln -sf "$(command -v cat)" "$bare/cat"
+    ln -sf "$(command -v grep)" "$bare/grep"
+    ln -sf "$(command -v id)" "$bare/id"
+    PATH="$bare" run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'newuidmap' 'newuidmap missing' "$output"
+}
+
+@test "findings: cgroup v1 hints per init system, never edits" {
+    fake_host 15000 0 1
+    run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'openrc hint' 'rc_cgroup_mode="unified" in /etc/rc.conf' "$output"
+    assert_eq 'rc.conf untouched' '0' "$([[ -e "$_DOT_CTR_ROOT/etc/rc.conf" ]] && echo 1 || echo 0)"
+    fake_host 15000 0 0
+    run _ctr_rootless_findings "$FIXUID"
+    assert_contains 'systemd hint' 'systemd.unified_cgroup_hierarchy=1' "$output"
+}
+
+@test "status lists the host findings" {
+    fake_host 15000 1 1
+    run _container_status
+    assert_contains 'host header' 'Host:' "$output"
+    assert_contains 'finding line' '[ok] cgroup v2' "$output"
+}
+
+@test "ensure installs the rootless helpers even when podman is present" {
+    export PODMAN_STUB_INFO_RC=1
+    _install_packages() { printf 'PKGS:%s\n' "$*" >>"$CALLS"; }
+    run _podman_ensure
+    assert_contains 'helpers requested' 'PKGS:podman podman_rootless' "$(cat "$CALLS")"
+}
+
+@test "an unusable podman on a fine host shows podman's own error" {
+    fake_host 15000 1 0
+    printf '#!/usr/bin/env bash\n[[ "$1" == info ]] && { echo "Error: cannot set up namespace" >&2; exit 125; }\nexit 0\n' >"$STUBBIN/podman"
+    chmod +x "$STUBBIN/podman"
+    run _podman_ensure
+    assert_eq 'rc 1' '1' "$status"
+    assert_contains "podman's error" 'podman info says: Error: cannot set up namespace' "$output"
+}
+
+@test "status as root says rootful, without rootless findings" {
+    id() { [[ "$1" == -u ]] && echo 0 || command id "$@"; }
+    run _container_status
+    assert_contains 'rootful' 'n/a (running as root: Podman is rootful)' "$output"
+    assert_eq 'no host findings' '0' "$(grep -c 'Host:' <<<"$output" || true)"
 }

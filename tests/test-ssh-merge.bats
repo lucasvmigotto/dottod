@@ -12,8 +12,13 @@ setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     TEMPLATE="$REPO_ROOT/config/.ssh.config"
     unset _DOT_SSH_DIR
+    # utils.sh replaces bats' EXIT trap; re-arm it so a failing test is
+    # reported by name instead of dropping out of the run.
+    local _bats_exit_trap
+    _bats_exit_trap="$(trap -p EXIT)"
     # shellcheck disable=SC1091
     source "$REPO_ROOT/bin/ssh.sh"
+    eval "${_bats_exit_trap}"
     # The library enables `set -u`; drop it so the framework teardown
     # never trips on an unset variable.
     set +u

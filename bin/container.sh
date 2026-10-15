@@ -24,25 +24,10 @@ Ensures dottod's container runtime (rootless Podman).
 EOF
 }
 
-# subuid/subgid are plain shadow-utils files, NOT NSS databases, so `getent`
-# cannot see them ("Unknown database"). Read the files directly; a missing
-# or unreadable file counts as missing ranges. Paths are overridable for
-# tests (_DOT_CONTAINER_SUBUID_FILE / _DOT_CONTAINER_SUBGID_FILE).
-function _podman_have_subids() {
-    local user=${1:?'User must be informed'}
-    local subuid_file=${_DOT_CONTAINER_SUBUID_FILE:-/etc/subuid}
-    local subgid_file=${_DOT_CONTAINER_SUBGID_FILE:-/etc/subgid}
-    # Contract: 0 = ranges present, 1 = absent for any reason (no match,
-    # missing or unreadable file — grep itself exits 2 on file errors).
-    grep -q -- "^${user}:" "${subuid_file}" 2>/dev/null || return 1
-    grep -q -- "^${user}:" "${subgid_file}" 2>/dev/null || return 1
-    return 0
-}
-
 function _podman_ensure_subids() {
     local user=${1:?'User must be informed'}
 
-    if _podman_have_subids "${user}"; then
+    if _ctr_have_subids "${user}"; then
         log_info "subuid/subgid already allocated for ${user}, skipping..."
         return 0
     fi
@@ -64,17 +49,29 @@ function _podman_ensure() {
         return 0
     fi
 
-    if ! _ctr_installed; then
-        log_step 'Installing Podman (uidmap for rootless operation)'
-        _install_packages podman podman_rootless
-    fi
+    # Podman plus the rootless helpers (newuidmap, usermod), also when
+    # Podman is present but unusable: e.g. Alpine ships usermod and
+    # newuidmap separately from podman (already-installed ones are skipped).
+    log_step 'Ensuring Podman and its rootless helpers'
+    _install_packages podman podman_rootless
 
     _podman_ensure_subids "$(id -un)"
 
     if ! _ctr_usable; then
         log_error 'Podman is installed but not usable rootlessly.'
-        log_error 'Check user namespaces and subuid/subgid:'
-        log_error '  grep "^$(id -un):" /etc/subuid /etc/subgid; podman info'
+        local state msg warned=0 err
+        while IFS=$'\t' read -r state msg; do
+            if [[ "${state}" == warn ]]; then
+                log_error "  ${msg}"
+                warned=1
+            fi
+        done < <(_ctr_rootless_findings "$(id -un)")
+        if [[ "${warned}" == 0 ]]; then
+            # Every host prerequisite looks fine: Podman's own error is
+            # the useful clue, so show it instead of an empty list.
+            err="$(podman info 2>&1 >/dev/null)" || true
+            log_error "  host prerequisites look fine; podman info says: ${err##*$'\n'}"
+        fi
         return 1
     fi
 
@@ -88,13 +85,28 @@ function _container_status() {
         podman_state="installed ${ver}"
     fi
     _ctr_usable && rootless='yes' || true
+    # Root runs Podman rootful: rootless and subid findings don't apply.
+    if [[ "$(id -u)" == 0 ]]; then
+        cat <<EOF
+Container runtime
+-----------------
+Podman:     ${podman_state}
+Rootless:   n/a (running as root: Podman is rootful)
+EOF
+        return 0
+    fi
 
     cat <<EOF
 Container runtime
 -----------------
 Podman:     ${podman_state}
 Rootless:   ${rootless}
+Host:
 EOF
+    local state msg
+    while IFS=$'\t' read -r state msg; do
+        printf '  [%s] %s\n' "${state}" "${msg}"
+    done < <(_ctr_rootless_findings "$(id -un)")
     return 0
 }
 

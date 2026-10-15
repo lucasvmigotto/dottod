@@ -106,3 +106,37 @@ seed_update_state() {
     assert_eq 'doctor rc 0' '0' "$status"
     assert_contains 'pending update warns' '1.2.0 → 1.3.0' "$output"
 }
+
+# doctor_with_containers <podman: 1|0>: doctor with the container helpers
+# loaded (as config/.custom.bashrc does) against a fake host.
+doctor_with_containers() {
+    local bin="$BATS_TEST_TMPDIR/ctrbin" root="$BATS_TEST_TMPDIR/host"
+    mkdir -p "$bin" "$root/proc/sys/user" "$root/sys/fs/cgroup" "$root/run/openrc" "$root/etc"
+    printf '15000\n' >"$root/proc/sys/user/max_user_namespaces"
+    printf '%s:100000:65536\n' "$(id -un)" | tee "$root/etc/subuid" >"$root/etc/subgid"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/newuidmap"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/podman"
+    chmod +x "$bin"/*
+    # Presence decided here, whatever the host has: without podman,
+    # `command -v podman` is answered "absent" (a host /usr/bin/podman
+    # can't be hidden through PATH without hiding /usr/bin itself).
+    local hide=''
+    [[ "$1" == 1 ]] || hide='command() { [[ "$1 $2" == "-v podman" ]] && return 1; builtin command "$@"; }'
+    _DOT_CTR_ROOT="$root" PATH="$bin:$PATH" bash -i -c "
+        source '$REPO_ROOT/scripts/.container.utils.sh' >/dev/null 2>&1
+        source '$REPO_ROOT/scripts/.doctor.sh' >/dev/null 2>&1
+        ${hide}
+        dottod-doctor
+    " 2>/dev/null
+}
+
+@test "podman section reports rootless prerequisites when podman is installed" {
+    run doctor_with_containers 1
+    assert_contains 'subids ok' "[ok] podman: subuid/subgid ranges for $(id -un)" "$output"
+    assert_contains 'openrc cgroup hint' '[warn] podman: cgroup v1/hybrid under OpenRC' "$output"
+}
+
+@test "podman section stays quiet without podman" {
+    run doctor_with_containers 0
+    assert_eq 'no podman lines' '0' "$(grep -c 'podman:' <<<"$output" || true)"
+}
