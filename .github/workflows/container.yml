@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - "main"
-      - "dev"
+      - "develop"
   pull_request:
     paths:
       - "bin/container.sh"
@@ -50,4 +50,3 @@ jobs:
           command -v podman >/dev/null || exit 0
           podman ps -a --filter label=dottod-test=1 --format '{{.ID}}' \
             | xargs -r podman rm -f
-
