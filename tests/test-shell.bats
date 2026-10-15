@@ -110,17 +110,18 @@ probe() {
 }
 
 @test "custom bashrc links to the repo file with a backup" {
-    # _custom_bashrc targets /home/<user> by design (it manages the real
-    # login account), so record the link arguments instead of touching the
-    # real home: _link_file itself is covered by the neovim suites.
+    # Another user's home comes from passwd (stubbed here, with a non-/home
+    # path); record the link arguments instead of touching it: _link_file
+    # itself is covered by the neovim suites.
     probe '
+        getent() { printf "someuser:x:1001:1001::/var/home/someuser:/bin/bash\n"; }
         _link_file() { printf "%s\t%s\n" "$1" "$2" >>"$CALLS"; }
         _custom_bashrc someuser >/dev/null
         cat "$CALLS"
     '
     assert_eq 'link rc 0' '0' "$status"
     assert_contains 'source is the repo bashrc' "$REPO_ROOT/config/.custom.bashrc" "$output"
-    assert_contains 'target is the user bashrc' '/home/someuser/.bashrc' "$output"
+    assert_contains 'target is the passwd home' '/var/home/someuser/.bashrc' "$output"
 }
 
 @test "link primitive backs up once, rerun is a no-op" {

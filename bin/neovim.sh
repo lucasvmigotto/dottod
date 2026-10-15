@@ -132,8 +132,8 @@ for a in json.load(sys.stdin)["assets"]:
 function _nvim_install_tarball() {
     local version=${1:?'Version must be informed'}
     local user=${2:?'User must be informed'}
-    local user_home="/home/${user}"
-    [[ "${user}" == "$(id -un)" ]] && user_home="${HOME}"
+    local user_home
+    user_home="$(_dot_user_home "${user}")" || return 1
     local root=${_DOT_NVIM_TARBALL_ROOT:-"${user_home}/.local/nvim"}
     local arch url digest tmpdir
     arch="$(_nvim_arch)" || {
@@ -261,11 +261,9 @@ function _nvim_config_target() {
         printf '%s/nvim' "${_DOT_NVIM_CONFIG_HOME}"
         return 0
     fi
-    if [[ "${user}" == "$(id -un)" ]]; then
-        printf '%s/.config/nvim' "${HOME}"
-        return 0
-    fi
-    printf '/home/%s/.config/nvim' "${user}"
+    local home
+    home="$(_dot_user_home "${user}")" || return 1
+    printf '%s/.config/nvim' "${home}"
 }
 
 # Link config/nvim -> ~/.config/nvim. Existing user config is moved to

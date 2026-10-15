@@ -26,7 +26,10 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 function _ssh_dir() {
     local current_user=${1:?'User must be informed'}
 
-    local ssh_dir=${_DOT_SSH_DIR:-"/home/${current_user}/.ssh"}
+    local ssh_dir=${_DOT_SSH_DIR:-}
+    if [[ -z "${ssh_dir}" ]]; then
+        ssh_dir="$(_dot_user_home "${current_user}")/.ssh" || return 1
+    fi
     mkdir -p "${ssh_dir}"
     chmod 700 "${ssh_dir}"
 

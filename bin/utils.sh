@@ -239,6 +239,38 @@ function _install_packages() {
     _pkg_install "${packages[@]}"
 }
 
+# _dot_passwd_entry <user>: the user's passwd line, from getent or, when
+# getent is absent, /etc/passwd (_DOT_PASSWD_FILE overrides it for tests).
+function _dot_passwd_entry() {
+    local user=${1:?'User must be informed'}
+    if command -v getent >/dev/null 2>&1; then
+        getent passwd "${user}" 2>/dev/null
+    else
+        grep -m1 -- "^${user}:" "${_DOT_PASSWD_FILE:-/etc/passwd}" 2>/dev/null
+    fi
+}
+
+# _dot_user_home <user>: the user's home directory. The current user gets
+# $HOME (so tests and sudo -E keep their redirection); any other user gets
+# the passwd entry. Never eval ~user, never guess /home/<user>: an unknown
+# user or an empty home fails.
+function _dot_user_home() {
+    local user=${1:?'User must be informed'}
+    local home=''
+
+    if [[ "${user}" == "$(id -un)" ]]; then
+        home="${HOME:-}"
+    else
+        home="$(_dot_passwd_entry "${user}" | cut -d: -f6)" || home=''
+    fi
+
+    if [[ "${home}" != /* ]]; then
+        log_error "Cannot resolve the home directory of '${user}'"
+        return 1
+    fi
+    printf '%s' "${home}"
+}
+
 function _is_installed() {
     command -v "${1}" >/dev/null 2>&1
 }

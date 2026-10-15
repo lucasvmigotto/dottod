@@ -33,7 +33,9 @@ function _bash_use_as_shell() {
 function _custom_bashrc() {
     local current_user=${1:?'User must be informed'}
 
-    _link_file "${DOT_CONFIG_DIR}/.custom.bashrc" "/home/${current_user}/.bashrc"
+    local home
+    home="$(_dot_user_home "${current_user}")" || return 1
+    _link_file "${DOT_CONFIG_DIR}/.custom.bashrc" "${home}/.bashrc"
 }
 
 function _main() {
