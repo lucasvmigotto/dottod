@@ -15,17 +15,21 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 | 002 | fonts (Nerd Fonts, user-level) | P1 | — | Implemented |
 | 003 | vim (vim-plug) | P1 | — | Implemented |
 | 004 | neovim (version-gated lazy.nvim config) | P0 | — | Implemented |
-| 005 | container runtime (Podman/Docker) | P0 | — | Implemented |
+| 005 | container runtime (rootless Podman) | P0 | — | Implemented |
 | 007 | zed (user-level editor) | P2 | — | Implemented |
-| 008 | ghostty (terminal) | P2 | — | Implemented |
 | 009 | git identity (gitconfig) | P1 | — | Implemented |
 | 010 | ssh config (GitHub merge + keygen) | P1 | — | Implemented |
-| 011 | cli tools (lazygit/…/fzf/gh) | P1 | — | Implemented |
+| 011 | cli tools (apt baseline + opt-in extras) | P1 | — | Implemented |
 | 013 | cargo (rustup toolchain) | P1 | — | Implemented |
 | 014 | bun (JS runtime + devcontainer CLI) | P1 | — | Implemented |
+| 015 | multi-distro (Debian, Gentoo, Arch, Fedora, Alpine) | P0 | — | Implemented (containers; real Gentoo host pending) |
+| 016 | work git identity (`gwork`) + `codes` contexts | P1 | 015 | Planned |
 
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
+2026-10-15: 008 ghostty removed; Docker dropped from 005 (Podman only);
+011 extras (gh, httpie, chafa) opt-in; lazygit, lazydocker, k9s and
+resterm dropped (no upstream release downloads).
 
 Status meanings (pipeline rule 6): **Implemented** = code path exists and
 runs (hermetic suites pass; "no e2e" where true). **Verified** = passing

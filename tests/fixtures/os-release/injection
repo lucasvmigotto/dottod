@@ -1,0 +1,3 @@
+NAME="$(touch ${DOTTOD_PWNED_FILE})"
+ID=`touch ${DOTTOD_PWNED_FILE}`
+ID_LIKE="debian $(touch ${DOTTOD_PWNED_FILE})"

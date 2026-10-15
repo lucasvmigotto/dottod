@@ -1,12 +1,13 @@
 # dottod task runner (https://just.systems) — `just` runs the gate,
-# `just --list` shows every recipe. Needs `just` itself: `just tools`
-# bootstraps it along with shellcheck, bats and shfmt.
+# `just --list` shows every recipe. `just tools` installs shellcheck, bats
+# and shfmt; for `just` itself, on any supported distro, run once:
+#   bash -c 'source bin/utils.sh && _install_packages just shellcheck bats shfmt'
 
 # Shell files, explicit (globs skip dotfiles): the one list every
 # syntax/lint/format recipe uses, mirroring .github/workflows/shell.yml.
-bashn_files := "bin/*.sh scripts/*.sh config/.custom.bashrc scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh tests/run.sh"
-lint_files := "bin/*.sh scripts/*.sh styles/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh config/.custom.bashrc tests/run.sh tests/test-*.bats tests/helpers.bash"
-fmt_files := "bin/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh styles/promptlib.sh styles/prompt-robbyrussell.sh styles/prompt-kali.sh styles/prompt-powerline.sh config/.custom.bashrc tests/run.sh scripts/test-release.sh"
+bashn_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/*.sh config/.custom.bashrc scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh tests/run.sh"
+lint_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/*.sh styles/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh config/.custom.bashrc tests/run.sh tests/test-*.bats tests/helpers.bash"
+fmt_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.doctor.sh scripts/.containers.sh scripts/nvim-headless-check.sh styles/promptlib.sh styles/prompt-robbyrussell.sh styles/prompt-kali.sh styles/prompt-powerline.sh config/.custom.bashrc tests/run.sh scripts/test-release.sh"
 
 # Syntax + lint + format drift (the CI gate).
 check:
@@ -70,10 +71,6 @@ tools:
         echo "toolchain ready: just shellcheck bats shfmt"
         exit 0
     fi
-    if command -v apt-get >/dev/null 2>&1; then
-        # shellcheck disable=SC2086 # intentional word splitting on the tool list
-        sudo apt-get update -qq && sudo apt-get install -y -qq ${missing}
-    else
-        echo "install missing tools:${missing} (apt-get not found)" >&2
-        exit 1
-    fi
+    # dottod's own package layer: the distro's manager, the right names.
+    # shellcheck disable=SC2086 # intentional word splitting on the tool list
+    bash -c 'source bin/utils.sh && _install_packages "$@"' _ ${missing}

@@ -1,119 +1,91 @@
 #!/usr/bin/env bash
 #
-# .container.utils.sh — shared container-runtime abstraction.
+# .container.utils.sh — shared container-runtime helpers (Podman only).
 #
-# Podman is dottod's default runtime; Docker is the supported alternative.
-# All runtime branching lives here; consumers (bin/container.sh, shell
-# helpers, the prompt) use these functions instead of scattering
-# `command -v podman ... else docker ...` conditionals.
+# Consumers (bin/container.sh, the shell listing helpers) use these
+# functions instead of probing podman themselves.
 #
 # Vocabulary:
-#   configured = _DOT_CONTAINER_RUNTIME value (podman|docker|auto)
-#   installed  = runtime binary present on PATH
-#   usable     = works for the current user right now
-#                (podman: rootless `podman info`; docker: daemon reachable)
-#   selected   = resolution result actually used
-#
-# Selection policy:
-#   explicit podman/docker -> that runtime, untouched. Usability problems
-#     surface as loud errors in ensure/validate paths, never as silent
-#     switches to the other runtime.
-#   auto (or unset -> podman default) -> podman if usable, else docker if
-#     usable, else podman (the install target).
+#   installed  = podman binary present on PATH
+#   usable     = rootless `podman info` works for the current user right now
 #
 # Shell compatibility: this file is sourced by bash task scripts, tests,
 # and interactive shells (via config/.custom.bashrc). Keep it to portable
 # constructs only: no arrays, no mapfile, no printf -v, no ${var,,},
 # no [[ =~ ]], no %q. Sourcing must be side-effect free.
 
-# Prints the normalized configured runtime (podman|docker|auto),
-# defaulting to podman. Fails on invalid values.
-function _ctr_configured() {
-    local raw norm
-    raw="${_DOT_CONTAINER_RUNTIME:-podman}"
-    norm="$(printf '%s' "${raw}" | tr '[:upper:]' '[:lower:]')"
-    case "${norm}" in
-        podman | docker | auto)
-            printf '%s' "${norm}"
-            return 0
-            ;;
-        *)
-            printf "dottod: invalid container runtime '%s' (want podman|docker|auto)\n" "${raw}" >&2
-            return 1
-            ;;
-    esac
-}
-
-# _ctr_installed <podman|docker>: binary present on PATH.
+# _ctr_installed: podman present on PATH.
 function _ctr_installed() {
-    case "${1:?'runtime required'}" in
-        podman | docker) command -v "$1" >/dev/null 2>&1 ;;
-        *) return 1 ;;
-    esac
+    command -v podman >/dev/null 2>&1
 }
 
-# Usability probes. podman: rootless info must succeed as the current user
-# (no sudo). docker: the daemon/socket must answer as the current user.
-function _ctr_usable_podman() {
-    _ctr_installed podman || return 1
+# Usability probe: rootless info must succeed as the current user (no sudo).
+function _ctr_usable() {
+    _ctr_installed || return 1
     podman info >/dev/null 2>&1
 }
 
-function _ctr_usable_docker() {
-    _ctr_installed docker || return 1
-    docker info >/dev/null 2>&1
-}
-
-# _ctr_version <podman|docker>: prints the version number (e.g. 5.4.2).
+# _ctr_version: prints the podman version number (e.g. 5.4.2).
 function _ctr_version() {
     local out ver
-    case "${1:?'runtime required'}" in
-        podman) out="$(podman --version 2>/dev/null)" || return 1 ;;
-        docker) out="$(docker --version 2>/dev/null)" || return 1 ;;
-        *) return 1 ;;
-    esac
-    ver="$(printf '%s' "${out}" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)"
+    out="$(podman --version 2>/dev/null)" || return 1
+    ver="$(printf '%s' "${out}" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')" || return 1
+    ver="${ver%%$'\n'*}"
     [[ -n "${ver}" ]] || return 1
     printf '%s' "${ver}"
 }
 
-# Cheap selection for latency-sensitive contexts (prompt): the configured
-# value, or the podman default. No probing, no subprocess beyond tr.
-# Displays the selection outcome, not a live probe. Fails on invalid config.
-function _ctr_selected() {
-    local cfg
-    cfg="$(_ctr_configured)" || return 1
-    case "${cfg}" in
-        auto) printf 'podman' ;;
-        *) printf '%s' "${cfg}" ;;
-    esac
+# Interactive shorthand: `ctr ps`, `ctr run ...`.
+function ctr() {
+    podman "$@"
 }
 
-# Full resolution. Explicit values pass through untouched (usability is
-# validated separately, loudly). Auto probes in Podman-first order.
-function _ctr_resolve() {
-    local cfg
-    cfg="$(_ctr_configured)" || return 1
-    case "${cfg}" in
-        podman | docker)
-            printf '%s' "${cfg}"
-            ;;
-        auto)
-            if _ctr_usable_podman; then
-                printf 'podman'
-            elif _ctr_usable_docker; then
-                printf 'docker'
-            else
-                printf 'podman'
-            fi
-            ;;
-    esac
+# _ctr_have_subids <user>: 0 when the user has subuid AND subgid ranges.
+# subuid/subgid are plain shadow-utils files, not NSS databases (getent
+# cannot see them), so they are read directly; a missing or unreadable
+# file counts as no ranges. Overrides for tests:
+# _DOT_CONTAINER_SUBUID_FILE / _DOT_CONTAINER_SUBGID_FILE.
+function _ctr_have_subids() {
+    local user=${1:?'User must be informed'}
+    grep -q -- "^${user}:" "${_DOT_CONTAINER_SUBUID_FILE:-${_DOT_CTR_ROOT:-}/etc/subuid}" 2>/dev/null || return 1
+    grep -q -- "^${user}:" "${_DOT_CONTAINER_SUBGID_FILE:-${_DOT_CTR_ROOT:-}/etc/subgid}" 2>/dev/null || return 1
     return 0
 }
 
-# Interactive dispatcher: `ctr ps`, `ctr run ...` use the resolved runtime.
-function ctr() {
-    local rt
-    rt="$(_ctr_resolve)" || return 1
-    "${rt}" "$@"
+# _ctr_rootless_findings [user]: what rootless Podman needs from the host,
+# one "ok|warn<TAB>message" line per check. Read-only: it reports and
+# hints, it never changes sysctls, /etc/rc.conf or the subid files.
+# _DOT_CTR_ROOT prefixes /proc, /sys, /run and /etc (tests).
+function _ctr_rootless_findings() {
+    local user=${1:-$(id -un)}
+    local root=${_DOT_CTR_ROOT:-} v
+
+    v="$(cat "${root}/proc/sys/user/max_user_namespaces" 2>/dev/null)" || v=''
+    if [ "${v}" = '0' ]; then
+        printf 'warn\tuser namespaces disabled: user.max_user_namespaces=0 (raise it with sysctl)\n'
+    elif [ "$(cat "${root}/proc/sys/kernel/unprivileged_userns_clone" 2>/dev/null)" = '0' ]; then
+        printf 'warn\tunprivileged user namespaces disabled: kernel.unprivileged_userns_clone=0\n'
+    else
+        printf 'ok\tuser namespaces available\n'
+    fi
+
+    if _ctr_have_subids "${user}"; then
+        printf 'ok\tsubuid/subgid ranges for %s\n' "${user}"
+    else
+        printf 'warn\tno subuid/subgid ranges for %s (bin/container.sh allocates them)\n' "${user}"
+    fi
+
+    if command -v newuidmap >/dev/null 2>&1; then
+        printf 'ok\tnewuidmap present\n'
+    else
+        printf 'warn\tnewuidmap missing (bin/container.sh installs the rootless helpers)\n'
+    fi
+
+    if [ -f "${root}/sys/fs/cgroup/cgroup.controllers" ]; then
+        printf 'ok\tcgroup v2\n'
+    elif [ -d "${root}/run/openrc" ]; then
+        printf 'warn\tcgroup v1/hybrid under OpenRC: set rc_cgroup_mode="unified" in /etc/rc.conf, then reboot\n'
+    else
+        printf 'warn\tcgroup v1/hybrid: rootless Podman needs cgroup v2 (systemd.unified_cgroup_hierarchy=1)\n'
+    fi
 }

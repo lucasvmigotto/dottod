@@ -15,7 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = resolve(here, "..", "public");
 const TAGLINE =
   process.env.OG_TAGLINE ||
-  "Rebuild a Debian workstation with one plain-bash command";
+  "Rebuild a Linux workstation with one plain-bash command";
 const TITLE = process.env.OG_TITLE || "Documentation";
 
 const html = `<!doctype html>

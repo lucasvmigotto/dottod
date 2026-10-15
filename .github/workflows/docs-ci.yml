@@ -2,7 +2,7 @@ name: Docs CI
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main, develop]
     paths:
       - "docs/site/**"
       - "docs/product/**"
@@ -15,6 +15,13 @@ on:
       - "docs/site/**"
       - "docs/product/**"
       - "specs/**"
+  # Deploy once release.yml has tagged main, so the footer shows the new
+  # version (dottod@vX.Y.Z), not the previous one. Its bot push doesn't
+  # trigger workflows; this event does.
+  workflow_run:
+    workflows: [release]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -25,10 +32,13 @@ concurrency:
 
 jobs:
   verify:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe --tags: the footer's versions and links
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -101,8 +111,10 @@ jobs:
           if-no-files-found: error
 
   deploy:
-    if: github.ref == 'refs/heads/main'
-    needs: verify
+    # verify ran on the push; this run builds main as the release left it.
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -122,6 +134,8 @@ jobs:
       R2_PREFIX: /${{ github.event.repository.name }}/
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # git describe --tags: the footer's versions and links
 
       - uses: oven-sh/setup-bun@v2
         with:

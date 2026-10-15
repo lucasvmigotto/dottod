@@ -3,8 +3,8 @@
 # .doctor.sh — dottod health report for interactive shells.
 #
 # `dottod-doctor` prints one [ok]/[warn]/[fail] line per check: shell,
-# tools, PATH, prompt, projects (codes), updates, Claude profiles and the
-# checkout itself. Read-only: no installs, no network. Exits 1 only on hard
+# tools, PATH, prompt, projects (codes), updates, Claude profiles, rootless
+# Podman prerequisites (when podman is installed) and the checkout itself. Read-only: no installs, no network. Exits 1 only on hard
 # failures (warnings still exit 0).
 #
 # Config (environment variables):
@@ -58,6 +58,29 @@ dottod-doctor() {
         __dottod_doc_warn "bash ${BASH_VERSION} is older than 4"
     fi
 
+    # Distribution: what dottod's package layer detects (lib/os.sh, run in
+    # a subshell so none of its functions leak into this shell).
+    local distro_root distro
+    distro_root="$(_dottod_doctor_root)" || distro_root=''
+    if [[ -n "${distro_root}" && -f "${distro_root}/lib/os.sh" ]]; then
+        if distro="$(
+            # shellcheck source=../lib/os.sh
+            source "${distro_root}/lib/os.sh" &&
+                _os_detect 2>&1 &&
+                printf '%s %s (%s family, %s, %s)' "${DOTTOD_OS_ID}" "${DOTTOD_OS_VERSION_ID:-rolling}" \
+                    "${DOTTOD_OS_FAMILY}" "${DOTTOD_PKG}" "${DOTTOD_LIBC}" &&
+                { _os_require_pkg >/dev/null 2>&1 || printf ' — %s not on PATH' "${DOTTOD_PKG}"; }
+        )"; then
+            if [[ "${distro}" == *'not on PATH'* ]]; then
+                __dottod_doc_warn "distro: ${distro}"
+            else
+                __dottod_doc_ok "distro: ${distro}"
+            fi
+        else
+            __dottod_doc_warn "distro: ${distro#dottod: }"
+        fi
+    fi
+
     # Toolchain.
     # shellcheck disable=SC2086 # intentional word splitting on the tool list
     for t in ${DOT_DOCTOR_TOOLS:-${_DOTTOD_DOCTOR_TOOLS_DEFAULT}}; do
@@ -69,7 +92,7 @@ dottod-doctor() {
     done
 
     # Tool dirs: present once each, never duplicated.
-    for d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.opencode/bin" "${HOME}/.local/bin"; do
+    for d in "${HOME}/.cargo/bin" "${HOME}/.bun/bin" "${HOME}/.local/bin"; do
         if [[ -d "${d}" ]]; then
             if [[ ":${PATH}:" == *":${d}:"* ]]; then
                 __dottod_doc_ok "PATH has ${d}"
@@ -157,6 +180,19 @@ dottod-doctor() {
         ((found == 1)) || __dottod_doc_warn "no claude profiles (run claude once)"
     else
         __dottod_doc_warn "claude library not loaded"
+    fi
+
+    # Containers: rootless Podman prerequisites, only where Podman is
+    # installed (scripts/.container.utils.sh; read-only checks).
+    if command -v podman >/dev/null 2>&1 && declare -F _ctr_rootless_findings >/dev/null; then
+        local state msg
+        while IFS=$'\t' read -r state msg; do
+            if [[ "${state}" == ok ]]; then
+                __dottod_doc_ok "podman: ${msg}"
+            else
+                __dottod_doc_warn "podman: ${msg}"
+            fi
+        done < <(_ctr_rootless_findings)
     fi
 
     # Checkout: branch, dirtiness, newest tag (when inside the repo).

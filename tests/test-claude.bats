@@ -492,3 +492,64 @@ STUBEOF
     fi
     assert_eq 'nothing launched' '' "$(cat "$CALLS_LOG")"
 }
+
+@test "empty store: first launch creates shared entries and links them" {
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=work claude true" 2>/dev/null
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_eq 'projects linked' "$FAKE_HOME/.claude/projects" "$(readlink "$FAKE_HOME/.claude-work/projects")"
+    assert_eq 'history linked' "$FAKE_HOME/.claude/history.jsonl" "$(readlink "$FAKE_HOME/.claude-work/history.jsonl")"
+    [[ -d "$FAKE_HOME/.claude/projects" && -f "$FAKE_HOME/.claude/history.jsonl" ]]
+}
+
+@test "overlay copy is adopted when the store lacks the entry" {
+    mkdir -p "$FAKE_HOME/.claude-work/projects/p"
+    printf 'mine' >"$FAKE_HOME/.claude-work/projects/p/s.jsonl"
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=work claude true" 2>/dev/null
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_eq 'moved into the store' 'mine' "$(cat "$FAKE_HOME/.claude/projects/p/s.jsonl")"
+    [[ -L "$FAKE_HOME/.claude-work/projects" ]]
+}
+
+@test "consolidate merges two split profiles into the store" {
+    local h="$FAKE_HOME"
+    mkdir -p "$h/.claude/projects/p" "$h/.claude-a/projects/p/memory" "$h/.claude-b/projects/q" "$h/.claude-a/plugins"
+    printf 'a\n' >"$h/.claude-a/.dottod-profile"
+    printf 'b\n' >"$h/.claude-b/.dottod-profile"
+    printf 'old' >"$h/.claude/projects/p/s0.jsonl"
+    printf 'one' >"$h/.claude-a/projects/p/s1.jsonl"
+    printf 'A' >"$h/.claude-a/projects/p/memory/MEMORY.md"
+    printf 'two' >"$h/.claude-b/projects/q/s2.jsonl"
+    printf '{"display":"x","timestamp":2}\n' >"$h/.claude-a/history.jsonl"
+    printf '{"display":"y","timestamp":1}\n' >"$h/.claude-b/history.jsonl"
+    printf '{"p":"%s/.claude-a/plugins/m"}' "$h" >"$h/.claude-a/plugins/known_marketplaces.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile consolidate"
+    assert_eq 'consolidate rc 0' '0' "$status"
+    assert_eq 'store kept' 'old' "$(cat "$h/.claude/projects/p/s0.jsonl")"
+    assert_eq 'a merged' 'one' "$(cat "$h/.claude/projects/p/s1.jsonl")"
+    assert_eq 'memory merged' 'A' "$(cat "$h/.claude/projects/p/memory/MEMORY.md")"
+    assert_eq 'b merged' 'two' "$(cat "$h/.claude/projects/q/s2.jsonl")"
+    assert_eq 'a linked' "$h/.claude/projects" "$(readlink "$h/.claude-a/projects")"
+    assert_eq 'b linked' "$h/.claude/projects" "$(readlink "$h/.claude-b/projects")"
+    assert_eq 'history merged and ordered' 'yx' "$(jq -j '.display' "$h/.claude/history.jsonl")"
+    assert_contains 'plugin paths rewritten' "$h/.claude/plugins/m" "$(cat "$h/.claude/plugins/known_marketplaces.json")"
+}
+
+@test "consolidate keeps differing files side by side" {
+    local h="$FAKE_HOME"
+    mkdir -p "$h/.claude/projects/p" "$h/.claude-a/projects/p"
+    printf 'a\n' >"$h/.claude-a/.dottod-profile"
+    printf 'store' >"$h/.claude/projects/p/MEMORY.md"
+    printf 'mine' >"$h/.claude-a/projects/p/MEMORY.md"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile consolidate a 2>/dev/null"
+    assert_eq 'consolidate rc 0' '0' "$status"
+    assert_eq 'store wins' 'store' "$(cat "$h/.claude/projects/p/MEMORY.md")"
+    assert_eq 'profile copy kept' 'mine' "$(cat "$h/.claude/projects/p/MEMORY.md.from-a")"
+}
+
+@test "consolidate refuses a live profile without --force" {
+    mkdir -p "$FAKE_HOME/.claude-a/projects"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid() { printf 42; }; claude-profile consolidate a"
+    assert_eq 'refused' '1' "$status"
+    [[ -d "$FAKE_HOME/.claude-a/projects" && ! -L "$FAKE_HOME/.claude-a/projects" ]]
+}

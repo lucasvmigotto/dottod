@@ -1,4 +1,4 @@
--- dottod git: gitsigns gutter workflow + lazygit composer (never replaces it).
+-- dottod git: gitsigns gutter workflow.
 return {
   {
     'lewis6991/gitsigns.nvim',

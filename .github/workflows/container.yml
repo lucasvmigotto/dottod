@@ -4,11 +4,10 @@ on:
   push:
     branches:
       - "main"
-      - "dev"
+      - "develop"
   pull_request:
     paths:
       - "bin/container.sh"
-      - "bin/docker.sh"
       - "scripts/.container.utils.sh"
       - "tests/integration/**"
       - ".github/workflows/container.yml"
@@ -51,20 +50,3 @@ jobs:
           command -v podman >/dev/null || exit 0
           podman ps -a --filter label=dottod-test=1 --format '{{.ID}}' \
             | xargs -r podman rm -f
-
-  docker:
-    name: Docker integration
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Docker hello-world lifecycle
-        run: |
-          docker --version
-          DOTTOD_TEST_INTEGRATION=1 ./tests/integration/docker-hello.sh
-
-      - name: Cleanup test containers
-        if: always()
-        run: |
-          docker ps -a --filter label=dottod-test=1 --format '{{.ID}}' \
-            | xargs -r docker rm -f

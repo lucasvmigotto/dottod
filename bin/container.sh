@@ -1,15 +1,11 @@
 #!/usr/bin/env bash
 #
-# container.sh — dottod container runtime task (Podman default, Docker
-# alternative). Ensures the selected runtime is installed, configured and
-# usable, without ever migrating or destroying the other runtime's setup.
-#
-# Selection: _DOT_CONTAINER_RUNTIME=podman|docker|auto (default: podman).
-# An explicit selection is never silently switched; usability problems
-# fail loudly with actionable messages.
+# container.sh — dottod container runtime task (rootless Podman). Ensures
+# Podman is installed, configured and usable; usability problems fail
+# loudly with actionable messages.
 #
 # Usage: container.sh [status]
-#   (no args)  ensure the selected runtime
+#   (no args)  ensure Podman
 #   status     print selection/installation/usability report (cheap probes)
 
 set -Eeuo pipefail
@@ -21,39 +17,17 @@ function _usage() {
     cat <<'EOF'
 Usage: container.sh [status]
 
-Ensures dottod's container runtime (Podman by default, Docker when
-explicitly selected via _DOT_CONTAINER_RUNTIME=podman|docker|auto).
+Ensures dottod's container runtime (rootless Podman).
 
-  (no args)  install/configure/validate the selected runtime (idempotent)
+  (no args)  install/configure/validate Podman (idempotent)
   status     print the runtime report without changing anything
 EOF
-}
-
-# Path to the explicit-Docker task script. Separate helper so tests can
-# redirect it at a stub; production always uses the real bin/docker.sh.
-function _container_docker_script() {
-    printf '%s' "${DOT_REPO_ROOT}/bin/docker.sh"
-}
-
-# subuid/subgid are plain shadow-utils files, NOT NSS databases, so `getent`
-# cannot see them ("Unknown database"). Read the files directly; a missing
-# or unreadable file counts as missing ranges. Paths are overridable for
-# tests (_DOT_CONTAINER_SUBUID_FILE / _DOT_CONTAINER_SUBGID_FILE).
-function _podman_have_subids() {
-    local user=${1:?'User must be informed'}
-    local subuid_file=${_DOT_CONTAINER_SUBUID_FILE:-/etc/subuid}
-    local subgid_file=${_DOT_CONTAINER_SUBGID_FILE:-/etc/subgid}
-    # Contract: 0 = ranges present, 1 = absent for any reason (no match,
-    # missing or unreadable file — grep itself exits 2 on file errors).
-    grep -q -- "^${user}:" "${subuid_file}" 2>/dev/null || return 1
-    grep -q -- "^${user}:" "${subgid_file}" 2>/dev/null || return 1
-    return 0
 }
 
 function _podman_ensure_subids() {
     local user=${1:?'User must be informed'}
 
-    if _podman_have_subids "${user}"; then
+    if _ctr_have_subids "${user}"; then
         log_info "subuid/subgid already allocated for ${user}, skipping..."
         return 0
     fi
@@ -70,22 +44,34 @@ function _podman_ensure_subids() {
 }
 
 function _podman_ensure() {
-    if _ctr_usable_podman; then
+    if _ctr_usable; then
         log_info 'Podman already usable, skipping...'
         return 0
     fi
 
-    if ! _ctr_installed podman; then
-        log_step 'Installing Podman (uidmap for rootless operation)'
-        _install_packages 'podman uidmap'
-    fi
+    # Podman plus the rootless helpers (newuidmap, usermod), also when
+    # Podman is present but unusable: e.g. Alpine ships usermod and
+    # newuidmap separately from podman (already-installed ones are skipped).
+    log_step 'Ensuring Podman and its rootless helpers'
+    _install_packages podman podman_rootless
 
     _podman_ensure_subids "$(id -un)"
 
-    if ! _ctr_usable_podman; then
+    if ! _ctr_usable; then
         log_error 'Podman is installed but not usable rootlessly.'
-        log_error 'Check user namespaces and subuid/subgid:'
-        log_error '  grep "^$(id -un):" /etc/subuid /etc/subgid; podman info'
+        local state msg warned=0 err
+        while IFS=$'\t' read -r state msg; do
+            if [[ "${state}" == warn ]]; then
+                log_error "  ${msg}"
+                warned=1
+            fi
+        done < <(_ctr_rootless_findings "$(id -un)")
+        if [[ "${warned}" == 0 ]]; then
+            # Every host prerequisite looks fine: Podman's own error is
+            # the useful clue, so show it instead of an empty list.
+            err="$(podman info 2>&1 >/dev/null)" || true
+            log_error "  host prerequisites look fine; podman info says: ${err##*$'\n'}"
+        fi
         return 1
     fi
 
@@ -93,68 +79,34 @@ function _podman_ensure() {
     return 0
 }
 
-function _docker_ensure() {
-    local script
-    script="$(_container_docker_script)"
-
-    # Explicit Docker selection: the existing task owns installation and
-    # group setup. Podman is never installed on this path.
-    "${script}"
-
-    if ! _ctr_usable_docker; then
-        log_warn 'Docker is selected but its daemon is unreachable.'
-        log_warn 'A fresh install needs a re-login (docker group) or a daemon restart.'
-    fi
-    return 0
-}
-
-function _container_ensure() {
-    local runtime
-    runtime="$(_ctr_resolve)" || return 1
-
-    # No trailing `return 0`: the case result (ensure success/failure)
-    # must propagate to the caller.
-    case "${runtime}" in
-        podman) _podman_ensure ;;
-        docker) _docker_ensure ;;
-    esac
-}
-
 function _container_status() {
-    local configured selected
-    configured="${_DOT_CONTAINER_RUNTIME:-<unset>}"
-    if ! selected="$(_ctr_resolve)"; then
-        return 1
-    fi
-
-    local podman_state='missing' docker_state='missing' rootless='n/a' usable='no'
-    local ver
-    if ver="$(_ctr_version podman 2>/dev/null)"; then
+    local podman_state='missing' rootless='no' ver
+    if ver="$(_ctr_version 2>/dev/null)"; then
         podman_state="installed ${ver}"
     fi
-    if ver="$(_ctr_version docker 2>/dev/null)"; then
-        docker_state="installed ${ver}"
+    _ctr_usable && rootless='yes' || true
+    # Root runs Podman rootful: rootless and subid findings don't apply.
+    if [[ "$(id -u)" == 0 ]]; then
+        cat <<EOF
+Container runtime
+-----------------
+Podman:     ${podman_state}
+Rootless:   n/a (running as root: Podman is rootful)
+EOF
+        return 0
     fi
-    if _ctr_usable_podman; then
-        rootless='yes'
-    elif _ctr_installed podman; then
-        rootless='no'
-    fi
-    case "${selected}" in
-        podman) _ctr_usable_podman && usable='yes' || true ;;
-        docker) _ctr_usable_docker && usable='yes' || true ;;
-    esac
 
     cat <<EOF
 Container runtime
 -----------------
-Configured: ${configured} (default: podman)
-Selected:   ${selected}
 Podman:     ${podman_state}
-Docker:     ${docker_state}
 Rootless:   ${rootless}
-Usable:     ${usable}
+Host:
 EOF
+    local state msg
+    while IFS=$'\t' read -r state msg; do
+        printf '  [%s] %s\n' "${state}" "${msg}"
+    done < <(_ctr_rootless_findings "$(id -un)")
     return 0
 }
 
@@ -162,7 +114,7 @@ function _main() {
     case "${1:-}" in
         '')
             log_step 'Ensuring container runtime'
-            _container_ensure
+            _podman_ensure
             log_ok 'Container runtime ready'
             return 0
             ;;

@@ -87,16 +87,31 @@ __dottod_claude_ensure_profile() {
         return 1
     }
     chmod 700 -- "${dir}" 2>/dev/null || true
+    mkdir -p -- "${HOME}/.claude" 2>/dev/null || true
     # shellcheck disable=SC2086 # intentional word splitting on the entry list
     for entry in ${__DOTTOD_CLAUDE_SHARED}; do
         src="${HOME}/.claude/${entry}"
-        [[ -e "${src}" ]] || continue
         if [[ -L "${dir}/${entry}" ]]; then
             continue
         elif [[ -e "${dir}/${entry}" ]]; then
-            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (not replacing with a link)\n' "${dir}/${entry}" >&2
+            # The store lacks it: adopt the overlay's copy as the store's.
+            if [[ ! -e "${src}" ]] && mv -- "${dir}/${entry}" "${src}" 2>/dev/null; then
+                ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
+                continue
+            fi
+            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (run claude-profile consolidate to share it)\n' "${dir}/${entry}" >&2
             continue
         fi
+        # Create the store entry up front: Claude Code would otherwise write
+        # a private copy inside the overlay on first run.
+        if [[ ! -e "${src}" ]]; then
+            if [[ "${entry}" == *.jsonl ]]; then
+                : >>"${src}" 2>/dev/null && chmod 600 -- "${src}" 2>/dev/null
+            else
+                mkdir -p -- "${src}" 2>/dev/null
+            fi
+        fi
+        [[ -e "${src}" ]] || continue
         ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
     done
     if [[ ! -e "${dir}/settings.json" && -f "${HOME}/.claude/settings.json" ]]; then
@@ -276,6 +291,91 @@ __dottod_claude_pick_profile() {
     printf '%s' "${CLAUDE_DEFAULT_PROFILE:-personal}"
 }
 
+# __dottod_claude_merge_dir <from> <into> <tag>: moves every file of <from>
+# into <into>, keeping relative paths. Moves (not copies) so files open in a
+# live session keep their inode. Identical duplicates are dropped; differing
+# ones land beside the store's copy as <file>.from-<tag>. Removes <from>.
+__dottod_claude_merge_dir() {
+    local from="${1:?from required}" into="${2:?into required}" tag="${3:?tag required}" f rel t
+    mkdir -p -- "${into}" || return 1
+    while IFS= read -r -d '' f; do
+        rel="${f#"${from}"/}"
+        t="${into}/${rel}"
+        mkdir -p -- "${t%/*}" || return 1
+        if [[ ! -e "${t}" && ! -L "${t}" ]]; then
+            mv -- "${f}" "${t}" || return 1
+        elif cmp -s -- "${f}" "${t}"; then
+            rm -f -- "${f}"
+        else
+            mv -- "${f}" "${t}.from-${tag}" || return 1
+            printf 'claude-profile: conflict kept as %s\n' "${t}.from-${tag}" >&2
+        fi
+    done < <(find "${from}" \( -type f -o -type l \) -print0)
+    find "${from}" -depth -type d -empty -delete 2>/dev/null
+    [[ ! -e "${from}" ]]
+}
+
+# __dottod_claude_merge_history <from> <into>: appends the prompt history of
+# <from> to <into>, deduplicated and ordered by timestamp (plain append when
+# jq is missing). Removes <from>.
+__dottod_claude_merge_history() {
+    local from="${1:?from required}" into="${2:?into required}" tmp
+    tmp="${into}.merge.$$"
+    if command -v jq >/dev/null 2>&1 &&
+        cat -- "${into}" "${from}" 2>/dev/null | jq -c -s 'unique | sort_by(.timestamp // 0) | .[]' >"${tmp}" 2>/dev/null; then
+        cat -- "${tmp}" >"${into}" && rm -f -- "${tmp}"
+    else
+        rm -f -- "${tmp}"
+        cat -- "${from}" >>"${into}" || return 1
+    fi
+    chmod 600 -- "${into}" 2>/dev/null
+    rm -f -- "${from}"
+}
+
+# __dottod_claude_consolidate <name> [force]: folds every shared entry the
+# overlay holds as a real file/dir into the store, then links it. Refuses a
+# profile in use unless forced.
+__dottod_claude_consolidate() {
+    local name="${1:?profile required}" force="${2:-}" dir entry src live f
+    dir="$(__dottod_claude_profile_dir "${name}")" || return 2
+    if [[ ! -f "${dir}/${__DOTTOD_CLAUDE_MARKER}" ]]; then
+        echo "claude-profile: not a profile: ${name}" >&2
+        return 1
+    fi
+    live="$(__dottod_claude_live_pid "${dir}")"
+    if [[ -n "${live}" && -z "${force}" ]]; then
+        printf 'claude-profile: %s is in use by claude (pid %s); close it or pass --force\n' "${name}" "${live}" >&2
+        return 1
+    fi
+    mkdir -p -- "${HOME}/.claude" || return 1
+    # Plugin manifests record absolute paths; point them at the store first,
+    # so manifests that only differ by profile path merge as duplicates.
+    for f in "${HOME}"/.claude/plugins/*.json "${dir}"/plugins/*.json; do
+        [[ -f "${f}" ]] || continue
+        sed -i -E "s#${HOME}/\\.claude-[A-Za-z0-9_-]+/plugins#${HOME}/.claude/plugins#g" -- "${f}" 2>/dev/null || true
+    done
+    # shellcheck disable=SC2086 # intentional word splitting on the entry list
+    for entry in ${__DOTTOD_CLAUDE_SHARED}; do
+        src="${HOME}/.claude/${entry}"
+        [[ -e "${dir}/${entry}" && ! -L "${dir}/${entry}" ]] || continue
+        if [[ ! -e "${src}" ]]; then
+            mv -- "${dir}/${entry}" "${src}" || return 1
+        elif [[ -d "${dir}/${entry}" ]]; then
+            __dottod_claude_merge_dir "${dir}/${entry}" "${src}" "${name}" || {
+                printf 'claude-profile: could not fully merge %s\n' "${dir}/${entry}" >&2
+                return 1
+            }
+        elif [[ "${entry}" == history.jsonl ]]; then
+            __dottod_claude_merge_history "${dir}/${entry}" "${src}" || return 1
+        else
+            mv -- "${dir}/${entry}" "${src}.from-${name}" || return 1
+        fi
+        ln -s -- "${src}" "${dir}/${entry}" || return 1
+        printf 'claude-profile: %s/%s now shared\n' "${name}" "${entry}"
+    done
+    __dottod_claude_ensure_profile "${name}" quiet >/dev/null
+}
+
 # claude-profile: manage overlays — add <name> | ls | rm [--force] <name>.
 # __dottod_claude_live_pid <dir> [procdir]: PID of a running claude process
 # whose environment pins CLAUDE_CONFIG_DIR to <dir>, or empty when none.
@@ -413,9 +513,30 @@ claude-profile() {
             }
             printf 'claude profile renamed: %s -> %s\n' "${old}" "${new}"
             ;;
+        consolidate | sync)
+            local force="" n rc=0
+            local -a names=()
+            shift
+            while (($# > 0)); do
+                case "$1" in
+                    --force) force=1 ;;
+                    *) names+=("$1") ;;
+                esac
+                shift
+            done
+            if ((${#names[@]} == 0)); then
+                mapfile -t names < <(__dottod_claude_profiles)
+            fi
+            for n in "${names[@]}"; do
+                __dottod_claude_consolidate "${n}" "${force}" || rc=1
+            done
+            ((rc == 0)) && printf 'claude profiles consolidated into %s/.claude\n' "${HOME}"
+            return "${rc}"
+            ;;
         -h | --help | help)
-            printf '%s\n' "usage: claude-profile add <name> | ls | rename <old> <new> | rm [--force] <name>"
-            printf '%s\n' "rename/rm refuse while a claude session is using the profile."
+            printf '%s\n' "usage: claude-profile add <name> | ls | consolidate [--force] [name...] | rename <old> <new> | rm [--force] <name>"
+            printf '%s\n' "consolidate folds a profile's private history/projects/plugins into the shared store."
+            printf '%s\n' "consolidate/rename/rm refuse while a claude session is using the profile."
             ;;
         *)
             printf 'claude-profile: unknown command %s\n' "${cmd}" >&2

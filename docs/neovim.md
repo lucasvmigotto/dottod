@@ -42,21 +42,25 @@ symlink detected). The installer only validates the binary version and
 links the config; plugin installation happens on the first `nvim` launch
 (lazy.nvim bootstraps itself, then follows the committed lockfile).
 
-## Version policy (important on Debian)
+## Version policy
 
 The configuration targets **Neovim >= 0.11.0** (enforced by the
 installer; kept as the floor for future language-tooling re-additions).
-Debian trixie's official archive ships **0.10.4** — below the floor. The
-installer:
+Most distributions package a new enough Neovim (Gentoo 0.11.7, Arch
+0.12.6, Fedora 42 0.11.5, Alpine 3.22 0.11.1), but Debian 13's official
+archive ships **0.10.4** — below the floor. The installer:
 
-1. Accepts any installed `nvim >= 0.11.0` (any source: apt, tarball, distro).
-2. Otherwise checks the apt **candidate**:
-   - candidate `>= 0.11.0` → installs via apt;
-   - candidate too old (or apt unusable) → **fails with instructions** by
-     default. It never silently installs an incompatible version and never
-     adds a third-party apt repository.
+1. Accepts any installed `nvim >= 0.11.0` (any source: package, tarball).
+2. Otherwise refreshes the package index and checks the distro package's
+   **candidate** version:
+   - candidate `>= 0.11.0` → installs the package;
+   - candidate too old → **fails with instructions** by default. It never
+     silently installs an incompatible version and never adds a third-party
+     package source. An unknown candidate is not "too old": the package is
+     tried, and the result is checked.
 3. Opt-in healing — install the official upstream tarball (rootless, into
-   `~/.local`), sha256-verified against the GitHub release API digest:
+   `~/.local`; glibc only, so not on Alpine), sha256-verified against the
+   GitHub release API digest (it installs curl, tar and python3 first):
 
    ```bash
    _DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh
@@ -82,7 +86,7 @@ relink needed), validated by the installer *and* the Lua layer.
 | Profile | Plugins at startup |
 | ------- | ------------------ |
 | `minimal` | options, keymaps, colorscheme, statusline only (SSH/recovery) |
-| `terminal` | + gitsigns, toggleterm, lazygit/lazydocker/k9s/btop launchers, devcontainer CLI |
+| `terminal` | + gitsigns, toggleterm, btop launcher, devcontainer CLI |
 | `development` | same as `terminal` (default) |
 | `full` | same as `terminal` |
 
@@ -159,8 +163,7 @@ Core (all profiles):
 | `<Esc><Esc>` | exit terminal mode |
 
 Terminal profile: `<C-\>` toggle, `<leader>tt/th/tv` float/horizontal/vertical,
-`<leader>gg` lazygit, `<leader>dk` lazydocker, `<leader>kk` k9s, `<leader>bt`
-btop (each degrades with an actionable warning when the tool is missing),
+`<leader>bt` btop (degrades with an actionable warning when it is missing),
 `<leader>Du/Dc/Dd/De` devcontainer up/connect/down/exec (needs the
 `devcontainer` CLI — `./bin/bun.sh` installs it).
 
@@ -180,9 +183,7 @@ when available, `timeoutlen=500`.
 
 ## Git
 
-gitsigns for the gutter/hunk workflow (see keymap table). lazygit stays the
-repository UI (`<leader>gg`, floating via toggleterm) — dottod composes
-with its CLI tools, it does not reimplement them.
+gitsigns for the gutter/hunk workflow (see keymap table).
 
 ## User customization
 
@@ -205,15 +206,15 @@ one reports its error once and continues.
 ```
 
 Reports: Neovim version vs policy, profile, lazy + lockfile state,
-rg/fd/git presence (with degrade notes for Telescope), dottod CLI tools
-(lazygit/lazydocker/k9s/btop), TERM/tmux context, user-override status.
+rg/fd/git presence (fd or Debian's fdfind; with degrade notes for
+Telescope), btop, TERM/tmux context, user-override status.
 Every failure line carries a fix.
 
 ## Offline / degraded behavior
 
 - No network on startup (checker disabled, plugins locked).
-- Missing rg ⇒ Telescope live grep degrades (install: `sudo apt-get install
-  ripgrep`); missing fd ⇒ find_files falls back to `find`.
+- Missing rg ⇒ Telescope live grep degrades (install `ripgrep` from your
+  distro); missing fd ⇒ find_files falls back to `find`.
 - `telescope-fzf-native` compiles once via `make`; without a compiler it is
   skipped and Telescope uses its Lua matcher.
 - `minimal` profile is the recovery mode (`DOTTOD_NVIM_PROFILE=minimal nvim`).
@@ -245,10 +246,10 @@ the regression test asserts the shell survives sourcing it.
 
 | Symptom | Fix |
 | ------- | --- |
-| `Neovim 0.10.4 via apt is below the minimum 0.11.0` | intended gate: use backports, a newer source, or `_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh` |
+| `Neovim 0.10.4 from the distro packages is below the minimum 0.11.0` | intended gate (Debian 13): use backports, a newer source, or `_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh` (glibc only) |
 | `nvim: command not found` after tarball install | `~/.local/bin` not on `PATH` (re-login or export it) |
 | plugins missing on a new machine | open nvim once online (`:Lazy sync`) — lazy bootstraps on first launch |
-| live grep empty | ripgrep missing: `sudo apt-get install ripgrep` |
+| live grep empty | ripgrep missing: install `ripgrep` from your distro |
 | which-key popup feels late | it is keyed to `timeoutlen=500`; tune in `dottod_local.lua` |
 
 ## Plugin policy (why each one exists)
@@ -265,7 +266,7 @@ the regression test asserts the shell survives sourcing it.
 | nvim-colorizer | color previews (coloresque successor) |
 | telescope + fzf-native + ui-select | fuzzy finding; native pickers lack rg integration; fzf-native is optional (needs `make`) |
 | neo-tree v3.x (+ nui) | single explorer (NERDTree successor; ignore list ported from `.nerdtree.vimrc`) |
-| gitsigns | gutter signs/hunks; lazygit owns the repo UI |
+| gitsigns | gutter signs/hunks |
 | toggleterm | float/h/v terminals wrapping native `:terminal` |
 
 Deliberately absent (kept out to honor the zero-dependency rule):

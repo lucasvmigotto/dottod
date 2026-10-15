@@ -4,8 +4,8 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun)
-readonly DOT_UI_TASKS=(zed ghostty)
+readonly DOT_TASKS=(shell fonts vim neovim container zed gitconfig ssh tools cargo bun)
+readonly DOT_UI_TASKS=(zed)
 
 function _in_list() {
     local needle=${1}
@@ -26,12 +26,15 @@ Bootstraps the workstation by running the dottod task scripts.
 Options:
   --only <list>      Comma-separated list of tasks to run (default: all)
   --skip <list>      Comma-separated list of tasks to skip
-  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)
   --parallel         Run tasks concurrently instead of sequentially
-  --ui               Include GUI tasks (zed, ghostty); default skips them
+  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or
+                     all); default none
+  --ui               Include GUI tasks (zed); default skips them
   --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)
   --yes              Assume yes for any prompts
   --verbose, -v      Stream full task output (default: summarized)
+  --status           Print every selected task's status report (changes
+                     nothing; honours --only, --skip and --ui)
   --list, -l         List available tasks and exit
   --help, -h         Show this help
 
@@ -40,12 +43,11 @@ Tasks:
   fonts     Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)
   vim       vim + vim-plug + plugins
   neovim    Neovim + lazy.nvim + Telescope (first-class; vim untouched)
-  container Container runtime (Podman default, Docker alternative)
+  container Podman (rootless)
   zed       Zed editor (user-level install)
-  ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely) + ed25519 key
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just
+  tools     btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just (+ --extras)
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
 EOF
@@ -107,8 +109,28 @@ function _run_parallel() {
     return "${failures}"
 }
 
+# Every task answers `status` with a read-only report; print them in task
+# order. No sudo preflight and no package installs: status changes nothing.
+function _status_reports() {
+    local task script failures=0
+    for task in "$@"; do
+        script="${DOT_REPO_ROOT}/bin/${task}.sh"
+        if [[ ! -f "${script}" ]]; then
+            log_error "Unknown task '${task}' (missing ${script})"
+            failures=$((failures + 1))
+            continue
+        fi
+        if ! "${script}" status; then
+            log_error "${task}: status report failed"
+            failures=$((failures + 1))
+        fi
+        printf '\n'
+    done
+    return $((failures > 0))
+}
+
 function _main() {
-    local only="" skip="" with_ui=0 parallel=0 verbose=0
+    local only="" skip="" with_ui=0 parallel=0 verbose=0 status=0
     local failures=0
 
     while [[ $# -gt 0 ]]; do
@@ -121,17 +143,8 @@ function _main() {
                 skip="${2:?'--skip requires a comma-separated task list'}"
                 shift 2
                 ;;
-            --runtime)
-                _DOT_CONTAINER_RUNTIME="$(printf '%s' "${2:?'--runtime requires podman, docker, or auto'}" | tr '[:upper:]' '[:lower:]')"
-                case "${_DOT_CONTAINER_RUNTIME}" in
-                    podman | docker | auto)
-                        export _DOT_CONTAINER_RUNTIME
-                        ;;
-                    *)
-                        log_error "Invalid runtime: $2 (want podman|docker|auto)"
-                        return 1
-                        ;;
-                esac
+            --extras)
+                export DOT_TOOLS_EXTRA="${2:?'--extras requires a comma-separated tool list'}"
                 shift 2
                 ;;
             --parallel)
@@ -154,6 +167,10 @@ function _main() {
                 verbose=1
                 shift
                 ;;
+            --status)
+                status=1
+                shift
+                ;;
             --list | -l)
                 printf '%s\n' "${DOT_TASKS[@]}"
                 return 0
@@ -171,6 +188,9 @@ function _main() {
     done
 
     export DOT_VERBOSE="${verbose}"
+    # One id per bootstrap run: tasks share a single package-index refresh.
+    # PID + start time, so a stale stamp from an earlier run never matches.
+    export DOT_RUN_ID="${DOT_RUN_ID:-$$.$(date +%s)}"
 
     local -a tasks=()
     local task
@@ -192,6 +212,11 @@ function _main() {
     if [[ ${#tasks[@]} -lt 1 ]]; then
         log_warn 'No tasks to run'
         return 0
+    fi
+
+    if [[ "${status}" == 1 ]]; then
+        _status_reports "${tasks[@]}"
+        return $?
     fi
 
     log_step "Bootstrap starting (${#tasks[@]} task(s))"

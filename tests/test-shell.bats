@@ -70,22 +70,22 @@ probe() {
 
 @test "custom.bashrc restores tool paths without duplicates" {
     local ihome="$BATS_TEST_TMPDIR/ihome3"
-    mkdir -p "$ihome/.local/bin" "$ihome/.opencode/bin" "$ihome/.bun/bin" "$ihome/.cargo/bin"
+    mkdir -p "$ihome/.local/bin" "$ihome/.bun/bin" "$ihome/.cargo/bin"
     run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; printf '%s' \"\$PATH\"" 2>/dev/null
     assert_eq 'path setup rc 0' '0' "$status"
-    local want="$ihome/.local/bin:$ihome/.opencode/bin:$ihome/.bun/bin:$ihome/.cargo/bin"
+    local want="$ihome/.local/bin:$ihome/.bun/bin:$ihome/.cargo/bin"
     assert_contains 'tool dirs first, in order' "$want" "$output"
-    assert_eq 'no duplicates on re-source' '1' "$(printf '%s' "$output" | tr ':' '\n' | grep -cx "$ihome/.opencode/bin" || true)"
+    assert_eq 'no duplicates on re-source' '1' "$(printf '%s' "$output" | tr ':' '\n' | grep -cx "$ihome/.bun/bin" || true)"
 }
 
 @test "custom.bashrc loads the utility libraries" {
     local ihome="$BATS_TEST_TMPDIR/ihome4"
     mkdir -p "$ihome"
-    run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; alias lll; command -v mkcd; command -v ocresume; command -v ctr; printf 'EDITOR=%s' \"\$EDITOR\"" 2>/dev/null
+    run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; alias lll; command -v mkcd; command -v loadenv; command -v ctr; printf 'EDITOR=%s' \"\$EDITOR\"" 2>/dev/null
     assert_eq 'utilities rc 0' '0' "$status"
     assert_contains 'lll alias' "alias lll=" "$output"
     assert_contains 'mkcd function' 'mkcd' "$output"
-    assert_contains 'ocresume function' 'ocresume' "$output"
+    assert_contains 'loadenv function' 'loadenv' "$output"
     assert_contains 'ctr function' 'ctr' "$output"
     assert_contains 'editor default' 'EDITOR=vim' "$output"
 }
@@ -102,7 +102,6 @@ probe() {
 @test "bash stays the login shell when already set" {
     probe '
         getent() { printf "testuser:x:1000:1000::/home/testuser:/usr/bin/bash\n"; }
-        command() { [[ "$1" == "-v" && "$2" == "bash" ]] && printf "/usr/bin/bash\n" || return 1; }
         _bash_use_as_shell testuser >/dev/null
     '
     assert_eq 'skip rc 0' '0' "$status"
@@ -110,17 +109,18 @@ probe() {
 }
 
 @test "custom bashrc links to the repo file with a backup" {
-    # _custom_bashrc targets /home/<user> by design (it manages the real
-    # login account), so record the link arguments instead of touching the
-    # real home: _link_file itself is covered by the neovim suites.
+    # Another user's home comes from passwd (stubbed here, with a non-/home
+    # path); record the link arguments instead of touching it: _link_file
+    # itself is covered by the neovim suites.
     probe '
+        getent() { printf "someuser:x:1001:1001::/var/home/someuser:/bin/bash\n"; }
         _link_file() { printf "%s\t%s\n" "$1" "$2" >>"$CALLS"; }
         _custom_bashrc someuser >/dev/null
         cat "$CALLS"
     '
     assert_eq 'link rc 0' '0' "$status"
     assert_contains 'source is the repo bashrc' "$REPO_ROOT/config/.custom.bashrc" "$output"
-    assert_contains 'target is the user bashrc' '/home/someuser/.bashrc' "$output"
+    assert_contains 'target is the passwd home' '/var/home/someuser/.bashrc' "$output"
 }
 
 @test "link primitive backs up once, rerun is a no-op" {

@@ -5,7 +5,7 @@ import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { type Plugin, defineConfig, loadEnv } from "vite";
 import { generateLlmsOutput } from "./scripts/build-llms";
-import { resolveVersion } from "./scripts/version";
+import { resolveFooterVersions, resolveVersion } from "./scripts/version";
 
 const here = fileURLToPath(new URL(".", import.meta.url));
 
@@ -63,6 +63,7 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss(), brandingPlugin(siteUrl)],
     define: {
       __APP_VERSION__: JSON.stringify(resolveVersion()),
+      __VERSIONS__: JSON.stringify(resolveFooterVersions()),
       __SITE_URL__: JSON.stringify(siteUrl),
     },
     build: {

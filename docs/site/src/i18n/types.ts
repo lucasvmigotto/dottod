@@ -19,7 +19,6 @@ export const TASK_IDS = [
   "neovim",
   "container",
   "zed",
-  "ghostty",
   "gitconfig",
   "ssh",
   "tools",
@@ -28,6 +27,7 @@ export const TASK_IDS = [
 ] as const;
 
 export const GUIDE_IDS = [
+  "distributions",
   "shell",
   "neovim",
   "ssh",
@@ -46,6 +46,21 @@ export type PageId =
   | "concepts"
   | "architecture"
   | "roadmap";
+
+// The route of each page: tasks and guides live under /tasks/ and /guides/
+// (see app/router.tsx), the rest at /<id>. One mapping for every link, so a
+// page id is never used as a path directly.
+export function pathOf(id: PageId): string {
+  if (id === "overview") return "/";
+  if (id.startsWith("task-")) return `/tasks/${id.slice("task-".length)}`;
+  if (id.startsWith("guide-")) return `/guides/${id.slice("guide-".length)}`;
+  return `/${id}`;
+}
+
+// The page a route shows, for the sidebar's current item ("" if none).
+export function pageAt(pathname: string): PageId | "" {
+  return PAGE_IDS.find((id) => pathOf(id) === (pathname || "/")) ?? "";
+}
 
 export const PAGE_IDS: PageId[] = [
   "overview",
@@ -146,6 +161,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     key: "guides",
     pages: [
+      "guide-distributions",
       "guide-shell",
       "guide-neovim",
       "guide-ssh",

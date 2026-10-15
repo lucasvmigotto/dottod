@@ -1,13 +1,11 @@
-# 011-tools — as-is technical context
+# 011-tools — technical context
 
-- Entry: `bin/tools.sh` (apt CLI set → 4 GitHub installs: 2 tarballs,
-  1 binary, 1 tarball) [OBSERVED: bin/tools.sh:70,83].
-- Helpers `_github_binary_install` / `_github_tarball_install` resolve
-  latest-release assets via the GitHub API (`_github_asset_url`), retry
-  downloads (`curl --retry 3`), `install -m 0755` into `~/.local/bin`
-  [OBSERVED: bin/tools.sh:7, bin/utils.sh:251].
-- Arch mapping via `_go_arch`/`_rust_arch` (`x86_64`/`arm64`)
-  [OBSERVED: bin/utils.sh:310, bin/tools.sh:71].
-- bat→batcat alias when only `bat` exists
-  [OBSERVED: bin/tools.sh:78].
-- No dedicated test suite (shellcheck/bash -n only).
+- Entry: `bin/tools.sh`: the core set from native packages
+  (`_install_packages`, logical names), then the opt-in extras.
+- Extras (`DOT_TOOLS_EXTRA` / bootstrap `--extras`): `httpie`, `chafa`
+  (native packages) and `gh` (the distro package; on Debian/Ubuntu the
+  official GitHub CLI apt repository, signed keyring, download-then-install).
+- `bat`/`batcat` and `fd`/`fdfind`: whichever spelling the distro installs,
+  the missing one is linked in `~/.local/bin`.
+- No upstream release downloads: lazygit, lazydocker, k9s and resterm were
+  dropped on 2026-10-15.

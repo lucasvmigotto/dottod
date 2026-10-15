@@ -4,27 +4,29 @@
 # bin/bootstrap.sh builds against. Per-feature fragments live in
 # specs/NNN/contracts/ and must match this file.
 # Reconstructed by project:introspec on 2026-09-26 from 39e4839;
-# terminal-first revision 2026-10-03 (bash shell, zed, no desktop, no TUI).
+# terminal-first revision 2026-10-03 (bash shell, zed, no desktop, no TUI);
+# multi-distro revision 2026-10-15 (spec 015).
 
 version: "1"
 tasks:
-  - {id: shell, script: bin/shell.sh, ui: false, needs_apt: true}
-  - {id: fonts, script: bin/fonts.sh, ui: false, needs_apt: true}
-  - {id: vim, script: bin/vim.sh, ui: false, needs_apt: true}
-  - {id: neovim, script: bin/neovim.sh, ui: false, needs_apt: true}
-  - {id: container, script: bin/container.sh, ui: false, needs_apt: true}
-  - {id: zed, script: bin/zed.sh, ui: true, needs_apt: true}
-  - {id: ghostty, script: bin/ghostty.sh, ui: true, needs_apt: true}
-  - {id: gitconfig, script: bin/gitconfig.sh, ui: false, needs_apt: false}
-  - {id: ssh, script: bin/ssh.sh, ui: false, needs_apt: false}
-  - {id: tools, script: bin/tools.sh, ui: false, needs_apt: true}
-  - {id: cargo, script: bin/cargo.sh, ui: false, needs_apt: true}
-  - {id: bun, script: bin/bun.sh, ui: false, needs_apt: true}
-bootstrap_flags: [--only LIST, --skip LIST, --runtime RUNTIME, --parallel, --ui, --no-ui, --yes, --verbose, --list, --help]
+  - {id: shell, script: bin/shell.sh, ui: false, uses_packages: true}
+  - {id: fonts, script: bin/fonts.sh, ui: false, uses_packages: true}
+  - {id: vim, script: bin/vim.sh, ui: false, uses_packages: true}
+  - {id: neovim, script: bin/neovim.sh, ui: false, uses_packages: true}
+  - {id: container, script: bin/container.sh, ui: false, uses_packages: true}
+  - {id: zed, script: bin/zed.sh, ui: true, uses_packages: true}
+  - {id: gitconfig, script: bin/gitconfig.sh, ui: false, uses_packages: false}
+  - {id: ssh, script: bin/ssh.sh, ui: false, uses_packages: true}
+  - {id: tools, script: bin/tools.sh, ui: false, uses_packages: true}
+  - {id: cargo, script: bin/cargo.sh, ui: false, uses_packages: true}
+  - {id: bun, script: bin/bun.sh, ui: false, uses_packages: true}
+bootstrap_flags: [--only LIST, --skip LIST, --extras LIST, --parallel, --ui, --no-ui, --yes, --verbose, --list, --help]
 conventions:
+  packages: "uses_packages tasks install through lib/package.sh by logical name (lib/packages/<family>.sh); families debian, gentoo, arch, redhat (fedora), alpine; unknown distributions fail before any package command (spec 015)"
   idempotency: probe-before-act in every task
   backups: "<target>.dottod.bak[.timestamp], never delete user files"
   logging: "per-task /tmp/dottod/<task>.log in quiet mode; streamed in --verbose"
   exit_codes: "0 all pass; 1 on any failure (bootstrap counts failures)"
   privilege: "sudo|doas once per run, cached; TTY required unless passwordless"
-  ui: "GUI tasks (zed, ghostty) are skipped by default; --ui includes them"
+  ui: "GUI tasks (zed) are skipped by default; --ui includes them"
+  extras: "tools extras (gh, httpie, chafa) are off by default; --extras / DOT_TOOLS_EXTRA opts in"

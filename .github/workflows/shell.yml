@@ -4,10 +4,11 @@ on:
   push:
     branches:
       - "main"
-      - "dev"
+      - "develop"
   pull_request:
     paths:
       - "bin/**"
+      - "lib/**"
       - "config/.custom.bashrc"
       - "config/.custom.vimrc"
       - "config/.nerdtree.vimrc"

@@ -1,7 +1,7 @@
 import { cleanup, screen } from "@testing-library/react";
 import { expect, test } from "vitest";
 import { App } from "../../src/App";
-import { PAGE_IDS, TASK_IDS } from "../../src/i18n/types";
+import { PAGE_IDS, TASK_IDS, pathOf } from "../../src/i18n/types";
 import { harness } from "../a11y/harness";
 
 test("every page id has a route that renders its title", async () => {
@@ -17,6 +17,28 @@ test("every page id has a route that renders its title", async () => {
     unmount();
     cleanup();
   }
+});
+
+test("every sidebar link opens its page, not the 404", async () => {
+  // Regression: guide links pointed at /<id> (#/guide-shell) instead of
+  // their /guides/<name> route.
+  for (const id of PAGE_IDS) {
+    const { unmount } = harness(<App />, pathOf(id));
+    await screen.findByRole("main");
+    expect(screen.queryByText(/doesn't exist/i)).not.toBeInTheDocument();
+    unmount();
+    cleanup();
+  }
+  harness(<App />, "/");
+  const shell = screen
+    .getAllByRole("link")
+    .find((a) => a.getAttribute("href")?.endsWith("/guides/shell"));
+  expect(shell).toBeDefined();
+  expect(
+    screen
+      .getAllByRole("link")
+      .some((a) => a.getAttribute("href")?.endsWith("/guide-shell")),
+  ).toBe(false);
 });
 
 test("deep link to a task page renders the task, not the 404", () => {

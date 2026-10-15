@@ -1,12 +1,32 @@
 #!/usr/bin/env bash
+#
+# fonts.sh — dottod Nerd Fonts task.
+#
+# Usage: fonts.sh [FONT...] | status [FONT...] | --help|-h
+#   (FONT...)  install the fonts (default: the dottod set)
+#   status     print which fonts are installed, without changing anything
 
 set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+# _font_family <zip name>: the family name the font registers with
+# fontconfig (the Nerd Fonts zip names match it, except the symbols set).
+function _font_family() {
+    case "${1}" in
+        NerdFontsSymbolsOnly) printf 'Symbols Nerd Font' ;;
+        *) printf '%s' "${1}" ;;
+    esac
+}
+
+# Read the whole family list before matching: piping fc-list into
+# `grep -q` under pipefail fails whenever grep exits early (fc-list dies
+# of SIGPIPE), so installed fonts looked missing and re-downloaded.
 function _font_installed() {
     local font=${1:?'Font must be informed'}
-    fc-list --format='%{family}\n' | grep -qi "${font}"
+    local families
+    families="$(fc-list --format='%{family}\n' 2>/dev/null)" || return 1
+    grep -qiF -- "$(_font_family "${font}")" <<<"${families}"
 }
 
 function _install_nerdfont() {
@@ -56,7 +76,56 @@ function _install_nerdfont() {
     return 0
 }
 
+readonly DOT_FONTS_DEFAULT=(FiraCode FiraMono RobotoMono NerdFontsSymbolsOnly ZedMono)
+
+function _fonts_status() {
+    local -a fonts=("$@")
+    [[ ${#fonts[@]} -gt 0 ]] || fonts=("${DOT_FONTS_DEFAULT[@]}")
+    local folder="${HOME}/.local/share/fonts"
+    [[ "${_DOT_NERDFONT_GLOBAL_INSTALL:-0}" == 1 ]] && folder='/usr/local/share/fonts'
+    local font state lines=''
+    for font in "${fonts[@]}"; do
+        if ! command -v fc-list >/dev/null 2>&1; then
+            state='unknown (no fc-list)'
+        elif _font_installed "${font}"; then
+            state='installed'
+        else
+            state='missing'
+        fi
+        lines+="$(printf '  %-22s %s' "${font}" "${state}")"$'\n'
+    done
+    cat <<EOF
+Fonts
+-----
+Folder:    ${folder} ($([[ -d "${folder}" ]] && echo present || echo missing))
+fc-list:   $(_dot_have fc-list)
+${lines%$'\n'}
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: fonts.sh [FONT...] | status [FONT...]
+
+  (FONT...)  install the Nerd Fonts (default: the dottod set)
+  status     print which fonts are installed, without changing anything
+EOF
+}
+
 function _main() {
+    case "${1:-}" in
+        status)
+            shift
+            _fonts_status "$@"
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+    esac
+
     local nerdfont_version=${_DOT_NERDFONT_VERSION:-"v3.4.0"}
     local nerdfont_base=${_DOT_NERDFONT_BASE:-"https://github.com/ryanoasis/nerd-fonts/releases/download"}
     local nerdfont_temp_destination=${_DOT_NERDFONT_TEMP_DESTINATION:-"/tmp/fonts"}
@@ -65,7 +134,7 @@ function _main() {
 
     local -a fonts=("$@")
     if [[ ${#fonts[@]} -lt 1 ]]; then
-        fonts=(FiraCode FiraMono RobotoMono NerdFontsSymbolsOnly ZedMono)
+        fonts=("${DOT_FONTS_DEFAULT[@]}")
     fi
 
     local fonts_final_folder
@@ -79,11 +148,11 @@ function _main() {
     # User-level installs must not require privilege: only escalate for
     # prerequisites that are actually missing (probed, not assumed).
     local -a need=()
-    command -v curl >/dev/null 2>&1 || need+=('curl' 'ca-certificates')
+    command -v curl >/dev/null 2>&1 || need+=('curl' 'ca_certificates')
     command -v fc-list >/dev/null 2>&1 || need+=('fontconfig')
     command -v unzip >/dev/null 2>&1 || need+=('unzip')
     if [[ ${#need[@]} -gt 0 ]]; then
-        _install_packages "${need[*]}"
+        _install_packages "${need[@]}"
     else
         log_info 'Font prerequisites already present, skipping package install...'
     fi

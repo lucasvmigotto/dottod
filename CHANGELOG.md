@@ -5,6 +5,33 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## Unreleased
+
+### Added
+
+- **A `status` action on every task.** `<task>.sh status` prints a
+  read-only report (installed versions, linked config, identity, keys,
+  fonts, tools) for shell, fonts, vim, zed, gitconfig, ssh and tools,
+  joining neovim, container, cargo and bun. `bootstrap.sh --status` prints
+  every report and honours `--only`, `--skip` and `--ui`. Nothing is
+  installed, written or asked.
+- **Docs.** The Commands page documents the status reports with a vhs
+  demo, the `--help` demo is re-recorded with `--status`, and the Roadmap
+  lists what 2.0.0 delivers. The "Deliberately not planned" list is gone.
+
+### Fixed
+
+- **Docs guide pages.** Sidebar, search and "Next" links pointed guides
+  at `#/guide-<name>` instead of their `#/guides/<name>` route, so every
+  Guides page showed "That page doesn't exist". All links now come from one
+  page-to-route mapping, with a test that opens every sidebar link.
+- **Docs footer versions.** The footer reads `dottod@vX.Y.Z · docs@vX.Y.Z`,
+  each linked to the repository tree at its release tag (or the commit
+  past it), and the site deploys after the release workflow, so it never
+  shows the previous version. The docs version (`docs/site/package.json`)
+  is raised by `scripts/release.py`, now able to bump the manifests listed
+  in `release.json`.
+
 ## 1.8.0 — 2026-10-13
 
 ### Added

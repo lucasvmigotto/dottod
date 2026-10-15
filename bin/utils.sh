@@ -12,6 +12,23 @@ readonly DOT_LOG_DIR="/tmp/dottod"
 
 mkdir -p "${DOT_LOG_DIR}"
 
+# Platform detection and package backends (spec 015): definitions only;
+# nothing runs on source.
+# shellcheck source=../lib/os.sh
+source "${DOT_REPO_ROOT}/lib/os.sh"
+# shellcheck source=../lib/package.sh
+source "${DOT_REPO_ROOT}/lib/package.sh"
+# shellcheck source=../lib/packages/debian.sh
+source "${DOT_REPO_ROOT}/lib/packages/debian.sh"
+# shellcheck source=../lib/packages/gentoo.sh
+source "${DOT_REPO_ROOT}/lib/packages/gentoo.sh"
+# shellcheck source=../lib/packages/arch.sh
+source "${DOT_REPO_ROOT}/lib/packages/arch.sh"
+# shellcheck source=../lib/packages/redhat.sh
+source "${DOT_REPO_ROOT}/lib/packages/redhat.sh"
+# shellcheck source=../lib/packages/alpine.sh
+source "${DOT_REPO_ROOT}/lib/packages/alpine.sh"
+
 function _color_supported() {
     [[ -n "${DOT_FORCE_COLOR:-}" ]] && return 0
     [[ -n "${NO_COLOR:-}" ]] && return 1
@@ -198,61 +215,60 @@ function _priv() {
     fi
 }
 
+# _install_packages <logical...>: packages through lib/package.sh, by
+# logical name (DOT_PKG_LOGICAL).
+# Accepts separate arguments or one space-separated string (the original
+# form); words are split without glob expansion. _DOT_NO_PACKAGES=1 is the
+# test seam: nothing is detected or installed.
 function _install_packages() {
-    local package_list=${1:?'Package list not provided'}
-    local no_recommends=${2:-0}
-
+    (($# > 0)) || {
+        log_error 'Package list not provided'
+        return 1
+    }
     if [[ "${_DOT_NO_PACKAGES:-0}" == 1 ]]; then
         return 0
     fi
 
-    # Split the space-separated list robustly: a bare ${package_list}
-    # expansion would also glob-expand package names containing wildcards.
-    local -a extra_packages=()
-    read -ra extra_packages <<<"${package_list}" || true
-
-    # Idempotent fast path: every package already installed means no sudo,
-    # no apt update, no noise. (dpkg-query is the source of truth; the
-    # install below stays authoritative for anything missing.)
-    local pkg all_present=1
-    for pkg in "${extra_packages[@]}"; do
-        if ! _is_dpkg_installed "${pkg}"; then
-            all_present=0
-            break
-        fi
+    local -a packages=() words=()
+    local arg
+    for arg in "$@"; do
+        read -ra words <<<"${arg}" || true
+        packages+=("${words[@]}")
     done
-    if [[ "${all_present}" == 1 ]]; then
-        log_info "Packages already installed, skipping: ${package_list}"
-        return 0
+
+    _pkg_install "${packages[@]}"
+}
+
+# _dot_passwd_entry <user>: the user's passwd line, from getent or, when
+# getent is absent, /etc/passwd (_DOT_PASSWD_FILE overrides it for tests).
+function _dot_passwd_entry() {
+    local user=${1:?'User must be informed'}
+    if command -v getent >/dev/null 2>&1; then
+        getent passwd "${user}" 2>/dev/null
+    else
+        grep -m1 -- "^${user}:" "${_DOT_PASSWD_FILE:-/etc/passwd}" 2>/dev/null
+    fi
+}
+
+# _dot_user_home <user>: the user's home directory. The current user gets
+# $HOME (so tests and sudo -E keep their redirection); any other user gets
+# the passwd entry. Never eval ~user, never guess /home/<user>: an unknown
+# user or an empty home fails.
+function _dot_user_home() {
+    local user=${1:?'User must be informed'}
+    local home=''
+
+    if [[ "${user}" == "$(id -un)" ]]; then
+        home="${HOME:-}"
+    else
+        home="$(_dot_passwd_entry "${user}" | cut -d: -f6)" || home=''
     fi
 
-    if declare -F _pkg_install >/dev/null 2>&1; then
-        if declare -F _pkg_update >/dev/null 2>&1; then
-            _pkg_update
-        fi
-        _pkg_install ${package_list}
-        if declare -F _pkg_clean >/dev/null 2>&1; then
-            _pkg_clean
-        fi
-        return 0
+    if [[ "${home}" != /* ]]; then
+        log_error "Cannot resolve the home directory of '${user}'"
+        return 1
     fi
-
-    if [[ -z "${DEBIAN_FRONTEND:-}" ]]; then
-        export DEBIAN_FRONTEND=noninteractive
-    fi
-
-    _priv apt-get update -qq --yes >/dev/null 2>&1
-
-    local -a install_args=(apt-get install -qq --yes)
-    if [[ "${no_recommends}" == 1 ]]; then
-        install_args+=(--no-install-recommends)
-    fi
-    install_args+=("${extra_packages[@]}")
-
-    _priv "${install_args[@]}" >/dev/null 2>&1
-    _priv rm -rf /var/lib/apt/lists/*
-
-    return 0
+    printf '%s' "${home}"
 }
 
 function _is_installed() {
@@ -261,14 +277,10 @@ function _is_installed() {
 
 # Stronger than _is_installed: the binary must not only be on PATH but
 # execute (a broken shim counts as missing). Only for tools known to
-# support `--version` (cargo, bun, zed, ghostty, devcontainer).
+# support `--version` (cargo, bun, zed, devcontainer).
 function _is_runnable() {
     local bin=${1:?'Binary must be informed'}
     command -v "${bin}" >/dev/null 2>&1 && "${bin}" --version >/dev/null 2>&1
-}
-
-function _is_dpkg_installed() {
-    dpkg-query -W -f='${Status}' "${1}" 2>/dev/null | grep -q 'install ok installed'
 }
 
 function _ensure_local_bin() {
@@ -282,25 +294,6 @@ function _download() {
     local destination=${2:?'Destination must be informed'}
 
     curl -fsSL --retry 3 --retry-delay 2 --connect-timeout 30 -o "${destination}" "${url}"
-}
-
-function _github_asset_url() {
-    local repo=${1:?'GitHub repo (owner/name) must be informed'}
-    local pattern=${2:?'Asset name pattern must be informed'}
-
-    local url
-    url="$(curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" |
-        grep -oE '"browser_download_url": *"[^"]+"' |
-        cut -d'"' -f4 |
-        grep -E "${pattern}" |
-        head -n1)"
-
-    if [[ -z "${url}" ]]; then
-        log_error "No release asset matching '${pattern}' for ${repo}"
-        return 1
-    fi
-
-    echo "${url}"
 }
 
 function _link_file() {
@@ -325,6 +318,47 @@ function _link_file() {
     return 0
 }
 
+# _dot_path_state <path> [dottod source]: how a managed path stands, for
+# status reports (read-only): "symlink -> X (dottod)" when it links to the
+# given source, "symlink -> X", "file (user-managed)", "directory
+# (user-managed)" or "missing".
+function _dot_path_state() {
+    local path=${1:?'Path must be informed'} source=${2:-}
+    if [[ -L "${path}" ]]; then
+        local dest
+        dest="$(readlink "${path}")"
+        if [[ -n "${source}" && "${dest}" == "${source}" ]]; then
+            printf 'symlink -> %s (dottod)' "${dest}"
+        else
+            printf 'symlink -> %s' "${dest}"
+        fi
+    elif [[ -d "${path}" ]]; then
+        printf 'directory (user-managed)'
+    elif [[ -e "${path}" ]]; then
+        printf 'file (user-managed)'
+    else
+        printf 'missing'
+    fi
+}
+
+# _dot_first_line <cmd...>: the first line of a command's output (stdout and
+# stderr). Reads it all first: `| head` would end the pipe early and fail
+# under pipefail.
+function _dot_first_line() {
+    local out
+    out="$("$@" 2>&1)" || true
+    printf '%s' "${out%%$'\n'*}"
+}
+
+# _dot_have <cmd>: "present" or "missing", for status reports.
+function _dot_have() {
+    if command -v "${1:?'Command must be informed'}" >/dev/null 2>&1; then
+        printf 'present'
+    else
+        printf 'missing'
+    fi
+}
+
 function _prompt() {
     local message=${1} default=${2:-}
     local input
@@ -334,20 +368,4 @@ function _prompt() {
     fi
 
     echo "${input:-${default}}"
-}
-
-function _go_arch() {
-    case "$(uname -m)" in
-        x86_64 | amd64) echo 'x86_64' ;;
-        arm64 | aarch64) echo 'arm64' ;;
-        *) echo "$(uname -m)" ;;
-    esac
-}
-
-function _rust_arch() {
-    case "$(uname -m)" in
-        x86_64) echo 'amd64' ;;
-        arm64 | aarch64) echo 'arm64' ;;
-        *) echo "$(uname -m)" ;;
-    esac
 }

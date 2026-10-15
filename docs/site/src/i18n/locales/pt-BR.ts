@@ -23,7 +23,7 @@ const pages: Record<PageId, DocPage> = {
     hero: {
       eyebrow: "dottod",
       title: "dottod",
-      subtitle: "Reconstrua uma estação Debian com um comando bash puro.",
+      subtitle: "Reconstrua uma estação Linux com um comando bash puro.",
       ctaLabel: "Começar",
       ctaHref: "/start",
       transcript: TRANSCRIPT,
@@ -35,7 +35,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "dottod são dotfiles pessoais e bootstrap de estação Debian. Um ponto de entrada — bin/bootstrap.sh — executa doze tarefas idempotentes: shell, fontes, editores, runtime de contêineres, terminal, ferramentas CLI e SSH do GitHub. Cada tarefa verifica antes de agir, faz backup do que substitui e relata PASS ou FAIL com um log por tarefa.",
+            text: "dottod são dotfiles pessoais e bootstrap de estação para Debian/Ubuntu, Gentoo, Arch, Fedora e Alpine. Um ponto de entrada — bin/bootstrap.sh — executa onze tarefas idempotentes: shell, fontes, editores, runtime de contêineres, terminal, ferramentas CLI e SSH do GitHub. Cada tarefa verifica antes de agir, faz backup do que substitui e relata PASS ou FAIL com um log por tarefa.",
           },
         ],
       },
@@ -61,14 +61,13 @@ const pages: Record<PageId, DocPage> = {
               ["fonts", "Nerd Fonts, nível de usuário"],
               ["vim", "vim + vim-plug + plugins"],
               ["neovim", "Neovim ≥ 0.11, lazy.nvim, 16 plugins fixos"],
-              ["container", "Podman padrão, Docker alternativo"],
+              ["container", "Podman rootless"],
               ["zed", "editor Zed (GUI, opt-in)"],
-              ["ghostty", "terminal Ghostty (GUI, opt-in)"],
               ["gitconfig", "identidade Git"],
               ["ssh", "merge do host GitHub + chave ed25519"],
               [
                 "tools",
-                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just",
+                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; extras opt-in: gh, httpie, chafa",
               ],
               ["cargo", "toolchain Rust via rustup"],
               ["bun", "runtime Bun + CLI devcontainer"],
@@ -95,7 +94,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "Você precisa de Debian (ou derivado) com apt, mais sudo ou doas. Se o sudo não for passwordless, a senha é pedida uma vez; senão rode como root. Tarefas GUI (zed, ghostty) são puladas por padrão — passe --ui para incluí-las.",
+            text: "Você precisa de Debian/Ubuntu, Gentoo, Arch, Fedora ou Alpine (com bash instalado — no Alpine, apk add bash antes), mais sudo ou doas. O dottod detecta a distribuição e usa o gerenciador de pacotes dela; qualquer outra é recusada antes de instalar algo. Se o sudo não for passwordless, a senha é pedida uma vez; senão rode como root. Tarefas GUI (zed) são puladas por padrão — passe --ui para incluí-las.",
           },
         ],
       },
@@ -122,7 +121,7 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "ol",
             items: [
-              "Reinstale o Debian e clone este repositório.",
+              "Reinstale sua distribuição e clone este repositório.",
               "Rode ./bin/bootstrap.sh (passe GIT_NAME/GIT_EMAIL para um gitconfig não interativo).",
               "Para uma tarefa que falhou: ./bin/bootstrap.sh --only <tarefa>, depois leia /tmp/dottod/<tarefa>.log.",
               "Neovim abaixo de 0.11: rode de novo com _DOT_NVIM_ALLOW_TARBALL=1 para curar via tarball.",
@@ -135,7 +134,7 @@ const pages: Record<PageId, DocPage> = {
   tasks: {
     id: "tasks",
     title: "Tarefas",
-    summary: "As doze tarefas: o que cada uma faz e se é seguro repetir.",
+    summary: "As onze tarefas: o que cada uma faz e se é seguro repetir.",
     sections: [
       {
         id: "all",
@@ -145,16 +144,15 @@ const pages: Record<PageId, DocPage> = {
             kind: "table",
             headers: ["Tarefa", "Seguro repetir", "Precisa"],
             rows: [
-              ["shell", "Sim", "apt (git, bash)"],
+              ["shell", "Sim", "pacotes (git, bash)"],
               ["fonts", "Sim", "nada quando presentes"],
               ["vim", "Sim", "rede só para plugins faltantes"],
-              ["neovim", "Sim", "apt ou tarball (0.11+)"],
-              ["container", "Sim", "apt na primeira vez"],
+              ["neovim", "Sim", "pacote ou tarball (0.11+)"],
+              ["container", "Sim", "pacotes na primeira vez"],
               ["zed", "Sim (opt-in)", "rede"],
-              ["ghostty", "Sim (opt-in)", "rede"],
               ["gitconfig", "Sim", "GIT_NAME/GIT_EMAIL uma vez"],
               ["ssh", "Sim", "nada (chave uma vez)"],
-              ["tools", "Sim", "apt + releases do GitHub"],
+              ["tools", "Sim", "pacotes"],
               ["cargo", "Sim", "rede uma vez"],
               ["bun", "Sim", "rede uma vez"],
             ],
@@ -288,12 +286,12 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala Neovim (apt quando o candidato é ≥ 0.11, senão falha com instruções), liga ~/.config/nvim ao repositório (configs existentes viram backup, nunca deletadas), e deixa o lazy.nvim sincronizar 16 plugins fixos na primeira abertura. Perfis via DOTTOD_NVIM_PROFILE: minimal, terminal, development (padrão), full.",
+            text: "Instala Neovim (o pacote da distro quando o candidato é ≥ 0.11, senão falha com instruções), liga ~/.config/nvim ao repositório (configs existentes viram backup, nunca deletadas), e deixa o lazy.nvim sincronizar 16 plugins fixos na primeira abertura. Perfis via DOTTOD_NVIM_PROFILE: minimal, terminal, development (padrão), full.",
           },
           {
             kind: "code",
             lang: "bash",
-            caption: "Curar via tarball quando o apt é velho",
+            caption: "Curar via tarball quando o pacote é velho (glibc)",
             code: "_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh",
           },
         ],
@@ -307,7 +305,7 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Sintoma", "Correção"],
             rows: [
               [
-                "0.10.4 via apt abaixo do mínimo",
+                "0.10.4 dos pacotes da distro abaixo do mínimo",
                 "Rode de novo com _DOT_NVIM_ALLOW_TARBALL=1",
               ],
               [
@@ -338,7 +336,7 @@ const pages: Record<PageId, DocPage> = {
   "task-container": {
     id: "task-container",
     title: "container",
-    summary: "Podman padrão, Docker quando escolhido. Seguro repetir.",
+    summary: "Podman rootless. Seguro repetir.",
     sections: [
       {
         id: "what",
@@ -346,20 +344,20 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Resolve podman, docker ou auto (nunca troca silenciosamente uma escolha explícita), garante Podman rootless (uidmap + faixas subuid/subgid) ou delega ao instalador Docker. container.sh status mostra seleção/instalação/usabilidade sem mudar nada.",
+            text: "Garante Podman rootless (uidmap + faixas subuid/subgid) e valida com podman info como você, sem sudo. container.sh status mostra instalação/rootless sem mudar nada.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Escolher e inspecionar",
-            code: "./bin/bootstrap.sh --runtime docker --only container\n./bin/container.sh status",
+            code: "./bin/bootstrap.sh --only container\n./bin/container.sh status",
           },
           {
             kind: "demo",
             gif: "status-commands.gif",
             alt: "Gravação de terminal: relatórios de container.sh status e cargo.sh status.",
             transcript:
-              "➜ ./bin/container.sh status\n\nContainer runtime\n-----------------\nConfigured: <unset> (default: podman)\nSelected:   podman\nPodman:     installed 5.4.2\nDocker:     missing\nRootless:   yes\nUsable:     yes\n\n➜ ./bin/cargo.sh status\n\nRust toolchain\n--------------\nCargo:    cargo 1.98.0 (797e8a9bc 2026-08-05)\nHome:     /home/lucas/.cargo\nProfile:  minimal (default for fresh installs)\nToolchain: stable (default for fresh installs)\nRustup:   present",
+              "➜ ./bin/container.sh status\n\nContainer runtime\n-----------------\nPodman:     installed 5.4.2\nRootless:   yes\n\n➜ ./bin/cargo.sh status\n\nRust toolchain\n--------------\nCargo:    cargo 1.98.0 (797e8a9bc 2026-08-05)\nHome:     /home/lucas/.cargo\nProfile:  minimal (default for fresh installs)\nToolchain: stable (default for fresh installs)\nRustup:   present",
           },
         ],
       },
@@ -419,40 +417,6 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "Sim. zed presente pula sem rede. Pulado sem --ui.",
-          },
-        ],
-      },
-    ],
-  },
-  "task-ghostty": {
-    id: "task-ghostty",
-    title: "ghostty",
-    summary: "Terminal Ghostty + padrão. Opt-in com --ui. Seguro repetir.",
-    sections: [
-      {
-        id: "what",
-        heading: "O que faz",
-        blocks: [
-          {
-            kind: "p",
-            text: "Roda o instalador ghostty-ubuntu de um arquivo baixado (nunca pipe em shell privilegiado), depois define o Ghostty como terminal padrão do GNOME e alternativa x-terminal-emulator.",
-          },
-          {
-            kind: "code",
-            lang: "bash",
-            caption: "Rodar sozinho",
-            code: "./bin/bootstrap.sh --ui --only ghostty",
-          },
-        ],
-      },
-      {
-        id: "idempotent",
-        heading: "Idempotente?",
-        maturity: "implemented",
-        blocks: [
-          {
-            kind: "p",
-            text: "Sim. ghostty presente pula a instalação; o terminal padrão reaplica. Pulado sem --ui.",
           },
         ],
       },
@@ -537,7 +501,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt e just via apt (pulado quando tudo presente), gh do repositório apt oficial (keyring assinado), e lazygit, lazydocker, k9s e resterm dos releases do GitHub — verificados por sha256 contra a API, com aviso-e-segue quando não publicado.",
+            text: "Instala btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt e just dos pacotes da distro (pulado quando tudo presente), e liga bat/batcat e fd/fdfind para os dois nomes funcionarem. Extras são opt-in via --extras ou DOT_TOOLS_EXTRA (todos desligados por padrão): httpie, chafa e gh dos pacotes da distro — gh do repositório apt oficial (keyring assinado) no Debian/Ubuntu.",
           },
           {
             kind: "code",
@@ -554,7 +518,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Sim. Cada ferramenta verifica PATH-ou-destino antes de baixar; apt é pulado em bloco quando satisfeito.",
+            text: "Sim. Cada ferramenta verifica o PATH antes de instalar; o gerenciador de pacotes é pulado em bloco quando tudo está presente.",
           },
         ],
       },
@@ -605,7 +569,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala o binário único do bun a partir do zip oficial (sha256 verificado, avisa quando não há digest) em ~/.local/bin — nunca o install.sh do bun, que editaria ~/.bashrc. Depois instala o CLI devcontainer com bun install --global (precisa de node; instalado via apt só quando falta).",
+            text: "Instala o binário único do bun a partir do zip oficial (sha256 verificado contra o SHASUMS256.txt do release; o build musl no Alpine) em ~/.local/bin — nunca o install.sh do bun, que editaria ~/.bashrc. Depois instala o CLI devcontainer com bun install --global e o executa com o Bun por um wrapper em ~/.local/bin/devcontainer: sem Node.js.",
           },
           {
             kind: "code",
@@ -679,7 +643,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "~/.local/bin primeiro, depois ~/.opencode/bin, ~/.bun/bin e ~/.cargo/bin quando existem. Adicionado uma vez por shell — re-sourcing nunca duplica entradas.",
+            text: "~/.local/bin primeiro, depois ~/.bun/bin e ~/.cargo/bin quando existem. Adicionado uma vez por shell — re-sourcing nunca duplica entradas.",
           },
         ],
       },
@@ -791,7 +755,7 @@ const pages: Record<PageId, DocPage> = {
               ["<C-h/j/k/l>", "navegação de janelas"],
               ["]b [b", "próximo/anterior buffer"],
               ["<leader>tt/th/tv", "terminal flutuante/horizontal/vertical"],
-              ["<leader>gg/dk/kk/bt", "lazygit, lazydocker, k9s, btop"],
+              ["<leader>bt", "btop"],
               ["<leader>Du/Dc/Dd/De", "devcontainer up/connect/down/exec"],
               ["<leader>e/pe", "alternar explorador"],
             ],
@@ -837,29 +801,145 @@ const pages: Record<PageId, DocPage> = {
       },
     ],
   },
-  "guide-containers": {
-    id: "guide-containers",
-    title: "Contêineres",
-    summary: "Podman padrão, Docker quando escolhido.",
+  "guide-distributions": {
+    id: "guide-distributions",
+    title: "Distribuições",
+    summary:
+      "Debian/Ubuntu, Gentoo, Arch, Fedora e Alpine — e o que foi verificado em cada uma.",
     sections: [
       {
-        id: "select",
-        heading: "Seleção",
+        id: "how",
+        heading: "Como funciona",
         blocks: [
           {
-            kind: "table",
-            headers: ["Valor", "Significado"],
-            rows: [
-              ["podman", "Usar Podman (padrão)"],
-              ["docker", "Usar Docker (alternativa explícita)"],
-              ["auto", "Podman se usável, senão Docker, senão Podman"],
-            ],
+            kind: "p",
+            text: "Toda tarefa instala pacotes por uma camada só (lib/package.sh): ela lê /etc/os-release e usa o gerenciador de pacotes da própria distribuição, com os nomes reais dos pacotes. Qualquer outra distribuição é recusada antes de um único comando de pacote.",
           },
           {
             kind: "code",
             lang: "bash",
-            caption: "Escolher e inspecionar",
-            code: "_DOT_CONTAINER_RUNTIME=docker ./bin/bootstrap.sh --only container\n./bin/container.sh status",
+            caption: "O que o dottod detectou aqui",
+            code: "dottod-doctor | grep distro",
+          },
+        ],
+      },
+      {
+        id: "verified",
+        heading: "O que foi verificado",
+        blocks: [
+          {
+            kind: "p",
+            text: "Só o que de fato rodou é declarado. Contêineres são imagens descartáveis fixadas, cada tarefa rodada duas vezes; o Ubuntu 24.04 teve só os nomes de pacotes verificados.",
+          },
+          {
+            kind: "table",
+            headers: [
+              "",
+              "Debian 13",
+              "Gentoo",
+              "Arch",
+              "Fedora 42",
+              "Alpine 3.22",
+            ],
+            rows: [
+              [
+                "shell, vim, gitconfig, ssh, fonts",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "neovim ≥ 0.11",
+                "✅ tarball (o pacote é 0.10.4)",
+                "✅ 0.11.7",
+                "✅ 0.12.6",
+                "✅ 0.11.5",
+                "✅ 0.11.1",
+              ],
+              ["cargo (rustup)", "✅", "✅", "✅", "✅", "✅ musl"],
+              [
+                "bun",
+                "✅ verificado",
+                "✅",
+                "✅ verificado",
+                "✅ verificado",
+                "✅ musl, verificado",
+              ],
+              [
+                "tools + gh",
+                "✅ gh pelo repositório apt do GitHub",
+                "só nomes",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "Podman rootless",
+                "✅ host",
+                "pendente (laptop real)",
+                "—",
+                "só rootful",
+                "só helpers + subids",
+              ],
+              [
+                "zed (--ui)",
+                "não rodou",
+                "não rodou",
+                "não rodou",
+                "não rodou",
+                "sem suporte (só glibc)",
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        id: "notes",
+        heading: "Por distribuição",
+        blocks: [
+          {
+            kind: "ul",
+            items: [
+              "Debian/Ubuntu: apt-get, índice atualizado uma vez por execução; batcat e fdfind também ganham os nomes bat e fd.",
+              'Gentoo: emerge com seu perfil, USE flags e EMERGE_DEFAULT_OPTS intactos; o dottod nunca sincroniza e nunca escreve em /etc/portage. Pacotes podem compilar do fonte; no OpenRC, Podman rootless precisa de rc_cgroup_mode="unified" (o status do container avisa).',
+              "Arch: pacman -S --needed, nunca um -Sy sozinho (upgrades parciais); se um pacote não for encontrado, rode pacman -Syu antes. Sem AUR.",
+              "Fedora: dnf install -y.",
+              "Alpine: instale o bash antes. Bun e rustup usam builds musl; o Neovim vem do apk; o Zed é pulado com o motivo; sem chsh, a tarefa shell mostra o comando usermod.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "check",
+        heading: "Confira você mesmo",
+        blocks: [
+          {
+            kind: "code",
+            lang: "bash",
+            caption:
+              "Nomes de pacotes, depois o bootstrap principal duas vezes (Podman, limitado a 3 GiB / 2 CPUs)",
+            code: "DOTTOD_TEST_INTEGRATION=1 tests/integration/pkg-resolve.sh gentoo arch\nDOTTOD_TEST_INTEGRATION=1 tests/integration/core-smoke.sh alpine",
+          },
+        ],
+      },
+    ],
+  },
+  "guide-containers": {
+    id: "guide-containers",
+    title: "Contêineres",
+    summary: "Somente Podman rootless.",
+    sections: [
+      {
+        id: "select",
+        heading: "Instalação",
+        blocks: [
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Instalar e inspecionar",
+            code: "./bin/bootstrap.sh --only container\n./bin/container.sh status",
           },
         ],
       },
@@ -869,7 +949,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Configurado (valor do env) → instalado (binário no PATH) → usável (funciona como você, sem sudo) → selecionado (resolução). Binário-existe não é usável: daemon parado ou namespaces faltantes reportam exatamente isso, alto.",
+            text: "Instalado (binário no PATH) → usável (podman info rootless funciona como você, sem sudo). Binário-existe não é usável: namespaces ou faixas subuid faltantes reportam exatamente isso, alto.",
           },
         ],
       },
@@ -886,7 +966,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Fontes vão para ~/.local/share/fonts (sistema todo só com _DOT_NERDFONT_GLOBAL_INSTALL=1). Dependências instalam via apt só quando realmente faltam — um rerun normal não toca sudo nem rede para fontes presentes.",
+            text: "Fontes vão para ~/.local/share/fonts (sistema todo só com _DOT_NERDFONT_GLOBAL_INSTALL=1). Dependências instalam dos pacotes da distro só quando realmente faltam — um rerun normal não toca sudo nem rede para fontes presentes.",
           },
           {
             kind: "code",
@@ -925,12 +1005,19 @@ const pages: Record<PageId, DocPage> = {
             rows: [
               ["--only <lista>", "roda só essas tarefas"],
               ["--skip <lista>", "pula essas tarefas"],
-              ["--runtime <nome>", "podman, docker ou auto (padrão podman)"],
+              [
+                "--extras <lista>",
+                "ferramentas opt-in da tarefa tools (gh, httpie, chafa, ou all)",
+              ],
               ["--parallel", "roda tarefas concorrentemente"],
-              ["--ui", "inclui tarefas GUI (zed, ghostty)"],
+              ["--ui", "inclui tarefas GUI (zed)"],
               ["--no-ui", "pula tarefas GUI (o padrão)"],
               ["--yes", "assume sim nos prompts"],
               ["--verbose, -v", "mostra saída completa das tarefas"],
+              [
+                "--status",
+                "imprime o relatório status de cada tarefa selecionada (não muda nada)",
+              ],
               ["--list, -l", "lista tarefas e sai"],
               ["--help, -h", "mostra ajuda"],
             ],
@@ -939,7 +1026,31 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Invocações comuns",
-            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --skip ghostty,zed",
+            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --only tools --extras gh,httpie",
+          },
+        ],
+      },
+      {
+        id: "status",
+        heading: "Relatórios de status",
+        maturity: "implemented",
+        blocks: [
+          {
+            kind: "p",
+            text: "Toda tarefa responde a status com um relatório somente leitura: o que está instalado, linkado ou configurado, sem instalar, gravar ou perguntar nada. bootstrap.sh --status imprime todos os relatórios e respeita --only, --skip e --ui; uma tarefa sozinha roda como <tarefa>.sh status (fonts.sh status também aceita nomes de fontes).",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Relatórios de status",
+            code: "./bin/bootstrap.sh --status\n./bin/bootstrap.sh --status --only ssh,gitconfig\n./bin/ssh.sh status\n./bin/fonts.sh status FiraCode",
+          },
+          {
+            kind: "demo",
+            gif: "status-report.gif",
+            alt: "Gravação de terminal: bootstrap.sh --status imprimindo os relatórios de shell, vim e tools.",
+            transcript:
+              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/3 present (missing: gh httpie chafa)\nSelected:  none (DOT_TOOLS_EXTRA)",
           },
         ],
       },
@@ -952,7 +1063,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Gravação de terminal: saída de bootstrap.sh --help, depois a lista de tarefas.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)\n  --parallel         Run tasks concurrently instead of sequentially\n  --ui               Include GUI tasks (zed, ghostty); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or\n                     all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
           },
         ],
       },
@@ -972,8 +1083,12 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Variável", "Padrão", "Tarefa"],
             rows: [
               ["_DOT_TARGET_USER", "id -un", "todas"],
-              ["_DOT_NO_PACKAGES", "0 (1 pula apt; testes)", "todas"],
-              ["_DOT_CONTAINER_RUNTIME", "podman", "container"],
+              [
+                "_DOT_NO_PACKAGES",
+                "0 (1 pula instalações de pacotes; testes)",
+                "todas",
+              ],
+              ["DOT_TOOLS_EXTRA", "nenhum (lista ou all)", "tools"],
               ["_DOT_NVIM_MIN_VERSION", "0.11.0", "neovim"],
               ["_DOT_NVIM_VERSION", "v0.12.5", "neovim"],
               ["_DOT_NVIM_ALLOW_TARBALL", "0", "neovim"],
@@ -1018,13 +1133,8 @@ const pages: Record<PageId, DocPage> = {
                 "mode, tier",
               ],
               [
-                "Configured / Selected / Usable",
-                "escolha explícita vs resolução automática vs runtime funcionando",
-                "—",
-              ],
-              [
                 "Healing",
-                "instalação tarball opt-in quando o apt é velho",
+                "instalação tarball opt-in quando o pacote é velho",
                 "upgrade",
               ],
               [
@@ -1049,13 +1159,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Provisionador de estação única. Uma interface — bin/bootstrap.sh — dirige doze scripts de tarefa contra $HOME, /etc/apt e ~/.config, escalando uma vez por run via sudo ou doas. Sem servidores, sem bancos; estado vive em symlinks, backups (*.dottod.bak), caches e lockfiles.",
+            text: "Provisionador de estação única. Uma interface — bin/bootstrap.sh — dirige onze scripts de tarefa contra $HOME, o gerenciador de pacotes da distro e ~/.config, escalando uma vez por run via sudo ou doas. Sem servidores, sem bancos; estado vive em symlinks, backups (*.dottod.bak), caches e lockfiles.",
           },
           {
             kind: "code",
             lang: "text",
             caption: "Camadas",
-            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<tarefa>.sh ─► $HOME, /etc/apt, ~/.config\n                    (via _priv sudo/doas, cacheado por run)",
+            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<tarefa>.sh ─► $HOME, gerenciador de pacotes, ~/.config\n                    (via _priv sudo/doas, cacheado por run)",
           },
         ],
       },
@@ -1104,39 +1214,30 @@ const pages: Record<PageId, DocPage> = {
   roadmap: {
     id: "roadmap",
     title: "Roteiro",
-    summary: "O que está especificado mas não construído.",
-    maturity: "planned",
+    summary: "O que entrou na 2.0.0, e como trabalho novo entra na lista.",
     sections: [
       {
-        id: "planned",
-        heading: "Planejado",
-        maturity: "planned",
+        id: "delivered",
+        heading: "Entregue na 2.0.0",
+        maturity: "implemented",
         blocks: [
-          {
-            kind: "p",
-            text: "Estes itens existem como especificações, não código. Estão aqui para o status ser honesto — nada abaixo é apresentado como funcionando.",
-          },
           {
             kind: "ul",
             items: [
-              "Ações status por tarefa (superfície uniforme de verificação).",
-              "Demos de terminal vhs para a referência de comandos.",
-              "Tradução pt-BR dos guias restantes.",
+              "Ações status por tarefa: toda tarefa responde a <tarefa>.sh status com um relatório somente leitura, e bootstrap.sh --status imprime todos (veja Comandos).",
+              "Demos de terminal vhs na referência de comandos: bootstrap.sh --help e bootstrap.sh --status, renderizadas de novo pela CI da documentação a cada mudança.",
+              "Tradução pt-BR de todos os guias.",
             ],
           },
         ],
       },
       {
-        id: "decisions",
-        heading: "Deliberadamente fora",
+        id: "planned",
+        heading: "Planejado",
         blocks: [
           {
-            kind: "ul",
-            items: [
-              "LSP, Treesitter, formatadores e linters na config Neovim (removidos por design).",
-              "Instalador one-liner do dottod (um curl|sh flagship contradiz a postura download-then-run).",
-              "Histórias multi-usuário ou de time (escopo single-user, confirmado).",
-            ],
+            kind: "p",
+            text: "Nada está planejado agora. Trabalho novo começa como especificação em specs/ e aparece aqui, marcado como Planejado, até ser construído.",
           },
         ],
       },
@@ -1147,7 +1248,7 @@ const pages: Record<PageId, DocPage> = {
 export const ptBR: DocsContent = {
   ui: {
     siteName: "dottod",
-    siteTagline: "Estação Debian, reconstruída por um comando bash puro.",
+    siteTagline: "Estação Linux, reconstruída por um comando bash puro.",
     skipToContent: "Pular para o conteúdo",
     menu: "Menu",
     close: "Fechar",

@@ -1,152 +1,32 @@
 #!/usr/bin/env bash
+#
+# tools.sh — dottod CLI tools: the core set from native packages, plus
+# opt-in extras (DOT_TOOLS_EXTRA, bootstrap's --extras).
+#
+# Usage: tools.sh [""] | status | --help|-h
+#   ("")     install the core tools and the selected extras
+#   status   print which tools are present, without changing anything
 
 set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-# Checksum for a release asset, mirroring bin/neovim.sh: the GitHub API
-# exposes a `digest` per asset; print the sha256 hex or nothing when the
-# API gives no usable digest (caller warns and proceeds as before).
-function _github_asset_digest() {
-    local repo=${1:?'GitHub repo (owner/name) must be informed'}
-    local pattern=${2:?'Asset name pattern must be informed'}
-
-    curl -fsSL "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null | python3 -c '
-import json, re, sys
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(1)
-pat = re.compile(sys.argv[1])
-for a in data.get("assets", []):
-    if pat.search(a.get("name", "")):
-        print((a.get("digest") or "").removeprefix("sha256:"))
-        break
-' "${pattern}" || true
-}
-
-# Verify a download when a digest exists; warn-and-proceed otherwise so a
-# missing digest never breaks an install that worked before.
-function _verify_download() {
-    local file=${1:?'File must be informed'}
-    local digest=${2:-}
-    local label=${3:-'download'}
-
-    if [[ -z "${digest}" ]]; then
-        log_warn "No checksum published for ${label}; installing unverified."
-        return 0
-    fi
-
-    local actual
-    actual="$(sha256sum "${file}" | cut -d' ' -f1)"
-    if [[ "${actual}" != "${digest}" ]]; then
-        log_error "Checksum mismatch for ${label} (want ${digest}, got ${actual})."
-        return 1
-    fi
-    return 0
-}
-
-function _github_binary_install() {
-    local repo=${1:?'GitHub repo (owner/name) must be informed'}
-    local binary_name=${2:?'Binary name must be informed'}
-    local pattern=${3:?'Asset name pattern must be informed'}
-
-    local local_bin dest
-    local_bin="$(_ensure_local_bin)"
-    dest="${local_bin}/${binary_name}"
-
-    if _is_installed "${binary_name}" || [[ -x "${dest}" ]]; then
-        log_info "${binary_name} already installed, skipping..."
-        return 0
-    fi
-
-    local url tmp digest
-    url="$(_github_asset_url "${repo}" "${pattern}")"
-    digest="$(_github_asset_digest "${repo}" "${pattern}" || true)"
-    tmp="$(mktemp)"
-
-    log_step "Installing ${binary_name}"
-    _download "${url}" "${tmp}"
-    if ! _verify_download "${tmp}" "${digest}" "${binary_name}"; then
-        rm -f "${tmp}"
-        return 1
-    fi
-    install -m 0755 "${tmp}" "${dest}"
-    rm -f "${tmp}"
-    log_ok "${binary_name} installed"
-
-    return 0
-}
-
-function _github_tarball_install() {
-    local repo=${1:?'GitHub repo (owner/name) must be informed'}
-    local binary_name=${2:?'Binary name must be informed'}
-    local pattern=${3:?'Asset name pattern must be informed'}
-
-    local local_bin dest
-    local_bin="$(_ensure_local_bin)"
-    dest="${local_bin}/${binary_name}"
-
-    if _is_installed "${binary_name}" || [[ -x "${dest}" ]]; then
-        log_info "${binary_name} already installed, skipping..."
-        return 0
-    fi
-
-    local url tmpdir digest extracted
-    url="$(_github_asset_url "${repo}" "${pattern}")"
-    digest="$(_github_asset_digest "${repo}" "${pattern}" || true)"
-    tmpdir="$(mktemp -d)"
-
-    log_step "Installing ${binary_name}"
-    _download "${url}" "${tmpdir}/asset.tar.gz"
-    if ! _verify_download "${tmpdir}/asset.tar.gz" "${digest}" "${binary_name}"; then
-        rm -rf "${tmpdir}"
-        return 1
-    fi
-    tar -xzf "${tmpdir}/asset.tar.gz" -C "${tmpdir}"
-
-    extracted="$(find "${tmpdir}" -type f -name "${binary_name}" | head -n1)"
-    if [[ -z "${extracted}" ]]; then
-        log_error "${binary_name} not found in downloaded archive"
-        rm -rf "${tmpdir}"
-        return 1
-    fi
-
-    install -m 0755 "${extracted}" "${dest}"
-    rm -rf "${tmpdir}"
-    log_ok "${binary_name} installed"
-
-    return 0
-}
-
+# gh: the distro package, except on Debian/Ubuntu, where the official
+# GitHub CLI apt repository is used (https://cli.github.com) because the
+# distro's own gh lags far behind.
 function _github_cli_install() {
-    # GitHub CLI from its official apt repository
-    # (https://cli.github.com/manual/installation-linux).
     if _is_installed gh; then
         log_info 'gh already installed, skipping...'
         return 0
     fi
 
-    local arch keyring tmp_key
-    arch="$(dpkg --print-architecture)"
-    keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
-
-    log_step 'Installing GitHub CLI prerequisites'
-    _install_packages 'curl ca-certificates gnupg'
-
-    # Download-then-install (never pipe a remote key straight into a
-    # privileged command): a failed download must not produce a keyring.
-    tmp_key="$(mktemp)"
-    log_step 'Adding GitHub CLI apt repository'
-    _download 'https://cli.github.com/packages/githubcli-archive-keyring.gpg' "${tmp_key}"
-    _priv install -m 0644 "${tmp_key}" "${keyring}"
-    rm -f "${tmp_key}"
-
-    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" |
-        _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    _os_detect || return 1
+    if [[ "${DOTTOD_OS_FAMILY}" == debian ]]; then
+        _github_cli_apt_repo || return 1
+    fi
 
     log_step 'Installing GitHub CLI (gh)'
-    _install_packages 'gh'
+    _install_packages gh
 
     if ! _is_installed gh; then
         log_error 'GitHub CLI install did not yield a gh binary on PATH.'
@@ -156,30 +36,154 @@ function _github_cli_install() {
     return 0
 }
 
+# _github_cli_apt_repo: the signed GitHub CLI apt source (Debian family
+# only). Download-then-install: a failed download never produces a keyring.
+function _github_cli_apt_repo() {
+    local arch keyring tmp_key
+    arch="$(dpkg --print-architecture)"
+    keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
+
+    log_step 'Installing GitHub CLI prerequisites'
+    _install_packages curl ca_certificates gnupg
+
+    tmp_key="$(mktemp)"
+    log_step 'Adding GitHub CLI apt repository'
+    _download 'https://cli.github.com/packages/githubcli-archive-keyring.gpg' "${tmp_key}"
+    _priv install -m 0644 "${tmp_key}" "${keyring}"
+    rm -f "${tmp_key}"
+
+    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" |
+        _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    # The new source must be in the index before gh can resolve.
+    _priv env DEBIAN_FRONTEND=noninteractive apt-get update -qq
+}
+
+# Opt-in tools (default: none). DOT_TOOLS_EXTRA is a comma-separated list
+# of these names, or `all`; bootstrap's --extras sets it.
+readonly DOT_TOOLS_EXTRAS=(gh httpie chafa)
+
+# _extra_wanted <name>: 0 when DOT_TOOLS_EXTRA selects that tool.
+function _extra_wanted() {
+    local list=",${DOT_TOOLS_EXTRA:-},"
+    [[ "${list}" == *",all,"* || "${list}" == *",${1},"* ]]
+}
+
+function _extras_validate() {
+    local item known
+    local IFS=','
+    for item in ${DOT_TOOLS_EXTRA:-}; do
+        [[ -z "${item}" || "${item}" == all ]] && continue
+        for known in "${DOT_TOOLS_EXTRAS[@]}"; do
+            [[ "${item}" == "${known}" ]] && continue 2
+        done
+        log_error "Unknown extra tool '${item}' (want: ${DOT_TOOLS_EXTRAS[*]}, or all)"
+        return 1
+    done
+    return 0
+}
+
+# _tools_alias <name> <other>: when only one of two spellings of a tool
+# is on PATH, link the missing one to it in ~/.local/bin.
+function _tools_alias() {
+    local a=${1} b=${2} have
+    if _is_installed "${a}" && ! _is_installed "${b}"; then
+        have="$(command -v "${a}")"
+        ln -sfn "${have}" "$(_ensure_local_bin)/${b}"
+        log_info "Linked ${b} -> ${have}"
+    elif _is_installed "${b}" && ! _is_installed "${a}"; then
+        have="$(command -v "${b}")"
+        ln -sfn "${have}" "$(_ensure_local_bin)/${a}"
+        log_info "Linked ${a} -> ${have}"
+    fi
+}
+
+# The core tools by command name (bat may be batcat on Debian).
+readonly DOT_TOOLS_CORE=(btop xclip bat jq curl tar lsof fzf shellcheck bats shfmt just)
+
+function _tools_status() {
+    local tool missing=() present=0
+    for tool in "${DOT_TOOLS_CORE[@]}"; do
+        if command -v "${tool}" >/dev/null 2>&1 ||
+            { [[ "${tool}" == bat ]] && command -v batcat >/dev/null 2>&1; }; then
+            present=$((present + 1))
+        else
+            missing+=("${tool}")
+        fi
+    done
+    local extra_present=0 extra_missing=() selected=()
+    for tool in "${DOT_TOOLS_EXTRAS[@]}"; do
+        local cmd=${tool}
+        [[ "${tool}" == httpie ]] && cmd=http
+        if command -v "${cmd}" >/dev/null 2>&1; then
+            extra_present=$((extra_present + 1))
+        else
+            extra_missing+=("${tool}")
+        fi
+        if _extra_wanted "${tool}"; then selected+=("${tool}"); fi
+    done
+    cat <<EOF
+Tools
+-----
+Core:      ${present}/${#DOT_TOOLS_CORE[@]} present${missing[*]:+ (missing: ${missing[*]})}
+Extras:    ${extra_present}/${#DOT_TOOLS_EXTRAS[@]} present${extra_missing[*]:+ (missing: ${extra_missing[*]})}
+Selected:  ${selected[*]:-none} (DOT_TOOLS_EXTRA)
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: tools.sh [status]
+
+  (no args)  install the core tools and the extras DOT_TOOLS_EXTRA selects
+  status     print which tools are present, without changing anything
+EOF
+}
+
 function _main() {
-    local go_arch rust_arch
-    go_arch="$(_go_arch)"
-    rust_arch="$(_rust_arch)"
+    case "${1:-}" in
+        '') ;;
+        status)
+            _tools_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
 
-    log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
+    _extras_validate
 
-    _github_cli_install
+    log_step 'Installing CLI tools (native packages)'
+    _install_packages btop xclip bat jq curl tar ca_certificates lsof fzf shellcheck bats shfmt just
 
-    if ! _is_installed batcat && _is_installed bat; then
-        ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"
-        log_info 'Created batcat alias -> bat'
+    # Debian renames bat and fd (batcat, fdfind); other distros don't.
+    # Link the missing spelling so both names work everywhere.
+    _tools_alias bat batcat
+    _tools_alias fd fdfind
+
+    local pkg_extras=()
+    _extra_wanted httpie && pkg_extras+=(httpie)
+    _extra_wanted chafa && pkg_extras+=(chafa)
+    if ((${#pkg_extras[@]} > 0)); then
+        log_step "Installing opt-in tools (native packages): ${pkg_extras[*]}"
+        _install_packages "${pkg_extras[@]}"
     fi
 
-    # NOTE: lazygit upstream names Linux assets lowercase (`linux_`);
-    # lazydocker still uses `Linux_`. Patterns are per-repo on purpose.
-    _github_tarball_install 'jesseduffield/lazygit' 'lazygit' "linux_${go_arch}.tar.gz"
-    _github_tarball_install 'jesseduffield/lazydocker' 'lazydocker' "Linux_${go_arch}.tar.gz"
-    _github_tarball_install 'derailed/k9s' 'k9s' "Linux_${rust_arch}.tar.gz"
-    _github_binary_install 'unkn0wn-root/resterm' 'resterm' 'resterm_Linux_'
+    if _extra_wanted gh; then
+        _github_cli_install
+    fi
 
     log_ok 'Tools installed'
     return 0
 }
 
-_main "$@"
+if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
+    _main "$@"
+fi

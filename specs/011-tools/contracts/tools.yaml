@@ -2,13 +2,12 @@
 task: tools
 script: bin/tools.sh
 flags: []
-apt_set: [btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf]
-apt_repo: {gh: 'https://cli.github.com/packages stable main (signed keyring)'}
-github_installs:
-  - {repo: "jesseduffield/lazygit", binary: lazygit, kind: tarball, arch: "linux_<go_arch> (lowercase upstream)"}
-  - {repo: "jesseduffield/lazydocker", binary: lazydocker, kind: tarball, arch: "Linux_<go_arch>"}
-  - {repo: "derailed/k9s", binary: k9s, kind: tarball, arch: "Linux_<rust_arch>"}
-  - {repo: "unkn0wn-root/resterm", binary: resterm, kind: binary, pattern: "resterm_Linux_"}
+env:
+  DOT_TOOLS_EXTRA: {default: "", note: "comma list of extras, or all; bootstrap --extras sets it"}
+core_packages: [btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt, just]
+extras:
+  native: [httpie, chafa, gh]
+  apt_repo_debian_only: {gh: 'https://cli.github.com/packages stable main (signed keyring)'}
 file_effects:
-  - {path: "~/.local/bin/<tool>", action: install-if-missing, mode: "0755"}
+  - {path: "~/.local/bin/{bat,batcat,fd,fdfind}", action: link-missing-spelling}
 idempotency: PATH-or-dest presence probe per tool

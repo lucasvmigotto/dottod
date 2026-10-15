@@ -12,7 +12,7 @@
 #   _DOT_BUN_VERSION       bun tag (default latest; e.g. bun-v1.2.0)
 #   _DOT_BUN_GITHUB        GitHub base for mirror override (default https://github.com)
 #   _DOT_TARGET_USER       target user (default id -un)
-#   _DOT_NO_PACKAGES       1 skips apt (tests)
+#   _DOT_NO_PACKAGES       1 skips package installs (tests)
 #
 # Usage: bun.sh [""] | status | --help|-h
 #   ("")     ensure bun (idempotent skip when bun exists)
@@ -25,31 +25,37 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 _DOT_BUN_VERSION_DEFAULT='latest'
 _DOT_BUN_GITHUB_DEFAULT='https://github.com'
 
+# Release target: linux-<arch>, plus -musl on musl systems (Alpine), where
+# the glibc build cannot run. An unknown libc gets the glibc build; the
+# runnable check after install refuses it if that guess was wrong.
 function _bun_arch() {
+    local arch
     case "$(uname -m)" in
-        x86_64 | amd64) printf 'linux-x64' ;;
-        arm64 | aarch64) printf 'linux-aarch64' ;;
+        x86_64 | amd64) arch='linux-x64' ;;
+        arm64 | aarch64) arch='linux-aarch64' ;;
         *) return 1 ;;
     esac
+    [[ "$(_os_libc)" == musl ]] && arch+='-musl'
+    printf '%s' "${arch}"
 }
 
-# Digest for a release asset from the public GitHub API. Prints the sha256
-# hex or nothing (mirror overrides have no API; caller warns and proceeds).
-function _bun_api_digest() {
-    local api_url=${1:?'API URL must be informed'}
+# sha256 for a release asset from the release's own SHASUMS256.txt
+# (published next to every Bun asset). Needs only curl: no JSON parser,
+# so minimal systems without python3 still verify, and mirrors that copy
+# the file verify too. Prints the hex digest, or nothing when the file or
+# the entry is missing (caller warns and proceeds).
+function _bun_shasum() {
+    local sums_url=${1:?'SHASUMS URL must be informed'}
     local asset_name=${2:?'Asset name must be informed'}
-
-    curl -fsSL "${api_url}" 2>/dev/null | python3 -c '
-import json,sys
-try:
-    data = json.load(sys.stdin)
-except Exception:
-    sys.exit(1)
-for a in data.get("assets", []):
-    if a.get("name") == sys.argv[1]:
-        print((a.get("digest") or "").removeprefix("sha256:"))
-        break
-' "${asset_name}" 2>/dev/null || true
+    local sums hash name
+    sums="$(curl -fsSL "${sums_url}" 2>/dev/null)" || return 0
+    while read -r hash name; do
+        if [[ "${name#\*}" == "${asset_name}" && "${hash}" =~ ^[0-9a-f]{64}$ ]]; then
+            printf '%s' "${hash}"
+            return 0
+        fi
+    done <<<"${sums}"
+    return 0
 }
 
 # Resolve the zip download URL and its sha256 digest for a version.
@@ -62,19 +68,16 @@ function _bun_zip_asset() {
     local asset_name="bun-${target}.zip"
     local url digest=""
 
+    local base
     if [[ "${version}" == 'latest' ]]; then
-        url="${github}/oven-sh/bun/releases/latest/download/${asset_name}"
-        if [[ "${github}" == "${_DOT_BUN_GITHUB_DEFAULT}" ]]; then
-            digest="$(_bun_api_digest 'https://api.github.com/repos/oven-sh/bun/releases/latest' "${asset_name}")"
-        fi
+        base="${github}/oven-sh/bun/releases/latest/download"
     else
         local tag="${version}"
         [[ "${tag}" == bun-v* ]] || tag="bun-v${version#v}"
-        url="${github}/oven-sh/bun/releases/download/${tag}/${asset_name}"
-        if [[ "${github}" == "${_DOT_BUN_GITHUB_DEFAULT}" ]]; then
-            digest="$(_bun_api_digest "https://api.github.com/repos/oven-sh/bun/releases/tags/${tag}" "${asset_name}")"
-        fi
+        base="${github}/oven-sh/bun/releases/download/${tag}"
     fi
+    url="${base}/${asset_name}"
+    digest="$(_bun_shasum "${base}/SHASUMS256.txt" "${asset_name}")"
 
     if [[ -z "${url}" ]]; then
         log_error "No asset '${asset_name}' for Bun ${version}"
@@ -101,11 +104,17 @@ function _bun_install_runtime() {
         log_error "Unsupported architecture '$(uname -m)' for Bun."
         return 1
     }
-    read -r url digest <<<"$(_bun_zip_asset "${version}" "${target}")"
     dest="$(_ensure_local_bin)/bun"
 
+    # Prerequisites first: the checksum lookup below needs curl, and on a
+    # fresh system it would otherwise come back empty (installing unverified).
     log_step 'Installing Bun prerequisites'
-    _install_packages 'curl ca-certificates unzip'
+    _install_packages curl ca_certificates unzip
+    # The musl build links the C++ runtime, absent from a base Alpine.
+    if [[ "$(_os_libc)" == musl ]]; then
+        _install_packages cxx_runtime
+    fi
+    read -r url digest <<<"$(_bun_zip_asset "${version}" "${target}")"
 
     tmpdir="$(mktemp -d)"
     log_step "Installing Bun ${version} (${target}) with sha256 verification"
@@ -132,14 +141,24 @@ function _bun_install_runtime() {
         log_error 'Bun install did not yield a bun binary on PATH.'
         return 1
     fi
+    if ! "${dest}" --version >/dev/null 2>&1; then
+        log_error "Installed ${dest} does not run on this system (libc: $(_os_libc)); removing it."
+        rm -f "${dest}"
+        return 1
+    fi
     log_ok "bun installed ($("${dest}" --version 2>/dev/null))"
     return 0
 }
 
-# devcontainer CLI via a bun global install (the user asked for bun as the
-# installer, not npm): idempotent presence probe, pinned package unless
-# overridden. Runs with the fresh binary directly — ambient PATH may not
-# have ~/.local/bin yet in this same run.
+# Marker on the line after the shebang of the wrapper dottod writes; a
+# devcontainer file without it is the user's and is never overwritten.
+_DOT_DEVCONTAINER_MARKER='# dottod: devcontainer CLI on Bun (no Node.js)'
+
+# devcontainer CLI, installed and run by Bun: `bun install --global`, then
+# a ~/.local/bin/devcontainer wrapper that runs the CLI with `bun --bun`.
+# The package's own launcher starts with `#!/usr/bin/env node`; the
+# wrapper (first on PATH) makes Node.js unnecessary, so no distro ever
+# installs or compiles it for this. Pinned package unless overridden.
 function _bun_devcontainer() {
     local package=${_DOT_DEVCONTAINER_PACKAGE:-'@devcontainers/cli@latest'}
 
@@ -148,37 +167,42 @@ function _bun_devcontainer() {
         return 0
     fi
 
-    local bun_bin
+    local bun_bin wrapper cli
     bun_bin="$(_ensure_local_bin)/bun"
+    wrapper="$(_ensure_local_bin)/devcontainer"
     if [[ ! -x "${bun_bin}" ]]; then
         log_warn 'bun binary missing; skipping devcontainer CLI install.'
         return 0
     fi
-
-    # The devcontainer CLI is a Node script (#!/usr/bin/env node): ensure a
-    # runtime exists, escalating only when it is actually missing.
-    if ! command -v node >/dev/null 2>&1; then
-        log_step 'Installing Node.js runtime (for the devcontainer CLI)'
-        _install_packages 'nodejs'
+    if [[ -e "${wrapper}" ]] && ! grep -qxF "${_DOT_DEVCONTAINER_MARKER}" "${wrapper}" 2>/dev/null; then
+        log_warn "${wrapper} exists and is not dottod's; leaving it alone."
+        return 0
     fi
 
-    log_step "Installing devcontainer CLI (${package})"
+    log_step "Installing devcontainer CLI (${package}) with Bun"
     if ! "${bun_bin}" install --global "${package}" >/dev/null 2>&1; then
         log_error 'devcontainer CLI install failed.'
         return 1
     fi
 
-    # `bun install --global` links binaries into the bun home's bin dir
-    # (~/.bun/bin by default), which config/.custom.bashrc already puts on
-    # PATH — accept that location as well as ~/.local/bin.
-    local bun_home_bin="${BUN_INSTALL:-"${HOME}/.bun"}/bin/devcontainer"
-    if [[ ! -x "$(_ensure_local_bin)/devcontainer" ]] &&
-        [[ ! -x "${bun_home_bin}" ]] &&
-        ! _is_installed devcontainer; then
-        log_error 'devcontainer CLI install did not yield a devcontainer binary on PATH.'
+    cli="${BUN_INSTALL:-"${HOME}/.bun"}/install/global/node_modules/@devcontainers/cli/devcontainer.js"
+    if [[ ! -f "${cli}" ]]; then
+        log_error "devcontainer CLI install did not yield ${cli}."
         return 1
     fi
-    log_ok 'devcontainer CLI installed'
+
+    {
+        printf '#!/bin/sh\n'
+        printf '%s\n' "${_DOT_DEVCONTAINER_MARKER}"
+        printf 'exec "%s" --bun "%s" "$@"\n' "${bun_bin}" "${cli}"
+    } >"${wrapper}"
+    chmod 0755 "${wrapper}"
+
+    if ! "${wrapper}" --version >/dev/null 2>&1; then
+        log_error "${wrapper} does not run the devcontainer CLI under Bun."
+        return 1
+    fi
+    log_ok "devcontainer CLI $("${wrapper}" --version 2>/dev/null) installed (runs on Bun)"
     return 0
 }
 

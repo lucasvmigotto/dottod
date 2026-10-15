@@ -15,8 +15,13 @@ setup() {
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME"
     export _DOT_NO_PACKAGES=1
+    # utils.sh replaces bats' EXIT trap; re-arm it so a failing test is
+    # reported by name instead of dropping out of the run.
+    local _bats_exit_trap
+    _bats_exit_trap="$(trap -p EXIT)"
     # shellcheck disable=SC1091
     source "$REPO_ROOT/bin/vim.sh"
+    eval "${_bats_exit_trap}"
     set +u
 }
 

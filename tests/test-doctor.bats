@@ -106,3 +106,69 @@ seed_update_state() {
     assert_eq 'doctor rc 0' '0' "$status"
     assert_contains 'pending update warns' '1.2.0 → 1.3.0' "$output"
 }
+
+# doctor_with_containers <podman: 1|0>: doctor with the container helpers
+# loaded (as config/.custom.bashrc does) against a fake host.
+doctor_with_containers() {
+    local bin="$BATS_TEST_TMPDIR/ctrbin" root="$BATS_TEST_TMPDIR/host"
+    mkdir -p "$bin" "$root/proc/sys/user" "$root/sys/fs/cgroup" "$root/run/openrc" "$root/etc"
+    printf '15000\n' >"$root/proc/sys/user/max_user_namespaces"
+    printf '%s:100000:65536\n' "$(id -un)" | tee "$root/etc/subuid" >"$root/etc/subgid"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/newuidmap"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/podman"
+    chmod +x "$bin"/*
+    # Presence decided here, whatever the host has: without podman,
+    # `command -v podman` is answered "absent" (a host /usr/bin/podman
+    # can't be hidden through PATH without hiding /usr/bin itself).
+    local hide=''
+    [[ "$1" == 1 ]] || hide='command() { [[ "$1 $2" == "-v podman" ]] && return 1; builtin command "$@"; }'
+    _DOT_CTR_ROOT="$root" PATH="$bin:$PATH" bash -i -c "
+        source '$REPO_ROOT/scripts/.container.utils.sh' >/dev/null 2>&1
+        source '$REPO_ROOT/scripts/.doctor.sh' >/dev/null 2>&1
+        ${hide}
+        dottod-doctor
+    " 2>/dev/null
+}
+
+@test "podman section reports rootless prerequisites when podman is installed" {
+    run doctor_with_containers 1
+    assert_contains 'subids ok' "[ok] podman: subuid/subgid ranges for $(id -un)" "$output"
+    assert_contains 'openrc cgroup hint' '[warn] podman: cgroup v1/hybrid under OpenRC' "$output"
+}
+
+@test "podman section stays quiet without podman" {
+    run doctor_with_containers 0
+    assert_eq 'no podman lines' '0' "$(grep -c 'podman:' <<<"$output" || true)"
+}
+
+# doctor_distro <fixture> [manager to stub]: doctor against an os-release
+# fixture, with only the named package manager stubbed on PATH.
+doctor_distro() {
+    local bin="$BATS_TEST_TMPDIR/distrobin"
+    mkdir -p "$bin"
+    if [[ -n "${2:-}" ]]; then
+        printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/$2"
+        chmod +x "$bin/$2"
+    fi
+    _DOT_OS_RELEASE_FILE="$REPO_ROOT/tests/fixtures/os-release/$1" PATH="$bin:$PATH" doctor_run
+}
+
+@test "distro line names the family, manager and libc" {
+    run doctor_distro gentoo emerge
+    assert_contains 'gentoo ok' '[ok] distro: gentoo 2.18 (gentoo family, emerge,' "$output"
+}
+
+@test "distro line warns when the family's manager is missing" {
+    # Hide dnf whatever the host has (exported into the doctor's shell).
+    command() { [[ "$1 $2" == "-v dnf" ]] && return 1; builtin command "$@"; }
+    export -f command
+    run doctor_distro fedora
+    unset -f command
+    assert_contains 'missing dnf' "dnf not on PATH" "$output"
+    assert_contains 'is a warning' '[warn] distro: fedora' "$output"
+}
+
+@test "distro line warns on an unsupported distribution" {
+    run doctor_distro unknown
+    assert_contains 'unsupported' "[warn] distro: unsupported distribution 'nixos'" "$output"
+}

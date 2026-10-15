@@ -1,6 +1,8 @@
 # dottod
 
-Personal dotfiles and workstation bootstrap for Debian (GNOME). Reproducibly
+Personal dotfiles and workstation bootstrap for Debian/Ubuntu, Gentoo,
+Arch, Fedora and Alpine (see [docs/distributions.md](docs/distributions.md)
+for what is verified where). Reproducibly
 recreates a plain-bash terminal environment (lightweight prompt, no plugins),
 fonts, editor, terminal, CLI tooling, container runtime
 (Podman by default), and GitHub SSH configuration after a reset or fresh install.
@@ -24,12 +26,11 @@ tests/     BATS test suites (run with ./tests/run.sh)
 | `fonts`     | `bin/fonts.sh`    | Installs Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono) |
 | `vim`       | `bin/vim.sh`      | Installs vim + vim-plug, links `~/.vimrc`, installs plugins         |
 | `neovim`    | `bin/neovim.sh`   | Installs Neovim (>= 0.11) + lazy.nvim config (zero external deps), links `~/.config/nvim` (see [docs/neovim.md](docs/neovim.md); vim stays untouched) |
-| `container` | `bin/container.sh`| Container runtime: Podman by default, Docker when selected          |
-| `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download)             |
-| `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
+| `container` | `bin/container.sh`| Container runtime: rootless Podman                                  |
+| `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download; opt-in via `--ui`) |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
 | `ssh`       | `bin/ssh.sh`      | Merges GitHub host config into `~/.ssh/config` (never overwrites)   |
-| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh |
+| `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
 
@@ -37,7 +38,9 @@ tests/     BATS test suites (run with ./tests/run.sh)
 
 ### Prerequisites
 
-- Debian (or Debian-based) system with `apt`.
+- Debian/Ubuntu, Gentoo, Arch, Fedora or Alpine; dottod detects it and uses
+  its package manager (anything else is refused before any install). On
+  Alpine, install `bash` first. See [docs/distributions.md](docs/distributions.md).
 - `sudo` or `doas`; if not passwordless, the scripts prompt once for the
   password (needs a TTY) — otherwise run as root.
 - BATS (`bats` package) only to run the shell test suites — not needed
@@ -78,7 +81,7 @@ Extract and run:
 
 ```bash
 mkdir -p ~/dottod
-tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/dottod/config/ + ~/dottod/scripts/
+tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + lib/ + config/ + scripts/
 ~/dottod/bin/bootstrap.sh
 ```
 
@@ -86,7 +89,7 @@ tar -xzf "dottod-scripts-${V}.tar.gz" -C ~/dottod      # → ~/dottod/bin/ + ~/d
 
 Each release ships two assets:
 
-- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `config/` + `scripts/`)
+- `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `lib/` + `config/` + `scripts/`)
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
 
 ## Usage
@@ -103,22 +106,34 @@ Select or exclude tasks:
 
 ```bash
 ./bin/bootstrap.sh --only shell,tools
-./bin/bootstrap.sh --skip ghostty,zed
+./bin/bootstrap.sh --skip fonts,cargo
 ./bin/bootstrap.sh --only vim,neovim
 ```
 
-GUI tasks (`zed`, `ghostty`) are skipped by default — the CLI is
-terminal-first. Pass `--ui` to include them.
+GUI tasks (`zed`) are skipped by default — the CLI is terminal-first.
+Pass `--ui` to include them.
+
+The `tools` task installs only the native-package baseline. Extra tools
+are opt-in (all off by default): `gh`, `httpie`, `chafa`, or `all`:
+
+```bash
+./bin/bootstrap.sh --only tools --extras gh,httpie
+DOT_TOOLS_EXTRA=all ./bin/tools.sh
+```
 
 Flags:
 
 - `--only <list>` — run only the given comma-separated tasks
 - `--skip <list>` — skip the given comma-separated tasks
-- `--ui` — include GUI tasks (`zed ghostty`)
+- `--ui` — include GUI tasks (`zed`)
+- `--extras <list>` — opt-in tools for the `tools` task (sets `DOT_TOOLS_EXTRA`)
 - `--no-ui` — skip GUI tasks (the default; explicit form of omitting `--ui`)
 - `--parallel` — run tasks concurrently instead of sequentially
 - `--yes` — assume yes for prompts
 - `--verbose` / `-v` — stream full output
+- `--status` — print every selected task's read-only status report
+  (honours `--only`, `--skip` and `--ui`); one task alone is
+  `./bin/<task>.sh status`
 - `--list` / `-l` — list available tasks
 
 ### Task runner
@@ -178,6 +193,7 @@ claude              # pick a profile (fzf) — defaults to personal headless
 claude -P work      # one profile for this invocation (--profile works too)
 claude-profile add extra   # new overlay (links shared store, own login)
 claude-profile ls          # profiles with login state
+claude-profile consolidate # fold profiles' private history/projects into ~/.claude
 ```
 
 First run builds the overlay; a fresh profile asks for `/login`. Configure
@@ -223,16 +239,15 @@ corresponding tasks. Edit them there and re-run the task to reapply.
 * GitHub SSH: see `docs/ssh.md`; `config/.ssh.config` is the template of
   required options merged into `~/.ssh/config` by the `ssh` task, which also
   generates an `ed25519` key at `~/.ssh/github` when none exists.
-* Container runtime: see `docs/containers.md`; Podman by default, Docker via
-  `_DOT_CONTAINER_RUNTIME=docker` (or `--runtime docker`); `bin/docker.sh`
-  stays directly runnable for Docker-only setups.
+* Container runtime: see `docs/containers.md`; rootless Podman only.
 
 ## Design notes
 
 - **Idempotent**: every task checks for an existing install before acting.
 - **Failsafe**: `set -Eeuo pipefail`, per-task isolation, backup of existing
   dotfiles (suffixed `.dottod.bak`), curl retries, and a final PASS/FAIL summary.
-- **Parallelism**: `--parallel` runs tasks concurrently; apt operations are
-  serialized by dpkg's own lock.
-- **Terminal-first**: GUI tasks (`zed`, `ghostty`) never run unless `--ui`
+- **Parallelism**: `--parallel` runs tasks concurrently; dottod serializes
+  its own package transactions with a lock, and refreshes the package index
+  once per run.
+- **Terminal-first**: GUI tasks (`zed`) never run unless `--ui`
   is passed.

@@ -117,7 +117,7 @@ export function generateLlmsOutput(outDir: string): void {
   const lines: string[] = [
     "# dottod",
     "",
-    "> Rebuild a Debian workstation with one plain-bash command. Tasks, guides, and reference for dottod.",
+    "> Rebuild a Linux workstation (Debian/Ubuntu, Gentoo, Arch, Fedora, Alpine) with one plain-bash command. Tasks, guides, and reference for dottod.",
     "",
   ];
   for (const group of NAV_GROUPS) {
