@@ -7,6 +7,18 @@ generated from Conventional Commits since the last tag.
 
 ## Unreleased
 
+### Added
+
+- **A `status` action on every task.** `<task>.sh status` prints a
+  read-only report (installed versions, linked config, identity, keys,
+  fonts, tools) for shell, fonts, vim, zed, gitconfig, ssh and tools,
+  joining neovim, container, cargo and bun. `bootstrap.sh --status` prints
+  every report and honours `--only`, `--skip` and `--ui`. Nothing is
+  installed, written or asked.
+- **Docs.** The Commands page documents the status reports with a vhs
+  demo, the `--help` demo is re-recorded with `--status`, and the Roadmap
+  lists what 2.0.0 delivers. The "Deliberately not planned" list is gone.
+
 ### Fixed
 
 - **Docs guide pages.** Sidebar, search and "Next" links pointed guides

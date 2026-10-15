@@ -889,6 +889,10 @@ const pages: Record<PageId, DocPage> = {
               ["--no-ui", "pula tarefas GUI (o padrão)"],
               ["--yes", "assume sim nos prompts"],
               ["--verbose, -v", "mostra saída completa das tarefas"],
+              [
+                "--status",
+                "imprime o relatório status de cada tarefa selecionada (não muda nada)",
+              ],
               ["--list, -l", "lista tarefas e sai"],
               ["--help, -h", "mostra ajuda"],
             ],
@@ -902,6 +906,30 @@ const pages: Record<PageId, DocPage> = {
         ],
       },
       {
+        id: "status",
+        heading: "Relatórios de status",
+        maturity: "implemented",
+        blocks: [
+          {
+            kind: "p",
+            text: "Toda tarefa responde a status com um relatório somente leitura: o que está instalado, linkado ou configurado, sem instalar, gravar ou perguntar nada. bootstrap.sh --status imprime todos os relatórios e respeita --only, --skip e --ui; uma tarefa sozinha roda como <tarefa>.sh status (fonts.sh status também aceita nomes de fontes).",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Relatórios de status",
+            code: "./bin/bootstrap.sh --status\n./bin/bootstrap.sh --status --only ssh,gitconfig\n./bin/ssh.sh status\n./bin/fonts.sh status FiraCode",
+          },
+          {
+            kind: "demo",
+            gif: "status-report.gif",
+            alt: "Gravação de terminal: bootstrap.sh --status imprimindo os relatórios de shell, vim e tools.",
+            transcript:
+              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/7 present (missing: gh lazygit lazydocker k9s resterm httpie chafa)\nSelected:  none (DOT_TOOLS_EXTRA)",
+          },
+        ],
+      },
+      {
         id: "demo",
         heading: "Demo",
         blocks: [
@@ -910,7 +938,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Gravação de terminal: saída de bootstrap.sh --help, depois a lista de tarefas.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,\n                     k9s, resterm, httpie, chafa, or all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,\n                     k9s, resterm, httpie, chafa, or all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
           },
         ],
       },
@@ -1057,39 +1085,30 @@ const pages: Record<PageId, DocPage> = {
   roadmap: {
     id: "roadmap",
     title: "Roteiro",
-    summary: "O que está especificado mas não construído.",
-    maturity: "planned",
+    summary: "O que entrou na 2.0.0, e como trabalho novo entra na lista.",
     sections: [
       {
-        id: "planned",
-        heading: "Planejado",
-        maturity: "planned",
+        id: "delivered",
+        heading: "Entregue na 2.0.0",
+        maturity: "implemented",
         blocks: [
-          {
-            kind: "p",
-            text: "Estes itens existem como especificações, não código. Estão aqui para o status ser honesto — nada abaixo é apresentado como funcionando.",
-          },
           {
             kind: "ul",
             items: [
-              "Ações status por tarefa (superfície uniforme de verificação).",
-              "Demos de terminal vhs para a referência de comandos.",
-              "Tradução pt-BR dos guias restantes.",
+              "Ações status por tarefa: toda tarefa responde a <tarefa>.sh status com um relatório somente leitura, e bootstrap.sh --status imprime todos (veja Comandos).",
+              "Demos de terminal vhs na referência de comandos: bootstrap.sh --help e bootstrap.sh --status, renderizadas de novo pela CI da documentação a cada mudança.",
+              "Tradução pt-BR de todos os guias.",
             ],
           },
         ],
       },
       {
-        id: "decisions",
-        heading: "Deliberadamente fora",
+        id: "planned",
+        heading: "Planejado",
         blocks: [
           {
-            kind: "ul",
-            items: [
-              "LSP, Treesitter, formatadores e linters na config Neovim (removidos por design).",
-              "Instalador one-liner do dottod (um curl|sh flagship contradiz a postura download-then-run).",
-              "Histórias multi-usuário ou de time (escopo single-user, confirmado).",
-            ],
+            kind: "p",
+            text: "Nada está planejado agora. Trabalho novo começa como especificação em specs/ e aparece aqui, marcado como Planejado, até ser construído.",
           },
         ],
       },

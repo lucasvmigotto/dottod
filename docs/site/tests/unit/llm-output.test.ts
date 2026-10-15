@@ -43,8 +43,17 @@ test("llms-full.txt contains every page", () => {
 });
 
 test("non-implemented items carry maturity labels in Markdown", () => {
-  const roadmap = pageToMarkdown(enUS, "en-US", "roadmap");
-  expect(roadmap).toContain("**Planned — not implemented yet.**");
+  // Whatever is planned at the time: mark a roadmap section Planned on a copy
+  // and the Markdown must say so in words, not only with a badge.
+  const content = structuredClone(enUS);
+  const section = content.pages.roadmap.sections.find(
+    (s) => s.id === "planned",
+  );
+  if (!section) throw new Error("roadmap has no planned section");
+  section.maturity = "planned";
+  expect(pageToMarkdown(content, "en-US", "roadmap")).toContain(
+    "**Planned — not implemented yet.**",
+  );
   for (const pageId of PAGE_IDS) {
     const md = pageToMarkdown(enUS, "en-US", pageId);
     expect(md).not.toContain("undefined");

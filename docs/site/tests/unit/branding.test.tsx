@@ -18,5 +18,5 @@ test("brand voice: title, transcript hero, no filler", async () => {
 
 test("maturity is visible, not color-only", () => {
   harness(<App />, "/roadmap");
-  expect(screen.getAllByText("Planned").length).toBeGreaterThan(0);
+  expect(screen.getAllByText("Implemented").length).toBeGreaterThan(0);
 });

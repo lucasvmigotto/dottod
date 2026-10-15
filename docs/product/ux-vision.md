@@ -205,7 +205,8 @@ favicon and OG image derived from it. (No pre-existing mark.)
 
 ## Open questions
 
-1. `vhs` demos — deferred (not installed); follow-up phase.
+1. ~~`vhs` demos~~ — resolved: tapes in `docs/site/tapes/`, rendered by
+   docs CI with vhs 0.12.1 (`bootstrap.sh --help`, the status reports).
 2. Historical pages (`introspec`/`retrofit`, the removed zsh/sysinfo stack)
    stay repo-only; Architecture links to them as history.
 
