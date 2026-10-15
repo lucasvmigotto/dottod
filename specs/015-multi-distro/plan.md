@@ -210,3 +210,26 @@ lookup ran before its prerequisites, so a fresh system without curl
 installed Bun unverified; prerequisites now come first. Verified on
 debian:trixie and alpine:3.22: Bun sha256-verified, devcontainer 0.89.0
 on Bun, no Node.js installed.
+
+**Phase 6 (2026-10-15)**, container task in containers (2 GiB / 2 CPU):
+
+| Distro | Install | Rootless helpers | Status |
+|---|---|---|---|
+| alpine:3.22 | `podman shadow shadow-subids` in one transaction | usermod + newuidmap present; root got `100000:65536` | all four host checks ok |
+| fedora:42 | `podman` (helpers already in the base) | usermod + newuidmap present | Podman usable (rootful as root) |
+
+Nested Podman inside a rootless container is not a meaningful rootless
+test; the real check is milestone G2 on the Gentoo laptop (OpenRC:
+watch the cgroup v2 finding and its `rc_cgroup_mode` hint).
+
+Status and `dottod-doctor` (only where podman is installed) report user
+namespaces, subid ranges, newuidmap and cgroup v2, read-only. When every
+host check passes but Podman still fails, the task prints `podman info`'s
+own error; as root, status says rootful and skips rootless checks.
+
+Found on the way: `tests/test-container.bats` ran with errexit off, so
+every assertion but a test's last could fail silently. Turning it back on
+exposed "ensure fails when podman is missing" passing through a host
+`/usr/bin/podman`. Three more suites now re-arm bats' trap. The status
+suite's "writes nothing" check depended on the host's real cargo and
+podman; it now stubs them.

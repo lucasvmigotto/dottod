@@ -47,9 +47,9 @@ Same smoke on Arch, Fedora, Alpine, Debian before moving on.
 - [x] T052 `test-neovim.bats` / `test-toolchain.bats`: per-backend candidate states, musl paths
 
 ## Phase 6 — container (`feat/container-distro`)
-- [ ] T060 `podman_rootless` logical set per family (uidmap / shadow); Alpine installs `shadow` before `usermod`
-- [ ] T061 `container.sh status` + `dottod-doctor`: user namespaces, subids, cgroup v2 (OpenRC `rc_cgroup_mode` hint) as findings — never edited
-- [ ] T062 tests for each finding; integration `podman-hello.sh` unchanged
+- [x] T060 `podman_rootless` logical set per family (uidmap / shadow); Alpine installs `shadow` before `usermod`
+- [x] T061 `container.sh status` + `dottod-doctor`: user namespaces, subids, cgroup v2 (OpenRC `rc_cgroup_mode` hint) as findings — never edited
+- [x] T062 tests for each finding; integration `podman-hello.sh` unchanged
 
 ## Phase 7 — tools and zed (`feat/tools-distro`)
 - [ ] T070 `bat`/`batcat` and `fd`/`fdfind` aliases both directions; `.bat.utils.sh` and nvim health use whichever exists
