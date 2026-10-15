@@ -12,11 +12,11 @@ setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
 }
 
-@test "bootstrap lists the eleven tasks in order" {
+@test "bootstrap lists the twelve tasks in order" {
     run "$REPO_ROOT/bin/bootstrap.sh" --list
     assert_eq 'list rc 0' '0' "$status"
     assert_eq 'task order' \
-        "$(printf 'shell\nfonts\nvim\nneovim\ncontainer\nzed\ngitconfig\nssh\ntools\ncargo\nbun')" \
+        "$(printf 'shell\nfonts\nvim\nneovim\ncontainer\nzed\ngitconfig\nssh\ntools\ncargo\nbun\nsecrets')" \
         "$output"
 }
 

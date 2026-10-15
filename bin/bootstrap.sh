@@ -4,8 +4,10 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim neovim container zed gitconfig ssh tools cargo bun)
+readonly DOT_TASKS=(shell fonts vim neovim container zed gitconfig ssh tools cargo bun secrets)
 readonly DOT_UI_TASKS=(zed)
+# Opt-in tasks run only when --only names them (never in a default run).
+readonly DOT_OPTIN_TASKS=(secrets)
 
 function _in_list() {
     local needle=${1}
@@ -50,6 +52,7 @@ Tasks:
   tools     btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just (+ --extras)
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
+  secrets   pass + container registry logins through it (opt-in: --only secrets)
 EOF
 }
 
@@ -196,6 +199,10 @@ function _main() {
     local task
     for task in "${DOT_TASKS[@]}"; do
         if [[ -n "${only}" ]] && [[ ",${only}," != *",${task},"* ]]; then
+            continue
+        fi
+        if _in_list "${task}" "${DOT_OPTIN_TASKS[@]}" && [[ ",${only}," != *",${task},"* ]]; then
+            log_info "Skipping opt-in task (select it with --only ${task}): ${task}"
             continue
         fi
         if [[ "${with_ui}" == 0 ]] && _in_list "${task}" "${DOT_UI_TASKS[@]}"; then

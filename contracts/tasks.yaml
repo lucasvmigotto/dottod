@@ -20,6 +20,7 @@ tasks:
   - {id: tools, script: bin/tools.sh, ui: false, uses_packages: true}
   - {id: cargo, script: bin/cargo.sh, ui: false, uses_packages: true}
   - {id: bun, script: bin/bun.sh, ui: false, uses_packages: true}
+  - {id: secrets, script: bin/secrets.sh, ui: false, opt_in: true, uses_packages: true}
 bootstrap_flags: [--only LIST, --skip LIST, --extras LIST, --parallel, --ui, --no-ui, --yes, --verbose, --list, --help]
 conventions:
   packages: "uses_packages tasks install through lib/package.sh by logical name (lib/packages/<family>.sh); families debian, gentoo, arch, redhat (fedora), alpine; unknown distributions fail before any package command (spec 015)"
