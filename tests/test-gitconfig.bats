@@ -15,8 +15,13 @@ setup() {
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME"
     unset GIT_NAME GIT_EMAIL
+    # utils.sh replaces bats' EXIT trap; re-arm it so a failing test is
+    # reported by name instead of dropping out of the run.
+    local _bats_exit_trap
+    _bats_exit_trap="$(trap -p EXIT)"
     # shellcheck disable=SC1091
     source "$REPO_ROOT/bin/gitconfig.sh"
+    eval "${_bats_exit_trap}"
     set +u
 }
 

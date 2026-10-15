@@ -38,13 +38,18 @@ EOF
     export _DOT_CONTAINER_SUBGID_FILE="$BATS_TEST_TMPDIR/subgid"
     export PATH="$STUBBIN:$PATH"
 
+    # container.sh brings utils.sh, whose EXIT trap replaces bats' own:
+    # save and re-arm it. Errexit stays on so a failing assertion aborts
+    # and is reported (with `set +e`, every assertion but the last could
+    # fail silently); only nounset is relaxed for bats internals.
+    local _bats_exit_trap
+    _bats_exit_trap="$(trap -p EXIT)"
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../scripts/.container.utils.sh"
     # shellcheck disable=SC1091
     source "${BATS_TEST_DIRNAME}/../bin/container.sh"
-    # Sourced files enable strict mode; relax it — BATS manages errexit
-    # itself and assertions (not aborts) report failures.
-    set +e +u
+    eval "${_bats_exit_trap}"
+    set +u
 
     # Privilege safety: record-only, never executes.
     _priv() {
@@ -93,11 +98,14 @@ EOF
 }
 
 @test "ensure fails loudly when podman is missing" {
-    mv "$STUBBIN/podman" "$STUBBIN/podman.hidden"
+    # Absence through the probes, not PATH: hiding the stub let a host
+    # /usr/bin/podman answer instead (this test passed for the wrong
+    # reason while the suite ran with errexit off).
+    _ctr_installed() { return 1; }
+    _ctr_usable() { return 1; }
     run _podman_ensure
     assert_eq 'missing podman rc 1' '1' "$status"
     assert_eq 'no priv calls on missing' '0' "$(grep -c '^PRIV:' "$CALLS" || true)"
-    mv "$STUBBIN/podman.hidden" "$STUBBIN/podman"
 }
 
 @test "ensure attempts usermod exactly once when subids are missing" {
