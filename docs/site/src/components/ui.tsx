@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { useI18n } from "../i18n/index";
 import type { Block, Maturity, Section as SectionT } from "../i18n/types";
+import { Matrix } from "./matrix";
 
 export function StatusBadge({ maturity }: { maturity: Maturity }) {
   const { content } = useI18n();
@@ -39,6 +40,8 @@ function blockKey(block: Block, fallback: string): string {
       return `callout-${block.title ?? block.text.slice(0, 32)}`;
     case "demo":
       return `demo-${block.gif}`;
+    case "matrix":
+      return `matrix-${block.columns.map((c) => c.distro).join(",")}`;
   }
 }
 
@@ -169,6 +172,8 @@ export function BlockView({ block }: { block: Block }) {
           caption={block.caption}
         />
       );
+    case "matrix":
+      return <Matrix block={block} />;
     case "table":
       return (
         <div className="overflow-x-auto">

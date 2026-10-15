@@ -50,7 +50,7 @@ const MARKER: Record<Locale, (m: Maturity) => string> = {
   },
 };
 
-function blockToMarkdown(block: Block): string {
+function blockToMarkdown(block: Block, ui: DocsContent["ui"]): string {
   switch (block.kind) {
     case "p":
       return block.text;
@@ -70,6 +70,23 @@ function blockToMarkdown(block: Block): string {
       return `> **${block.title ?? "Note"}** — ${block.text}`;
     case "demo":
       return `![${block.alt}](demos/${block.gif})\n\n\`\`\`text\n${block.transcript}\n\`\`\``;
+    case "matrix": {
+      // Icons and tooltips on the site; their words here.
+      const head = `|  | ${block.columns.map((c) => c.label).join(" | ")} |`;
+      const sep = `| --- | ${block.columns.map(() => "---").join(" | ")} |`;
+      const rows = block.rows
+        .map(
+          (r) =>
+            `| ${r.label} | ${r.cells
+              .map(
+                (c) =>
+                  `${ui.matrixLabels[c.state]}${c.note ? ` — ${c.note}` : ""}`,
+              )
+              .join(" | ")} |`,
+        )
+        .join("\n");
+      return `${head}\n${sep}\n${rows}`;
+    }
   }
 }
 
@@ -80,6 +97,7 @@ export function pageToMarkdown(
   forFull = false,
 ): string {
   const page = content.pages[pageId];
+  const ui = content.ui;
   const lines: string[] = [`# ${page.title}`, "", `> ${page.summary}`, ""];
   if (page.maturity && page.maturity !== "implemented") {
     lines.push(MARKER[locale](page.maturity), "");
@@ -90,7 +108,7 @@ export function pageToMarkdown(
       lines.push(MARKER[locale](section.maturity), "");
     }
     for (const block of section.blocks) {
-      lines.push(blockToMarkdown(block), "");
+      lines.push(blockToMarkdown(block, ui), "");
     }
   }
   if (!forFull) {

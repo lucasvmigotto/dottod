@@ -75,6 +75,27 @@ export const PAGE_IDS: PageId[] = [
   "roadmap",
 ];
 
+/** Support-matrix cell state: one icon each, its meaning in ui.matrixLabels. */
+export type MatrixState =
+  | "ok"
+  | "partial"
+  | "pending"
+  | "notrun"
+  | "unsupported"
+  | "na";
+export type MatrixDistro =
+  | "debian"
+  | "ubuntu"
+  | "gentoo"
+  | "arch"
+  | "fedora"
+  | "alpine";
+/** A cell: its state (an icon) and the detail shown as its tooltip. */
+export interface MatrixCell {
+  state: MatrixState;
+  note?: string;
+}
+
 export type Block =
   | { kind: "p"; text: string }
   | { kind: "ul"; items: string[] }
@@ -87,7 +108,12 @@ export type Block =
       title?: string;
       text: string;
     }
-  | { kind: "demo"; gif: string; alt: string; transcript: string };
+  | { kind: "demo"; gif: string; alt: string; transcript: string }
+  | {
+      kind: "matrix";
+      columns: { distro: MatrixDistro; label: string }[];
+      rows: { label: string; cells: MatrixCell[] }[];
+    };
 
 export interface Section {
   id: string;
@@ -138,6 +164,9 @@ export interface UiStrings {
   footerNote: string;
   nextPage: string;
   maturityLabels: Record<Maturity, string>;
+  matrixLabels: Record<MatrixState, string>;
+  matrixLegend: string;
+  matrixRowHeader: string;
   groupLabels: Record<string, string>;
   notFoundTitle: string;
   notFoundText: string;
