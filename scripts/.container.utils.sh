@@ -29,7 +29,8 @@ function _ctr_usable() {
 function _ctr_version() {
     local out ver
     out="$(podman --version 2>/dev/null)" || return 1
-    ver="$(printf '%s' "${out}" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -n1)"
+    ver="$(printf '%s' "${out}" | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?')" || return 1
+    ver="${ver%%$'\n'*}"
     [[ -n "${ver}" ]] || return 1
     printf '%s' "${ver}"
 }

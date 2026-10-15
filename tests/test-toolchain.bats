@@ -8,7 +8,7 @@
 # stubs from the parent via exported variables:
 #   CARGO_STUB_VERSION   version string for the fake `cargo` (unset = absent)
 #   BUN_STUB_VERSION     version string for the fake `bun` (unset = absent)
-#   CURL_STUB_MODE       api-digest | api-no-digest | api-garbage | dl-fail
+#   CURL_STUB_MODE       sums (default) | sums-missing | sums-garbage | dl-fail
 #   CURL_STUB_DIGEST     sha256 hex the fake API reports (default abc123)
 #   FAKE_CARGO_HOME      cargo home the fake rustup-init plants into
 # HOME is redirected to a temp dir so `_ensure_local_bin` never touches the
@@ -65,28 +65,26 @@ if [[ "${1:-}" == "--version" ]]; then
 fi
 exit 0
 EOF
-    # Fake `curl`: serves the GitHub API or a download, per CURL_STUB_MODE.
-    # Modes: api-digest (default) | api-no-digest | api-garbage | dl-fail.
+    # Fake `curl`: serves SHASUMS256.txt or a download, per CURL_STUB_MODE.
+    # Modes: sums (default) | sums-missing | sums-garbage | dl-fail.
     cat >"$STUBBIN/curl" <<'EOF'
 #!/usr/bin/env bash
-is_api=0
 dest=""
 prev=""
 for a in "$@"; do
-    [[ "$a" == *"api.github.com"* ]] && is_api=1
     [[ "$prev" == "-o" ]] && dest="$a"
     prev="$a"
 done
-if [[ "${CURL_STUB_MODE:-api-digest}" == "dl-fail" ]]; then
+if [[ "${CURL_STUB_MODE:-sums}" == "dl-fail" ]]; then
     exit 22
 fi
-if (( is_api )); then
-    case "${CURL_STUB_MODE:-api-digest}" in
-        api-garbage) printf 'not json{{{' ;;
-        api-no-digest)
-            printf '{"assets":[{"name":"bun-linux-x64.zip","browser_download_url":"https://example/bun.zip"}]}'
-            ;;
-        *) printf '{"assets":[{"name":"bun-linux-x64.zip","browser_download_url":"https://example/bun.zip","digest":"sha256:%s"}]}' "${CURL_STUB_DIGEST:-abc123}" ;;
+if [[ "$*" == *SHASUMS256.txt* ]]; then
+    case "${CURL_STUB_MODE:-sums}" in
+        sums-missing) exit 22 ;;
+        sums-garbage) printf 'not a checksum file\n' ;;
+        *) printf '%s  bun-linux-aarch64.zip\n%s  bun-linux-x64.zip\n' \
+            "$(printf 'x%.0s' $(seq 64) | tr x 1)" \
+            "${CURL_STUB_DIGEST:-abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789}" ;;
     esac
     exit 0
 fi
@@ -112,7 +110,12 @@ EOF
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"${CALLS}.unzip-args"
 mkdir -p "${CALLS}.unzip-out/bun-linux-x64"
-printf '#!/usr/bin/env bash\necho "9.9.9"\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+# UNZIP_STUB_BROKEN=1 plants a binary that cannot run (wrong libc).
+if [[ "${UNZIP_STUB_BROKEN:-0}" == 1 ]]; then
+    printf '#!/usr/bin/env bash\nexit 126\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+else
+    printf '#!/usr/bin/env bash\necho "9.9.9"\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+fi
 chmod +x "${CALLS}.unzip-out/bun-linux-x64/bun"
 # The real flow extracts into $tmpdir; mirror it by copying our plant there.
 for a in "$@"; do
@@ -128,7 +131,13 @@ EOF
 #!/usr/bin/env bash
 exit 0
 EOF
-    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip,devcontainer}
+    # libc is pinned to glibc whatever the host: no musl loader under the
+    # fake root, getconf answers glibc (tests opt into musl explicitly).
+    printf '#!/usr/bin/env bash\nprintf "glibc 2.41\\n"\n' >"$STUBBIN/getconf"
+    mkdir -p "$BATS_TEST_TMPDIR/libc-root/lib"
+    export _DOT_LIBC_ROOT="$BATS_TEST_TMPDIR/libc-root"
+    unset UNZIP_STUB_BROKEN
+    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip,devcontainer,getconf}
 
     # Record-only package installs; never touch apt.
     cat >"$STUBBIN/pkg-shim-note" <<'EOF'
@@ -228,9 +237,25 @@ probe() {
     assert_eq 'arch is a linux target' '0' "$status"
 }
 
+@test "bun: musl systems get the musl build" {
+    : >"$_DOT_LIBC_ROOT/lib/ld-musl-x86_64.so.1"
+    probe bun '[[ "$(_bun_arch)" == linux-*-musl ]]'
+    assert_eq 'musl target rc 0' '0' "$status"
+}
+
+@test "bun: a binary that does not run is refused and removed" {
+    bun_absent
+    export UNZIP_STUB_BROKEN=1 CURL_STUB_DIGEST
+    CURL_STUB_DIGEST="$(printf 'BUNZIP-DUMMY' | sha256sum | cut -d' ' -f1)"
+    probe bun '_bun_install_runtime'
+    assert_eq 'refused rc 1' '1' "$status"
+    assert_contains 'explains' 'does not run on this system' "$output"
+    assert_eq 'binary removed' '0' "$([[ -e "$FAKE_HOME/.local/bin/bun" ]] && echo 1 || echo 0)"
+}
+
 @test "bun: asset resolution builds latest URL and digest" {
     probe bun 'read -r url sha <<<"$(_bun_zip_asset latest linux-x64)"; printf "%s %s" "$url" "$sha"'
-    assert_eq 'latest url' 'https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip abc123' "$output"
+    assert_eq 'latest url and digest from SHASUMS256.txt' 'https://github.com/oven-sh/bun/releases/latest/download/bun-linux-x64.zip abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' "$output"
 }
 
 @test "bun: tag normalization accepts bun-v, v and bare forms" {
@@ -259,9 +284,22 @@ probe() {
     assert_eq 'nothing installed' '0' "$([[ -e "$FAKE_HOME/.local/bin/bun" ]] && echo 1 || echo 0)"
 }
 
+@test "bun: a garbage SHASUMS file counts as no digest" {
+    export CURL_STUB_MODE=sums-garbage
+    probe bun 'read -r url sha <<<"$(_bun_zip_asset latest linux-x64)"; printf "[%s]" "${sha:-}"'
+    assert_eq 'no digest' '[]' "$output"
+}
+
+@test "bun: a mirror verifies from its own SHASUMS256.txt" {
+    export _DOT_BUN_GITHUB=https://mirror.example
+    probe bun 'read -r url sha <<<"$(_bun_zip_asset bun-v1.2.0 linux-x64)"; printf "%s %s" "$url" "$sha"'
+    assert_eq 'mirror url and digest' 'https://mirror.example/oven-sh/bun/releases/download/bun-v1.2.0/bun-linux-x64.zip abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789' "$output"
+    unset _DOT_BUN_GITHUB
+}
+
 @test "bun: missing digest warns and proceeds" {
     bun_absent
-    export CURL_STUB_MODE=api-no-digest
+    export CURL_STUB_MODE=sums-missing
     probe bun '_bun_ensure'
     assert_eq 'warn-path rc 0' '0' "$status"
     assert_contains 'warns once' 'No checksum published' "$output"

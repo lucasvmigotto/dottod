@@ -18,7 +18,7 @@
 #   _DOT_NVIM_TARBALL_ROOT  tarball extract root (default ~/.local/nvim)
 #   _DOT_TARGET_USER        target user (default id -un)
 #   _DOT_NVIM_CONFIG_HOME   parent of nvim config dir (default ~/.config, tests override HOME)
-#   _DOT_NO_PACKAGES        1 skips apt (tests)
+#   _DOT_NO_PACKAGES        1 skips package installs (tests)
 #
 # Usage: neovim.sh [""] | status | --help|-h
 #   ("")     validate version + link config
@@ -69,7 +69,10 @@ function _nvim_ver_ge() {
 # Print installed version (e.g. 0.12.5) or fail when absent/unparseable.
 function _nvim_version() {
     local out
-    out="$(nvim --version 2>/dev/null | head -n1)" || return 1
+    # Whole output first: `nvim --version | head -n1` under pipefail fails
+    # when head closes the pipe early (SIGPIPE), as Alpine's build showed.
+    out="$(nvim --version 2>/dev/null)" || return 1
+    out="${out%%$'\n'*}"
     if [[ "${out}" =~ NVIM\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
         printf '%s' "${BASH_REMATCH[1]}"
         return 0
@@ -77,16 +80,14 @@ function _nvim_version() {
     return 1
 }
 
-# Print apt candidate version or empty when none.
-function _nvim_apt_candidate() {
-    local cand
-    cand="$(apt-cache policy neovim 2>/dev/null | awk '/Candidate:/ {print $2}' | head -n1)" || true
-    if [[ -z "${cand}" || "${cand}" == '(none)' ]]; then
-        printf ''
-        return 0
-    fi
+# Print the distro package candidate version (any backend, lib/package.sh).
+# rc 0 = version printed, 1 = no candidate, 2 = unknown (detection failed);
+# unknown prints nothing and must never be read as "too old".
+function _nvim_pkg_candidate() {
+    local cand rc=0
+    cand="$(_pkg_candidate_version neovim 2>/dev/null)" || rc=$?
+    ((rc == 0)) || return "${rc}"
     printf '%s' "$(_nvim_norm_ver "${cand}")"
-    return 0
 }
 
 function _nvim_arch() {
@@ -128,10 +129,19 @@ for a in json.load(sys.stdin)["assets"]:
 # Opt-in healing: official release tarball + sha256 verification (digest
 # from the GitHub release API). Installs under _DOT_NVIM_TARBALL_ROOT
 # (default ~/.local/nvim) and links nvim into ~/.local/bin. Rootless.
-# Never adds third-party apt sources.
+# Never adds third-party package sources. glibc only: the official
+# tarballs do not run on musl (Alpine), where the distro package is the way.
 function _nvim_install_tarball() {
     local version=${1:?'Version must be informed'}
     local user=${2:?'User must be informed'}
+    if [[ "$(_os_libc)" == musl ]]; then
+        log_error 'The official Neovim tarballs are glibc builds and do not run on musl.'
+        log_error 'Install a Neovim >= 0.11 package from your distribution instead.'
+        return 1
+    fi
+    # python3 parses the GitHub release API for the asset digest (Neovim
+    # publishes no checksum file); the tarball is never installed unverified.
+    _install_packages curl ca_certificates tar python3
     local user_home
     user_home="$(_dot_user_home "${user}")" || return 1
     local root=${_DOT_NVIM_TARBALL_ROOT:-"${user_home}/.local/nvim"}
@@ -173,15 +183,17 @@ function _nvim_install_tarball() {
     return 0
 }
 
-function _nvim_fail_old_apt() {
+function _nvim_fail_old_pkg() {
     local min=${1} cand=${2}
     if [[ -n "${cand}" ]] && ! _nvim_ver_ge "${cand}" "${min}"; then
-        log_error "Neovim ${cand} via apt is below the minimum ${min}."
-        log_error 'Debian trixie ships Neovim 0.10.4 which lacks vim.lsp.config APIs.'
+        log_error "Neovim ${cand} from the distro packages is below the minimum ${min}."
+        if _os_detect 2>/dev/null && [[ "${DOTTOD_OS_FAMILY}" == debian ]]; then
+            log_error 'Debian trixie ships Neovim 0.10.4 which lacks vim.lsp.config APIs.'
+        fi
     else
-        log_error "apt did not yield a usable Neovim >= ${min} on PATH (candidate: ${cand:-<none>})."
+        log_error "The distro packages did not yield a usable Neovim >= ${min} on PATH (candidate: ${cand:-<none>})."
     fi
-    log_error 'Options: enable trixie-backports, use a newer Neovim source, or heal with the official tarball:'
+    log_error 'Options: a newer Neovim source for your distro (e.g. Debian backports), or heal with the official tarball (glibc):'
     log_error '  _DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh'
     return 1
 }
@@ -211,28 +223,31 @@ function _nvim_ensure_binary() {
     fi
 
     if [[ "${need_tarball}" == 0 ]]; then
-        # Candidate-first: never attempt a doomed apt install (sudo prompt for a
-        # version we already know is too old) when tarball healing is allowed.
-        cand="$(_nvim_apt_candidate)"
+        # Candidate-first: never attempt a doomed package install (sudo prompt
+        # for a version we already know is too old). An unknown candidate
+        # (no answer from the backend) is not "too old": try the package.
+        # Refresh the index first so the candidate reflects the repository.
+        _pkg_refresh_index || true
+        cand="$(_nvim_pkg_candidate)" || cand=''
         if [[ -n "${cand}" ]] && ! _nvim_ver_ge "${cand}" "${min}"; then
-            log_info "apt Neovim candidate ${cand} is below minimum ${min}"
+            log_info "Neovim package candidate ${cand} is below minimum ${min}"
             need_tarball=1
         fi
     fi
 
     if [[ "${need_tarball}" == 0 ]]; then
-        log_step 'Installing Neovim (apt)'
+        log_step 'Installing Neovim (distro package)'
         _install_packages neovim
         if ver="$(_nvim_version 2>/dev/null)" && _nvim_ver_ge "${ver}" "${min}"; then
             log_ok "Neovim ${ver} installed"
             return 0
         fi
-        log_warn 'apt did not provide a usable/enough nvim binary'
+        log_warn 'The distro package did not provide a usable/enough nvim binary'
         need_tarball=1
     fi
 
     if [[ "${_DOT_NVIM_ALLOW_TARBALL:-0}" != 1 ]]; then
-        _nvim_fail_old_apt "${min}" "${cand:-${ver:-}}"
+        _nvim_fail_old_pkg "${min}" "${cand:-${ver:-}}"
         return 1
     fi
 
@@ -307,7 +322,7 @@ function _nvim_status() {
     else
         ver='missing'
     fi
-    cand="$(_nvim_apt_candidate)"
+    cand="$(_nvim_pkg_candidate)" || cand=''
     local target
     target="$(_nvim_config_target "$(id -un)")"
     local link='missing'
@@ -321,7 +336,7 @@ Neovim
 ------
 Installed: ${ver} (${state})
 Minimum:   ${min}
-Apt cand:  ${cand:-<none>}
+Pkg cand:  ${cand:-<none>}
 Profile:   ${profile}
 Config:    ${target} (${link})
 Rg:        $(command -v rg >/dev/null 2>&1 && echo present || echo missing)

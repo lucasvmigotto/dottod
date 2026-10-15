@@ -34,6 +34,11 @@ if [[ "${NVIM_STUB_ABSENT:-0}" == 1 ]]; then
 fi
 if [[ "${1:-}" == "--version" ]]; then
     printf 'NVIM v%s\nBuild type: Release\n' "${NVIM_STUB_VERSION:-0.12.5}"
+    # NVIM_STUB_LONG=1: a long report, like Alpine's build, so an early
+    # reader would SIGPIPE the writer.
+    if [[ "${NVIM_STUB_LONG:-0}" == 1 ]]; then
+        for i in $(seq 1 20000); do printf 'feature line %s\n' "$i"; done
+    fi
     exit 0
 fi
 exit 0
@@ -44,7 +49,13 @@ EOF
 printf 'neovim:\n  Installed: (none)\n  Candidate: %s\n' "${APT_STUB_CANDIDATE:-0.10.4-8}"
 exit 0
 EOF
-    chmod +x "$STUBBIN/nvim" "$STUBBIN/apt-cache"
+    # The package backend needs its manager on PATH (fail-closed check);
+    # record-only, never executed for real installs here.
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$STUBBIN/apt-get"
+    chmod +x "$STUBBIN/nvim" "$STUBBIN/apt-cache" "$STUBBIN/apt-get"
+    # Pin detection to Debian so candidate lookups use the apt-cache stub
+    # on any host (lib/os.sh would otherwise read the host os-release).
+    export _DOT_OS_RELEASE_FILE="${BATS_TEST_DIRNAME}/fixtures/os-release/debian"
 
     export NVIM_STUB_VERSION=0.12.5
     export APT_STUB_CANDIDATE='0.10.4-8'
@@ -118,12 +129,53 @@ nvim_present() { export NVIM_STUB_ABSENT=0; }
     assert_eq 'garbage rc 1' '1' "$status"
 }
 
-@test "apt candidate is read and normalized" {
-    assert_eq 'candidate normalized' '0.10.4' "$(_nvim_apt_candidate)"
+@test "package candidate is read and normalized (debian backend)" {
+    assert_eq 'candidate normalized' '0.10.4' "$(_nvim_pkg_candidate)"
     APT_STUB_CANDIDATE='(none)'
-    assert_eq 'no candidate empty' '' "$(_nvim_apt_candidate)"
+    run _nvim_pkg_candidate
+    assert_eq 'no candidate rc 1' '1' "$status"
+    assert_eq 'no candidate empty' '' "$output"
     APT_STUB_CANDIDATE='1:0.12.5-1~trixie'
-    assert_eq 'epoch stripped' '0.12.5' "$(_nvim_apt_candidate)"
+    assert_eq 'epoch stripped' '0.12.5' "$(_nvim_pkg_candidate)"
+}
+
+@test "package candidate comes from the detected backend (gentoo)" {
+    export _DOT_OS_RELEASE_FILE="${BATS_TEST_DIRNAME}/fixtures/os-release/gentoo"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$STUBBIN/emerge"
+    printf '#!/usr/bin/env bash\n[[ "$1" == best_visible ]] && printf "app-editors/neovim-0.11.7-r1\\n"\n' >"$STUBBIN/portageq"
+    chmod +x "$STUBBIN/emerge" "$STUBBIN/portageq"
+    assert_eq 'gentoo candidate' '0.11.7' "$(_nvim_pkg_candidate)"
+}
+
+@test "unknown candidate is not treated as too old" {
+    nvim_absent
+    export _DOT_OS_RELEASE_FILE="${BATS_TEST_DIRNAME}/fixtures/os-release/unknown"
+    run _nvim_pkg_candidate
+    assert_eq 'unknown rc 2' '2' "$status"
+    run _nvim_ensure_binary
+    assert_eq 'package install still attempted' '1' "$(grep -c '^PKGS:neovim' "$CALLS" || true)"
+}
+
+@test "version is read from a long --version report under pipefail" {
+    export NVIM_STUB_LONG=1
+    assert_eq 'version parsed' '0.12.5' "$(_nvim_version)"
+    unset NVIM_STUB_LONG
+}
+
+@test "tarball healing installs its own download tools first" {
+    _nvim_tarball_asset() { return 1; }
+    run _nvim_install_tarball v0.12.5 "$(id -un)"
+    assert_contains 'prerequisites requested' 'PKGS:curl ca_certificates tar python3' "$(cat "$CALLS")"
+}
+
+@test "tarball healing refuses musl systems" {
+    mkdir -p "$BATS_TEST_TMPDIR/root/lib"
+    : >"$BATS_TEST_TMPDIR/root/lib/ld-musl-x86_64.so.1"
+    export _DOT_LIBC_ROOT="$BATS_TEST_TMPDIR/root"
+    run _nvim_install_tarball v0.12.5 "$(id -un)"
+    assert_eq 'musl rc 1' '1' "$status"
+    assert_contains 'explains' 'glibc builds and do not run on musl' "$output"
+    unset _DOT_LIBC_ROOT
 }
 
 @test "tarball asset resolution parses url and digest from the api" {
@@ -167,7 +219,7 @@ EOF
     nvim_absent
     run _nvim_ensure_binary
     assert_eq 'old candidate rc 1' '1' "$status"
-    assert_contains 'names the candidate' '0.10.4 via apt is below the minimum 0.11.0' "$output"
+    assert_contains 'names the candidate' '0.10.4 from the distro packages is below the minimum 0.11.0' "$output"
     assert_contains 'offers the healing flag' '_DOT_NVIM_ALLOW_TARBALL=1' "$output"
     assert_eq 'never attempts doomed apt install' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
 }
@@ -190,7 +242,7 @@ EOF
     local rc="$status" out="$output"
     export PATH="$old_path"
     assert_eq 'system nvim shadowed rc 1' '1' "$rc"
-    assert_contains 'still names the candidate' '0.10.4 via apt is below the minimum' "$out"
+    assert_contains 'still names the candidate' '0.10.4 from the distro packages is below the minimum' "$out"
 }
 
 @test "ensure with good candidate attempts apt first, fails honestly if it yields nothing" {
@@ -318,7 +370,7 @@ EOF
     out="$(_nvim_status)"
     assert_contains 'installed version' 'Installed: 0.12.5' "$out"
     assert_contains 'minimum policy' 'Minimum:   0.11.0' "$out"
-    assert_contains 'apt candidate' 'Apt cand:  0.10.4' "$out"
+    assert_contains 'package candidate' 'Pkg cand:  0.10.4' "$out"
     assert_contains 'default profile' 'Profile:   development' "$out"
 }
 

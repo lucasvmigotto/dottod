@@ -42,9 +42,9 @@ second is a no-op. Then the same on a real Gentoo (VM or the laptop).
 Same smoke on Arch, Fedora, Alpine, Debian before moving on.
 
 ## Phase 5 — neovim and toolchains (`feat/toolchain-distro`)
-- [ ] T050 neovim: candidate from `_pkg_candidate_version` (version / none / unknown — unknown never counts as too old); tarball healing stays opt-in and glibc-only
-- [ ] T051 libc in upstream asset choice; bun uses its musl asset on Alpine; rustup's musl target on Alpine
-- [ ] T052 `test-neovim.bats` / `test-toolchain.bats`: per-backend candidate states, musl paths
+- [x] T050 neovim: candidate from `_pkg_candidate_version` (version / none / unknown — unknown never counts as too old); tarball healing stays opt-in and glibc-only
+- [x] T051 libc in upstream asset choice; bun uses its musl asset on Alpine; rustup's musl target on Alpine
+- [x] T052 `test-neovim.bats` / `test-toolchain.bats`: per-backend candidate states, musl paths
 
 ## Phase 6 — container (`feat/container-distro`)
 - [ ] T060 `podman_rootless` logical set per family (uidmap / shadow); Alpine installs `shadow` before `usermod`

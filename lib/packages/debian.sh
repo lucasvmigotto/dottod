@@ -9,9 +9,10 @@ function _pkgmap_debian() {
         ca_certificates) printf 'ca-certificates' ;;
         openssh_client) printf 'openssh-client' ;;
         podman_rootless) printf 'uidmap' ;;
+        cxx_runtime) printf 'libstdc++6' ;;
         bash | bat | bats | btop | chafa | curl | fontconfig | fzf | gh | git | \
             gnupg | httpie | jq | just | lsof | neovim | nodejs | podman | \
-            shellcheck | shfmt | tar | unzip | vim | xclip)
+            python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1}"
             ;;
         *) return 1 ;;

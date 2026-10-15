@@ -173,3 +173,28 @@ the smoke now also checks "run 2 downloaded nothing".
 Known noise, not a failure: `vim PlugInstall reported errors` comes from
 vim-plug's status buffer mappings (E31) in headless `-es` mode; all 19
 plugins install.
+
+**Phase 5 (2026-10-15)**, real `bootstrap.sh --only neovim,cargo,bun` in
+containers:
+
+| Distro | Neovim | Rust host | Bun |
+|---|---|---|---|
+| debian:trixie | candidate 0.10.4 < 0.11 → package skipped, verified tarball 0.12.5 (`_DOT_NVIM_ALLOW_TARBALL=1`) | x86_64-unknown-linux-gnu | 1.4.3, verified |
+| alpine:3.22 | package 0.11.1 | x86_64-unknown-linux-musl | 1.4.3 musl build, verified, runs |
+| arch, fedora | packages 0.12.6 / 0.11.5 | gnu | 1.4.3 (run predates the SHASUMS change) |
+| gentoo | not run: building app-editors/neovim exhausted memory on the 7.5 GiB dev host; the resolve gate shows 0.11.7 | — | — |
+
+The first run found five problems, all fixed with tests:
+- `nvim --version | head -n1` under pipefail failed on Alpine (SIGPIPE),
+  the fonts bug again; every early-exit pipe reader in `bin/` and `lib/`
+  is gone, and a static test forbids new ones.
+- A fresh Debian has no apt lists, so the candidate read "none" and
+  0.10.4 got installed: the index is now refreshed before the lookup.
+- The tarball path ran curl without installing it, and parses the GitHub
+  API with python3 (Neovim publishes no checksum file): both are now
+  prerequisites (`curl ca_certificates tar python3`).
+- Bun's checksum came from the API through python3, absent on minimal
+  images, so it always installed unverified: now from the release's
+  `SHASUMS256.txt` (curl only; mirrors verify too).
+- Bun's musl build needs `libgcc`/`libstdc++` (`cxx_runtime`), absent on
+  base Alpine; the new runnable check caught it.

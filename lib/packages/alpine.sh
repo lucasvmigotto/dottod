@@ -5,13 +5,15 @@
 
 function _pkgmap_alpine() {
     case "${1}" in
+        # Needed by musl builds of C++ programs such as Bun.
+        cxx_runtime) printf 'libgcc libstdc++' ;;
         gh) printf 'github-cli' ;;
         openssh_client) printf 'openssh-client-default' ;;
         # usermod is in shadow; newuidmap and /etc/subuid in shadow-subids.
         podman_rootless) printf 'shadow shadow-subids' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
             fzf | git | gnupg | httpie | jq | just | lsof | neovim | nodejs | \
-            podman | shellcheck | shfmt | tar | unzip | vim | xclip)
+            podman | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;
         *) return 1 ;;

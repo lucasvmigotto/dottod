@@ -14,6 +14,8 @@ function _pkgmap_gentoo() {
         ca_certificates) printf 'app-misc/ca-certificates' ;;
         chafa) printf 'media-gfx/chafa' ;;
         curl) printf 'net-misc/curl' ;;
+        # libstdc++ ships with the system compiler on Gentoo.
+        cxx_runtime) printf 'sys-devel/gcc' ;;
         fontconfig) printf 'media-libs/fontconfig' ;;
         fzf) printf 'app-shells/fzf' ;;
         gh) printf 'dev-util/github-cli' ;;
@@ -28,6 +30,7 @@ function _pkgmap_gentoo() {
         openssh_client) printf 'net-misc/openssh' ;;
         podman) printf 'app-containers/podman' ;;
         podman_rootless) printf 'sys-apps/shadow' ;;
+        python3) printf 'dev-lang/python' ;;
         # ShellCheck is Haskell: the -bin package avoids a GHC toolchain build.
         shellcheck) printf 'dev-util/shellcheck-bin' ;;
         # shfmt ships in mvdan's sh project.

@@ -247,9 +247,9 @@ install_as() {
     local requested name
     requested="$(
         {
-            grep -ohE '_install_packages( [a-z_]+)+' "$REPO_ROOT"/bin/*.sh | sed 's/^_install_packages //'
+            grep -ohE '_install_packages( [a-z0-9_]+)+' "$REPO_ROOT"/bin/*.sh | sed 's/^_install_packages //'
             grep -ohE "need\+=\([^)]*\)" "$REPO_ROOT"/bin/*.sh | sed -E "s/need\+=\(//; s/\)//; s/'//g"
-            grep -ohE "pkg_extras\+=' [a-z_]+'" "$REPO_ROOT"/bin/*.sh | sed -E "s/.*' //; s/'//"
+            grep -ohE "pkg_extras\+=' [a-z0-9_]+'" "$REPO_ROOT"/bin/*.sh | sed -E "s/.*' //; s/'//"
         } | tr ' ' '\n' | sed '/^$/d' | sort -u
     )"
     assert_eq 'found requests' '1' "$([[ $(wc -l <<<"$requested") -ge 20 ]] && echo 1 || echo 0)"
@@ -293,6 +293,35 @@ install_as() {
     run _install_packages chafa
     assert_eq 'only unsupported: rc 0' '0' "$status"
     assert_eq 'only unsupported: no calls' '' "$(cat "$CALLS")"
+}
+
+@test "refresh index: once, under the lock, only where the policy refreshes" {
+    use_os debian
+    : >"$CALLS"
+    _pkg_refresh_index
+    _pkg_refresh_index
+    assert_eq 'debian: one update' '1' "$(grep -c 'apt-get update' "$CALLS")"
+    use_os gentoo
+    : >"$CALLS"
+    _pkg_refresh_index
+    assert_eq 'gentoo: never syncs' '' "$(cat "$CALLS")"
+    use_os alpine
+    export _DOT_NO_PACKAGES=1
+    : >"$CALLS"
+    _pkg_refresh_index
+    assert_eq 'no-packages: nothing' '' "$(cat "$CALLS")"
+    unset _DOT_NO_PACKAGES
+}
+
+@test "no early-exit pipe readers in code that runs under pipefail" {
+    # `cmd | head`, `| grep -q` and `awk ... exit` stop reading early; the
+    # writer dies of SIGPIPE and pipefail turns that into a failure. This
+    # re-downloaded every font (fonts.sh) and hid Alpine's nvim version.
+    local hits
+    hits="$(grep -nE '\|\s*(head|grep -[a-zA-Z]*q|awk [^|]*exit)' \
+        "$REPO_ROOT"/bin/*.sh "$REPO_ROOT"/lib/*.sh "$REPO_ROOT"/lib/packages/*.sh \
+        "$REPO_ROOT"/scripts/.container.utils.sh | grep -vE '^[^:]+:[0-9]+:\s*#' || true)"
+    assert_eq 'offending lines' '' "$hits"
 }
 
 @test "runnable: true for a working binary" {
