@@ -33,6 +33,11 @@ through `pass show`; container registries are its first consumer.
 - Registry wiring is a drop-in (`~/.config/containers/registries.conf.d/
   50-dottod-pass.conf`, `credential-helpers = ["pass"]`) — the user's own
   `registries.conf` is never edited; removing the drop-in reverts it.
+- Rootless Podman runs the credential helper in its user namespace, where
+  gpg can't find the user's agent: the task writes a GnuPG socket redirect
+  file (`~/.gnupg/S.gpg-agent` → `/run/user/<uid>/gnupg/…/S.gpg-agent`),
+  only when the agent socket is under `/run/user` and that path is not
+  itself a socket (evidence: plan.md, T170).
 - Plaintext cleanup touches only registry entries (`auths`) in the three
   known files, keeps every other key, keeps mode 0600, keeps no backup.
 - Store sync (`pass git`) is out of scope: a separate project.
@@ -47,11 +52,10 @@ through `pass show`; container registries are its first consumer.
   gone and the file's other keys are untouched.
 - Re-running is a no-op.
 
-## Open, verified in T170 before building
-- A `credential-helpers` drop-in in `registries.conf.d` is honoured, and
-  `podman login` stores through the first helper.
-- `docker-credential-pass` packaging per distro (resolve gate): Debian
-  `golang-docker-credential-helpers`, others to confirm.
+## Open
+- `docker-credential-pass` packaging per distro (resolve gate, T171):
+  Debian `golang-docker-credential-helpers`, others to confirm.
+- Passphrase prompting from a terminal-only session (Milestone S1).
 
 ## Status
 Planned.

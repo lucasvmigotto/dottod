@@ -4,7 +4,7 @@ One branch per phase off `develop`; same gate as spec 015 (bats green,
 ShellCheck/shfmt clean, each commit passing on its own).
 
 ## Phase 1 — prove the mechanism (`spike/secrets-helper`, nothing merged)
-- [ ] T170 Isolated run on the dev host: throwaway `GNUPGHOME` and
+- [x] T170 Isolated run on the dev host: throwaway `GNUPGHOME` and
   `PASSWORD_STORE_DIR`, an `XDG_CONFIG_HOME` holding only the drop-in, a
   local `registry:2` with an htpasswd dummy user, and the official
   `docker-credential-pass` binary in the scratchpad. Prove: the drop-in is
