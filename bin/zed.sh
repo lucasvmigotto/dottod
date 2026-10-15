@@ -29,7 +29,7 @@ function _zed_ensure() {
     local installer_url=${_DOT_ZED_INSTALLER_URL:-"${_DOT_ZED_INSTALLER_URL_DEFAULT}"}
 
     log_step 'Installing Zed prerequisites'
-    _install_packages 'curl ca-certificates tar'
+    _install_packages curl ca_certificates tar
 
     # Download-then-run (never pipe a remote script straight into a
     # shell): a failed/truncated download must not execute. The URL stays

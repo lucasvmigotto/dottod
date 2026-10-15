@@ -68,7 +68,7 @@ function _main() {
     local current_user
     current_user="$(id -un)"
 
-    _install_packages 'git vim curl'
+    _install_packages git vim curl
 
     _vim_vimplug_install "${current_user}" "${vim_plug_script}"
 

@@ -41,7 +41,7 @@ function _main() {
     current_user="${_DOT_TARGET_USER:-$(id -un)}"
 
     log_step 'Installing git and bash'
-    _install_packages 'git bash curl ca-certificates'
+    _install_packages git bash curl ca_certificates
 
     _bash_use_as_shell "${current_user}"
 

@@ -24,11 +24,11 @@ maintainer's target.
 - [x] T018 `tests/test-packages.bats` → per-backend argv/fast-path/failure/lock tests; unknown family invokes nothing
 
 ## Phase 3 — logical packages + mapping gate (`feat/pkg-mapping`)
-- [ ] T020 `lib/packages/<family>.sh` case-tables for every name tasks request today (see plan); `-` = unsupported
-- [ ] T021 callers switch to logical names: shell, fonts, vim, neovim, ssh, container, tools, cargo, bun, zed
-- [ ] T022 test: every logical name used in `bin/` has an entry in all five tables
-- [ ] T030 `tests/integration/pkg-resolve.sh`: inside a distro container, every mapped name resolves (apt-cache show / portageq best_visible / pacman -Si / dnf info / apk search -e) — the evidence for the mapping
-- [ ] T031 run T030 locally under Podman for all five; fix the tables until green
+- [x] T020 `lib/packages/<family>.sh` case-tables for every name tasks request today (see plan); `-` = unsupported
+- [x] T021 callers switch to logical names: shell, fonts, vim, neovim, ssh, container, tools, cargo, bun, zed
+- [x] T022 test: every logical name used in `bin/` has an entry in all five tables
+- [x] T030 `tests/integration/pkg-resolve.sh`: inside a distro container, every mapped name resolves (apt-cache show / portageq best_visible / pacman -Si / dnf info / apk search -e) — the evidence for the mapping
+- [x] T031 run T030 locally under Podman for all five; fix the tables until green
 
 ## Phase 4 — target user and core tasks (`feat/user-home`)
 - [ ] T040 `_dot_user_home <user>` via `getent passwd` (fallback: `$HOME` for the current user); no `eval ~user`

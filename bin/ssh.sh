@@ -219,7 +219,7 @@ function _ensure_github_key() {
 
     if ! command -v ssh-keygen >/dev/null 2>&1; then
         log_step 'Installing OpenSSH client'
-        _install_packages 'openssh-client'
+        _install_packages openssh_client
     fi
 
     local comment

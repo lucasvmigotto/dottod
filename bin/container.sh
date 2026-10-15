@@ -66,7 +66,7 @@ function _podman_ensure() {
 
     if ! _ctr_installed; then
         log_step 'Installing Podman (uidmap for rootless operation)'
-        _install_packages 'podman uidmap'
+        _install_packages podman podman_rootless
     fi
 
     _podman_ensure_subids "$(id -un)"

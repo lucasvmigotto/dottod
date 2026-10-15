@@ -132,7 +132,7 @@ function _github_cli_install() {
     keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
 
     log_step 'Installing GitHub CLI prerequisites'
-    _install_packages 'curl ca-certificates gnupg'
+    _install_packages curl ca_certificates gnupg
 
     # Download-then-install (never pipe a remote key straight into a
     # privileged command): a failed download must not produce a keyring.
@@ -146,7 +146,7 @@ function _github_cli_install() {
         _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
 
     log_step 'Installing GitHub CLI (gh)'
-    _install_packages 'gh'
+    _install_packages gh
 
     if ! _is_installed gh; then
         log_error 'GitHub CLI install did not yield a gh binary on PATH.'
@@ -184,22 +184,22 @@ function _main() {
     _extras_validate
 
     log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
+    _install_packages btop xclip bat jq curl tar ca_certificates lsof fzf shellcheck bats shfmt just
 
     if ! _is_installed batcat && _is_installed bat; then
         ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"
         log_info 'Created batcat alias -> bat'
     fi
 
-    local go_arch rust_arch apt_extras=''
+    local go_arch rust_arch pkg_extras=''
     go_arch="$(_go_arch)"
     rust_arch="$(_rust_arch)"
 
-    _extra_wanted httpie && apt_extras+=' httpie'
-    _extra_wanted chafa && apt_extras+=' chafa'
-    if [[ -n "${apt_extras}" ]]; then
-        log_step "Installing opt-in tools (apt):${apt_extras}"
-        _install_packages "${apt_extras# }"
+    _extra_wanted httpie && pkg_extras+=' httpie'
+    _extra_wanted chafa && pkg_extras+=' chafa'
+    if [[ -n "${pkg_extras}" ]]; then
+        log_step "Installing opt-in tools (native packages):${pkg_extras}"
+        _install_packages "${pkg_extras# }"
     fi
 
     _extra_wanted gh && _github_cli_install

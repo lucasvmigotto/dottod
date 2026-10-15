@@ -44,7 +44,7 @@ function _cargo_ensure() {
     cargo_home="$(_cargo_home)"
 
     log_step 'Installing Rust toolchain prerequisites'
-    _install_packages 'curl ca-certificates'
+    _install_packages curl ca_certificates
 
     local tmp
     tmp="$(mktemp)"

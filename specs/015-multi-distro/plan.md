@@ -131,3 +131,22 @@ Learned:
   needs the portage image run once (`podman run --name dottod-portage
   gentoo/portage`) and `--volumes-from` it, since an image mount lands the
   whole image root at the destination.
+
+**Phase 3 (2026-10-15)**, `DOTTOD_TEST_INTEGRATION=1
+tests/integration/pkg-resolve.sh`: every logical package in
+`DOT_PKG_LOGICAL` (27) resolves in the real repository of debian:trixie,
+ubuntu:24.04, fedora:42, archlinux, alpine:3.22 and gentoo stage3 +
+portage (stable amd64 keywords; nothing masked or `~amd64`).
+
+The first run caught four names written from memory; each fix was
+confirmed against the repository itself:
+
+| Logical | Distro | Wrong guess | Real package |
+|---|---|---|---|
+| shfmt | gentoo | dev-util/shfmt | dev-util/sh (mvdan.cc/sh, ships shfmt) |
+| bats | arch | bash-bats | bats |
+| openssh_client | alpine | openssh-client | openssh-client-default |
+| podman_rootless | alpine | shadow-uidmap | shadow (usermod) + shadow-subids (newuidmap, /etc/subuid) |
+
+Gentoo picks: `dev-util/shellcheck-bin` (0.11.0, avoids a GHC build),
+`app-editors/neovim` 0.11.7 (meets the 0.11 floor from the package).

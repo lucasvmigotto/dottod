@@ -48,7 +48,7 @@ jobs:
 
       - name: Bash syntax check
         run: |
-          for f in bin/*.sh lib/*.sh scripts/*.sh config/.custom.bashrc tests/run.sh; do
+          for f in bin/*.sh lib/*.sh lib/packages/*.sh scripts/*.sh config/.custom.bashrc tests/run.sh; do
             bash -n "${f}"
           done
 
@@ -57,6 +57,7 @@ jobs:
           shellcheck -S warning \
             bin/*.sh \
             lib/*.sh \
+            lib/packages/*.sh \
             scripts/*.sh \
             config/.custom.bashrc \
             tests/run.sh tests/test-*.bats tests/helpers.bash
