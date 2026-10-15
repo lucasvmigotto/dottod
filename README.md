@@ -33,6 +33,7 @@ tests/     BATS test suites (run with ./tests/run.sh)
 | `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
+| `secrets`   | `bin/secrets.sh`  | Opt-in (`--only secrets`): `pass` as the secret store, container registry logins through it (see [docs/secrets.md](docs/secrets.md)) |
 
 ## Installation
 
@@ -112,6 +113,8 @@ Select or exclude tasks:
 
 GUI tasks (`zed`) are skipped by default — the CLI is terminal-first.
 Pass `--ui` to include them.
+
+Opt-in tasks (`secrets`) never run by default; name them with `--only`.
 
 The `tools` task installs only the native-package baseline. Extra tools
 are opt-in (all off by default): `gh`, `httpie`, `chafa`, or `all`:

@@ -24,6 +24,7 @@ export const TASK_IDS = [
   "tools",
   "cargo",
   "bun",
+  "secrets",
 ] as const;
 
 export const GUIDE_IDS = [

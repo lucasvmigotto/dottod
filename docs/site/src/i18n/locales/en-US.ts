@@ -71,6 +71,7 @@ const pages: Record<PageId, DocPage> = {
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
+              ["secrets", "pass + registry logins (opt-in)"],
             ],
           },
         ],
@@ -156,6 +157,7 @@ const pages: Record<PageId, DocPage> = {
               ["tools", "Yes", "packages"],
               ["cargo", "Yes", "network once"],
               ["bun", "Yes", "network once"],
+              ["secrets", "Yes (opt-in)", "packages once"],
             ],
           },
           {
@@ -586,6 +588,56 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "Yes. Present binaries skip; checksum mismatches fail loudly with nothing installed.",
+          },
+        ],
+      },
+    ],
+  },
+  "task-secrets": {
+    id: "task-secrets",
+    title: "secrets",
+    summary:
+      "pass + container registry logins through it. Opt-in: --only secrets.",
+    sections: [
+      {
+        id: "what",
+        heading: "What it does",
+        blocks: [
+          {
+            kind: "p",
+            text: "Installs pass (and docker-credential-pass where the distro packages it), checks that you have a GPG key and an initialised store, then makes every podman login store its token in pass: a drop-in in ~/.config/containers/registries.conf.d, plus a GnuPG socket redirect so rootless Podman's helper reaches your agent. Plaintext registry credentials left in ~/.docker/config.json or the containers auth.json files are removed (names logged, never values). Skipped by default: run it with --only secrets.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption:
+              "First time (the first two steps are yours: your passphrase, your key)",
+            code: "gpg --full-generate-key\npass init <your key id>\n./bin/bootstrap.sh --only secrets\npodman login docker.io",
+          },
+        ],
+      },
+      {
+        id: "never",
+        heading: "What it never does",
+        blocks: [
+          {
+            kind: "ul",
+            items: [
+              "Generate a GPG key, run pass init or pass insert — those are yours.",
+              "Read, print or log a secret value; status and logs name registries only.",
+              "Edit your registries.conf or /etc/portage (on Gentoo it prints the USE=pass line instead).",
+            ],
+          },
+        ],
+      },
+      {
+        id: "idempotent",
+        heading: "Idempotent?",
+        maturity: "implemented",
+        blocks: [
+          {
+            kind: "p",
+            text: "Yes. Without a key or store it stops with the exact command to run and changes nothing; once set up, a rerun is a no-op. Arch, Fedora and Alpine don't package docker-credential-pass: pass is set up and the task explains how to add the helper.",
           },
         ],
       },
@@ -1094,7 +1146,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Terminal recording: bootstrap.sh --help output, then the task list.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or\n                     all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or\n                     all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun secrets",
           },
         ],
       },
