@@ -182,6 +182,28 @@ dottod-doctor() {
         __dottod_doc_warn "claude library not loaded"
     fi
 
+    # Secrets (bin/secrets.sh): only where pass is installed. Registry names
+    # only — never a credential value.
+    if command -v pass >/dev/null 2>&1; then
+        if [[ -s "${PASSWORD_STORE_DIR:-${HOME}/.password-store}/.gpg-id" ]]; then
+            __dottod_doc_ok "pass store initialised"
+        else
+            __dottod_doc_warn "pass installed but no store (./bin/bootstrap.sh --only secrets explains)"
+        fi
+        if [[ -f "${HOME}/.config/containers/registries.conf.d/50-dottod-pass.conf" ]]; then
+            __dottod_doc_ok "container registry logins go through pass"
+        fi
+        local f names
+        for f in "${HOME}/.docker/config.json" "${HOME}/.config/containers/auth.json" \
+            "${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/containers/auth.json"; do
+            [[ -s "${f}" ]] || continue
+            names="$(python3 -c 'import json,sys
+try: print(",".join(sorted((json.load(open(sys.argv[1])).get("auths") or {}))))
+except Exception: pass' "${f}" 2>/dev/null)"
+            [[ -n "${names}" ]] && __dottod_doc_warn "plaintext registry credentials in ${f}: ${names}"
+        done
+    fi
+
     # Containers: rootless Podman prerequisites, only where Podman is
     # installed (scripts/.container.utils.sh; read-only checks).
     if command -v podman >/dev/null 2>&1 && declare -F _ctr_rootless_findings >/dev/null; then

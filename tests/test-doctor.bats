@@ -172,3 +172,18 @@ doctor_distro() {
     run doctor_distro unknown
     assert_contains 'unsupported' "[warn] distro: unsupported distribution 'nixos'" "$output"
 }
+
+@test "secrets: store state and plaintext registry names, never values" {
+    local bin="$BATS_TEST_TMPDIR/passbin"
+    mkdir -p "$bin" "$FAKE_HOME/.docker"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/pass"
+    chmod +x "$bin/pass"
+    printf '{"auths":{"docker.io":{"auth":"bm90LXByaW50ZWQ="}}}\n' >"$FAKE_HOME/.docker/config.json"
+    PATH="$bin:$PATH" XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/run" run doctor_run
+    assert_contains 'no store' '[warn] pass installed but no store' "$output"
+    assert_contains 'plaintext named' "plaintext registry credentials in $FAKE_HOME/.docker/config.json: docker.io" "$output"
+    assert_eq 'no value' '0' "$(grep -c 'bm90LXByaW50ZWQ=' <<<"$output" || true)"
+    mkdir -p "$FAKE_HOME/.password-store" && printf 'ABC\n' >"$FAKE_HOME/.password-store/.gpg-id"
+    PATH="$bin:$PATH" XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/run" run doctor_run
+    assert_contains 'store ok' '[ok] pass store initialised' "$output"
+}
