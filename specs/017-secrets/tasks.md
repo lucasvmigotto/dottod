@@ -18,12 +18,12 @@ ShellCheck/shfmt clean, each commit passing on its own).
   reason, never a guess).
 
 ## Phase 3 — the task (`feat/secrets-task`)
-- [ ] T172 `bin/secrets.sh`: install, then check GPG secret key → store
+- [x] T172 `bin/secrets.sh`: install, then check GPG secret key → store
   initialised for it → write the drop-in → remove plaintext `auths`
   entries (names logged); `status` action; never touches a secret value.
-- [ ] T173 Opt-in in bootstrap: excluded from the default run, selected
+- [x] T173 Opt-in in bootstrap: excluded from the default run, selected
   by `--only secrets`; listed in `--list`/`--help` and the contract.
-- [ ] T174 Tests: no key / no store / ready / plaintext cleanup keeps the
+- [x] T174 Tests: no key / no store / ready / plaintext cleanup keeps the
   other keys and mode 0600 / rerun no-op / never prints a value.
 
 ## Phase 4 — doctor and docs (`docs/secrets`)
