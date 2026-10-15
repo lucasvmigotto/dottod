@@ -128,6 +128,9 @@ Flags:
 - `--parallel` — run tasks concurrently instead of sequentially
 - `--yes` — assume yes for prompts
 - `--verbose` / `-v` — stream full output
+- `--status` — print every selected task's read-only status report
+  (honours `--only`, `--skip` and `--ui`); one task alone is
+  `./bin/<task>.sh status`
 - `--list` / `-l` — list available tasks
 
 ### Task runner

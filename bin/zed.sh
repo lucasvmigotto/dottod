@@ -13,6 +13,10 @@
 #   _DOT_ZED_CHANNEL         release channel (default stable)
 #   _DOT_ZED_VERSION         version pin (default latest)
 #   _DOT_NO_PACKAGES         1 skips apt (tests)
+#
+# Usage: zed.sh [""] | status | --help|-h
+#   ("")     install Zed (skipped when it already runs)
+#   status   print the Zed report without changing anything
 
 set -Eeuo pipefail
 
@@ -61,9 +65,52 @@ function _zed_ensure() {
     return 0
 }
 
-function _main() {
-    _zed_ensure
+function _zed_status() {
+    local bin=''
+    if command -v zed >/dev/null 2>&1; then
+        bin="$(command -v zed)"
+    elif [[ -x "${HOME}/.local/bin/zed" ]]; then
+        bin="${HOME}/.local/bin/zed"
+    fi
+    cat <<EOF
+Zed
+---
+Installed: $([[ -n "${bin}" ]] && _dot_first_line "${bin}" --version || echo missing)
+Binary:    ${bin:-missing}
+Channel:   ${_DOT_ZED_CHANNEL:-stable} (for fresh installs)
+EOF
     return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: zed.sh [status]
+
+  (no args)  install Zed with its official installer (download, then run)
+  status     print the Zed report without changing anything
+EOF
+}
+
+function _main() {
+    case "${1:-}" in
+        '')
+            _zed_ensure
+            return 0
+            ;;
+        status)
+            _zed_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
 }
 
 if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then

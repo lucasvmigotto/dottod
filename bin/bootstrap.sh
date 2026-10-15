@@ -33,6 +33,8 @@ Options:
   --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)
   --yes              Assume yes for any prompts
   --verbose, -v      Stream full task output (default: summarized)
+  --status           Print every selected task's status report (changes
+                     nothing; honours --only, --skip and --ui)
   --list, -l         List available tasks and exit
   --help, -h         Show this help
 
@@ -107,8 +109,28 @@ function _run_parallel() {
     return "${failures}"
 }
 
+# Every task answers `status` with a read-only report; print them in task
+# order. No sudo preflight and no package installs: status changes nothing.
+function _status_reports() {
+    local task script failures=0
+    for task in "$@"; do
+        script="${DOT_REPO_ROOT}/bin/${task}.sh"
+        if [[ ! -f "${script}" ]]; then
+            log_error "Unknown task '${task}' (missing ${script})"
+            failures=$((failures + 1))
+            continue
+        fi
+        if ! "${script}" status; then
+            log_error "${task}: status report failed"
+            failures=$((failures + 1))
+        fi
+        printf '\n'
+    done
+    return $((failures > 0))
+}
+
 function _main() {
-    local only="" skip="" with_ui=0 parallel=0 verbose=0
+    local only="" skip="" with_ui=0 parallel=0 verbose=0 status=0
     local failures=0
 
     while [[ $# -gt 0 ]]; do
@@ -143,6 +165,10 @@ function _main() {
                 ;;
             --verbose | -v)
                 verbose=1
+                shift
+                ;;
+            --status)
+                status=1
                 shift
                 ;;
             --list | -l)
@@ -186,6 +212,11 @@ function _main() {
     if [[ ${#tasks[@]} -lt 1 ]]; then
         log_warn 'No tasks to run'
         return 0
+    fi
+
+    if [[ "${status}" == 1 ]]; then
+        _status_reports "${tasks[@]}"
+        return $?
     fi
 
     log_step "Bootstrap starting (${#tasks[@]} task(s))"

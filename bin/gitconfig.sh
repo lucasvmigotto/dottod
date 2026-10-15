@@ -1,10 +1,60 @@
 #!/usr/bin/env bash
+#
+# gitconfig.sh — dottod git task: ~/.gitconfig with the personal identity,
+# plus ~/.gitconfig-work for repositories under ~/codes when it differs.
+#
+# Usage: gitconfig.sh [""] | status | --help|-h
+#   ("")     write the git config (asks for a missing identity)
+#   status   print the git report without changing anything
 
 set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+function _gitconfig_status() {
+    local work_file="${HOME}/.gitconfig-work" work='none'
+    if [[ -f "${work_file}" ]]; then
+        work="$(git config --file "${work_file}" user.name 2>/dev/null || echo '?') <$(git config --file "${work_file}" user.email 2>/dev/null || echo '?')> (in ~/codes)"
+    fi
+    cat <<EOF
+Git
+---
+Installed: $(command -v git >/dev/null 2>&1 && git --version 2>/dev/null || echo missing)
+Config:    ${HOME}/.gitconfig ($(_dot_path_state "${HOME}/.gitconfig"))
+Name:      $(git config --global user.name 2>/dev/null || echo '<unset>')
+Email:     $(git config --global user.email 2>/dev/null || echo '<unset>')
+Work:      ${work}
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: gitconfig.sh [status]
+
+  (no args)  write ~/.gitconfig (GIT_NAME/GIT_EMAIL, or asked)
+  status     print the git report without changing anything
+EOF
+}
+
 function _main() {
+    case "${1:-}" in
+        '') ;;
+        status)
+            _gitconfig_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
+
     local git_name=${GIT_NAME:-}
     local git_email=${GIT_EMAIL:-}
 

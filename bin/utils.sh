@@ -337,6 +337,47 @@ function _link_file() {
     return 0
 }
 
+# _dot_path_state <path> [dottod source]: how a managed path stands, for
+# status reports (read-only): "symlink -> X (dottod)" when it links to the
+# given source, "symlink -> X", "file (user-managed)", "directory
+# (user-managed)" or "missing".
+function _dot_path_state() {
+    local path=${1:?'Path must be informed'} source=${2:-}
+    if [[ -L "${path}" ]]; then
+        local dest
+        dest="$(readlink "${path}")"
+        if [[ -n "${source}" && "${dest}" == "${source}" ]]; then
+            printf 'symlink -> %s (dottod)' "${dest}"
+        else
+            printf 'symlink -> %s' "${dest}"
+        fi
+    elif [[ -d "${path}" ]]; then
+        printf 'directory (user-managed)'
+    elif [[ -e "${path}" ]]; then
+        printf 'file (user-managed)'
+    else
+        printf 'missing'
+    fi
+}
+
+# _dot_first_line <cmd...>: the first line of a command's output (stdout and
+# stderr). Reads it all first: `| head` would end the pipe early and fail
+# under pipefail.
+function _dot_first_line() {
+    local out
+    out="$("$@" 2>&1)" || true
+    printf '%s' "${out%%$'\n'*}"
+}
+
+# _dot_have <cmd>: "present" or "missing", for status reports.
+function _dot_have() {
+    if command -v "${1:?'Command must be informed'}" >/dev/null 2>&1; then
+        printf 'present'
+    else
+        printf 'missing'
+    fi
+}
+
 function _prompt() {
     local message=${1} default=${2:-}
     local input

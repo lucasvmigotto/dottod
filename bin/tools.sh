@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+#
+# tools.sh — dottod CLI tools: the core set from native packages, plus
+# opt-in extras (DOT_TOOLS_EXTRA, bootstrap's --extras).
+#
+# Usage: tools.sh [""] | status | --help|-h
+#   ("")     install the core tools and the selected extras
+#   status   print which tools are present, without changing anything
 
 set -Eeuo pipefail
 
@@ -180,7 +187,67 @@ function _extras_validate() {
     return 0
 }
 
+# The core tools by command name (bat may be batcat on Debian).
+readonly DOT_TOOLS_CORE=(btop xclip bat jq curl tar lsof fzf shellcheck bats shfmt just)
+
+function _tools_status() {
+    local tool missing=() present=0
+    for tool in "${DOT_TOOLS_CORE[@]}"; do
+        if command -v "${tool}" >/dev/null 2>&1 ||
+            { [[ "${tool}" == bat ]] && command -v batcat >/dev/null 2>&1; }; then
+            present=$((present + 1))
+        else
+            missing+=("${tool}")
+        fi
+    done
+    local extra_present=0 extra_missing=() selected=()
+    for tool in "${DOT_TOOLS_EXTRAS[@]}"; do
+        local cmd=${tool}
+        [[ "${tool}" == httpie ]] && cmd=http
+        if command -v "${cmd}" >/dev/null 2>&1; then
+            extra_present=$((extra_present + 1))
+        else
+            extra_missing+=("${tool}")
+        fi
+        if _extra_wanted "${tool}"; then selected+=("${tool}"); fi
+    done
+    cat <<EOF
+Tools
+-----
+Core:      ${present}/${#DOT_TOOLS_CORE[@]} present${missing[*]:+ (missing: ${missing[*]})}
+Extras:    ${extra_present}/${#DOT_TOOLS_EXTRAS[@]} present${extra_missing[*]:+ (missing: ${extra_missing[*]})}
+Selected:  ${selected[*]:-none} (DOT_TOOLS_EXTRA)
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: tools.sh [status]
+
+  (no args)  install the core tools and the extras DOT_TOOLS_EXTRA selects
+  status     print which tools are present, without changing anything
+EOF
+}
+
 function _main() {
+    case "${1:-}" in
+        '') ;;
+        status)
+            _tools_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
+
     _extras_validate
 
     log_step 'Installing CLI tools (apt)'
@@ -223,4 +290,6 @@ function _main() {
     return 0
 }
 
-_main "$@"
+if [[ "${BASH_SOURCE[0]:-}" == "${0}" ]]; then
+    _main "$@"
+fi

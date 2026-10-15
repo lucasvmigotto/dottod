@@ -6,6 +6,10 @@
 # interactive customization (config/.custom.bashrc) to ~/.bashrc.
 # Plain bash only: no zsh, no oh-my-zsh, no prompt frameworks, no plugins.
 # The prompt is a lightweight PROMPT_COMMAND in .custom.bashrc.
+#
+# Usage: shell.sh [""] | status | --help|-h
+#   ("")     install bash, make it the login shell, link ~/.bashrc
+#   status   print the shell report without changing anything
 
 set -Eeuo pipefail
 
@@ -63,7 +67,50 @@ function _custom_bashrc() {
     _link_file "${DOT_CONFIG_DIR}/.custom.bashrc" "${home}/.bashrc"
 }
 
+function _shell_status() {
+    local current_user home login
+    current_user="${_DOT_TARGET_USER:-$(id -un)}"
+    home="$(_dot_user_home "${current_user}")" || home="${HOME}"
+    login="$(_dot_passwd_entry "${current_user}" | cut -d: -f7)" || login=''
+    local state='not bash'
+    [[ "${login##*/}" == bash ]] && state='bash'
+    cat <<EOF
+Shell
+-----
+Bash:      $(command -v bash >/dev/null 2>&1 && _dot_first_line bash --version || echo missing)
+Login:     ${login:-unknown} (${state})
+Bashrc:    ${home}/.bashrc ($(_dot_path_state "${home}/.bashrc" "${DOT_CONFIG_DIR}/.custom.bashrc"))
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: shell.sh [status]
+
+  (no args)  install bash, make it the login shell and link ~/.bashrc
+  status     print the shell report without changing anything
+EOF
+}
+
 function _main() {
+    case "${1:-}" in
+        '') ;;
+        status)
+            _shell_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
+
     local current_user
     current_user="${_DOT_TARGET_USER:-$(id -un)}"
 

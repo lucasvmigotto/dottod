@@ -18,6 +18,10 @@
 #
 # OpenSSH uses the first obtained value per option, so appending missing
 # options can only fill gaps — it cannot override anything the user set.
+#
+# Usage: ssh.sh [""] | status | --help|-h
+#   ("")     merge the GitHub options into ~/.ssh/config, ensure the key
+#   status   print the SSH report without changing anything
 
 set -Eeuo pipefail
 
@@ -235,7 +239,63 @@ function _ensure_github_key() {
     return 0
 }
 
+function _ssh_status() {
+    # Not _ssh_dir: it creates the directory, and status changes nothing.
+    local ssh_dir=${_DOT_SSH_DIR:-}
+    [[ -n "${ssh_dir}" ]] || ssh_dir="$(_dot_user_home "$(id -un)")/.ssh"
+    local target="${ssh_dir}/config" github='no Host github.com block' parses='-'
+    if [[ -f "${target}" ]]; then
+        if grep -qiE '^[[:space:]]*Host[[:space:]]+(.*[[:space:]])?"?github\.com"?([[:space:]]|$)' "${target}"; then
+            github='Host github.com block present'
+        fi
+        if command -v ssh >/dev/null 2>&1; then
+            ssh -G -F "${target}" github.com >/dev/null 2>&1 && parses='yes' || parses='no'
+        fi
+    fi
+    local key='missing'
+    if [[ -e "${ssh_dir}/github" ]]; then
+        key="present$([[ -e "${ssh_dir}/github.pub" ]] && echo ' (+ .pub)')"
+    elif [[ -e "${ssh_dir}/github.pub" ]]; then
+        key='public half only'
+    fi
+    cat <<EOF
+SSH
+---
+Client:    $(command -v ssh >/dev/null 2>&1 && _dot_first_line ssh -V || echo missing)
+Config:    ${target} ($(_dot_path_state "${target}"))
+GitHub:    ${github} (OpenSSH parses it: ${parses})
+Key:       ${ssh_dir}/github (${key})
+EOF
+    return 0
+}
+
+function _usage() {
+    cat <<'EOF'
+Usage: ssh.sh [status]
+
+  (no args)  merge the GitHub options into ~/.ssh/config and ensure the key
+  status     print the SSH report without changing anything
+EOF
+}
+
 function _main() {
+    case "${1:-}" in
+        '') ;;
+        status)
+            _ssh_status
+            return 0
+            ;;
+        --help | -h)
+            _usage
+            return 0
+            ;;
+        *)
+            log_error "Unknown action: ${1} (want empty or 'status')"
+            _usage
+            return 1
+            ;;
+    esac
+
     local current_user ssh_dir
     current_user="$(id -un)"
     ssh_dir="$(_ssh_dir "${current_user}")"
