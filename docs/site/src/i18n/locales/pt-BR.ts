@@ -618,6 +618,70 @@ const pages: Record<PageId, DocPage> = {
         ],
       },
       {
+        id: "first-setup",
+        heading: "Primeira configuração",
+        blocks: [
+          {
+            kind: "ol",
+            items: [
+              "gpg --full-generate-key — ECC (o padrão), uma validade como 2y, seu nome e email, uma senha forte. O GnuPG também grava um certificado de revogação em ~/.gnupg/openpgp-revocs.d/: guarde uma cópia offline.",
+              "gpg --fingerprint voce@exemplo.com — a linha de 40 caracteres abaixo de pub é o fingerprint (público, pode compartilhar).",
+              "pass init <fingerprint sem espaços> — cria ~/.password-store para essa chave.",
+              "./bin/bootstrap.sh --only secrets, depois podman login <registry> com um token de acesso, nunca a senha da conta.",
+            ],
+          },
+          {
+            kind: "code",
+            lang: "text",
+            caption: "O fingerprint é a segunda linha",
+            code: "pub   ed25519 2026-10-15 [SC]\n      3EE7 54D4 94F5 58BB 9B09  F66C FC29 FD31 CC4B 9208\nuid           [ultimate] Your Name <you@example.com>",
+          },
+        ],
+      },
+      {
+        id: "new-laptop",
+        heading: "Mudando para um laptop novo",
+        blocks: [
+          {
+            kind: "p",
+            text: "Leve a chave secreta e o store juntos, por SSH ou pendrive — nunca por email, chat ou nuvem: com os dois, tudo descriptografa. Logins de registry não precisam de mais nada; os tokens estão no store. Passo a passo completo: docs/secrets.md.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Laptop antigo (FPR = seu fingerprint)",
+            code: 'gpg --export-secret-keys --armor "$FPR" > secret-key.asc\ngpg --export-ownertrust > ownertrust.txt\ntar -czf password-store.tgz -C ~ .password-store',
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Laptop novo",
+            code: "gpg --import secret-key.asc\ngpg --import-ownertrust ownertrust.txt\ntar -xzf password-store.tgz -C ~\nshred -u secret-key.asc ownertrust.txt password-store.tgz\n./bin/bootstrap.sh --only secrets",
+          },
+        ],
+      },
+      {
+        id: "revoke",
+        heading: "Revogando",
+        blocks: [
+          {
+            kind: "ul",
+            items: [
+              "Um token de registry: revogue no registry (Docker Hub: Account settings → Personal access tokens) — é isso que o inutiliza — depois podman logout <registry>.",
+              "Sua chave GPG (laptop perdido, chave ou senha vazada): revogue antes todos os tokens do store, depois importe o certificado de revogação da chave, e recomece com chave e tokens novos.",
+              "Guarde o certificado de revogação offline e longe da chave: ele revoga sua chave, mas não lê seus segredos.",
+            ],
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption:
+              "Revogar a chave (o certificado começa com um ':' de proteção — remova antes)",
+            code: "cp ~/.gnupg/openpgp-revocs.d/$FPR.rev /tmp/revoke.asc\nsed -i 's/^:-----BEGIN/-----BEGIN/' /tmp/revoke.asc\ngpg --import /tmp/revoke.asc",
+          },
+        ],
+      },
+      {
         id: "never",
         heading: "O que nunca faz",
         blocks: [
