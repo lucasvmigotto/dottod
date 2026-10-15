@@ -249,7 +249,7 @@ install_as() {
         {
             grep -ohE '_install_packages( [a-z0-9_]+)+' "$REPO_ROOT"/bin/*.sh | sed 's/^_install_packages //'
             grep -ohE "need\+=\([^)]*\)" "$REPO_ROOT"/bin/*.sh | sed -E "s/need\+=\(//; s/\)//; s/'//g"
-            grep -ohE "pkg_extras\+=' [a-z0-9_]+'" "$REPO_ROOT"/bin/*.sh | sed -E "s/.*' //; s/'//"
+            grep -ohE 'pkg_extras\+=\([a-z0-9_]+\)' "$REPO_ROOT"/bin/*.sh | sed -E 's/.*\(//; s/\)//'
         } | tr ' ' '\n' | sed '/^$/d' | sort -u
     )"
     assert_eq 'found requests' '1' "$([[ $(wc -l <<<"$requested") -ge 20 ]] && echo 1 || echo 0)"

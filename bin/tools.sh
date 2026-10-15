@@ -11,31 +11,19 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+# gh: the distro package, except on Debian/Ubuntu, where the official
+# GitHub CLI apt repository is used (https://cli.github.com) because the
+# distro's own gh lags far behind.
 function _github_cli_install() {
-    # GitHub CLI from its official apt repository
-    # (https://cli.github.com/manual/installation-linux).
     if _is_installed gh; then
         log_info 'gh already installed, skipping...'
         return 0
     fi
 
-    local arch keyring tmp_key
-    arch="$(dpkg --print-architecture)"
-    keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
-
-    log_step 'Installing GitHub CLI prerequisites'
-    _install_packages curl ca_certificates gnupg
-
-    # Download-then-install (never pipe a remote key straight into a
-    # privileged command): a failed download must not produce a keyring.
-    tmp_key="$(mktemp)"
-    log_step 'Adding GitHub CLI apt repository'
-    _download 'https://cli.github.com/packages/githubcli-archive-keyring.gpg' "${tmp_key}"
-    _priv install -m 0644 "${tmp_key}" "${keyring}"
-    rm -f "${tmp_key}"
-
-    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" |
-        _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    _os_detect || return 1
+    if [[ "${DOTTOD_OS_FAMILY}" == debian ]]; then
+        _github_cli_apt_repo || return 1
+    fi
 
     log_step 'Installing GitHub CLI (gh)'
     _install_packages gh
@@ -46,6 +34,28 @@ function _github_cli_install() {
     fi
     log_ok 'GitHub CLI installed'
     return 0
+}
+
+# _github_cli_apt_repo: the signed GitHub CLI apt source (Debian family
+# only). Download-then-install: a failed download never produces a keyring.
+function _github_cli_apt_repo() {
+    local arch keyring tmp_key
+    arch="$(dpkg --print-architecture)"
+    keyring='/usr/share/keyrings/githubcli-archive-keyring.gpg'
+
+    log_step 'Installing GitHub CLI prerequisites'
+    _install_packages curl ca_certificates gnupg
+
+    tmp_key="$(mktemp)"
+    log_step 'Adding GitHub CLI apt repository'
+    _download 'https://cli.github.com/packages/githubcli-archive-keyring.gpg' "${tmp_key}"
+    _priv install -m 0644 "${tmp_key}" "${keyring}"
+    rm -f "${tmp_key}"
+
+    echo "deb [arch=${arch} signed-by=${keyring}] https://cli.github.com/packages stable main" |
+        _priv tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+    # The new source must be in the index before gh can resolve.
+    _priv env DEBIAN_FRONTEND=noninteractive apt-get update -qq
 }
 
 # Opt-in tools (default: none). DOT_TOOLS_EXTRA is a comma-separated list
@@ -70,6 +80,21 @@ function _extras_validate() {
         return 1
     done
     return 0
+}
+
+# _tools_alias <name> <other>: when only one of two spellings of a tool
+# is on PATH, link the missing one to it in ~/.local/bin.
+function _tools_alias() {
+    local a=${1} b=${2} have
+    if _is_installed "${a}" && ! _is_installed "${b}"; then
+        have="$(command -v "${a}")"
+        ln -sfn "${have}" "$(_ensure_local_bin)/${b}"
+        log_info "Linked ${b} -> ${have}"
+    elif _is_installed "${b}" && ! _is_installed "${a}"; then
+        have="$(command -v "${b}")"
+        ln -sfn "${have}" "$(_ensure_local_bin)/${a}"
+        log_info "Linked ${a} -> ${have}"
+    fi
 }
 
 # The core tools by command name (bat may be batcat on Debian).
@@ -135,24 +160,25 @@ function _main() {
 
     _extras_validate
 
-    log_step 'Installing CLI tools (apt)'
+    log_step 'Installing CLI tools (native packages)'
     _install_packages btop xclip bat jq curl tar ca_certificates lsof fzf shellcheck bats shfmt just
 
-    if ! _is_installed batcat && _is_installed bat; then
-        ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"
-        log_info 'Created batcat alias -> bat'
+    # Debian renames bat and fd (batcat, fdfind); other distros don't.
+    # Link the missing spelling so both names work everywhere.
+    _tools_alias bat batcat
+    _tools_alias fd fdfind
+
+    local pkg_extras=()
+    _extra_wanted httpie && pkg_extras+=(httpie)
+    _extra_wanted chafa && pkg_extras+=(chafa)
+    if ((${#pkg_extras[@]} > 0)); then
+        log_step "Installing opt-in tools (native packages): ${pkg_extras[*]}"
+        _install_packages "${pkg_extras[@]}"
     fi
 
-    local pkg_extras=''
-
-    _extra_wanted httpie && pkg_extras+=' httpie'
-    _extra_wanted chafa && pkg_extras+=' chafa'
-    if [[ -n "${pkg_extras}" ]]; then
-        log_step "Installing opt-in tools (native packages):${pkg_extras}"
-        _install_packages "${pkg_extras# }"
+    if _extra_wanted gh; then
+        _github_cli_install
     fi
-
-    _extra_wanted gh && _github_cli_install
 
     log_ok 'Tools installed'
     return 0
