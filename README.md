@@ -187,6 +187,7 @@ claude              # pick a profile (fzf) — defaults to personal headless
 claude -P work      # one profile for this invocation (--profile works too)
 claude-profile add extra   # new overlay (links shared store, own login)
 claude-profile ls          # profiles with login state
+claude-profile consolidate # fold profiles' private history/projects into ~/.claude
 ```
 
 First run builds the overlay; a fresh profile asks for `/login`. Configure
