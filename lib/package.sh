@@ -35,9 +35,9 @@
 # entry in all five tables (tests/test-packages.bats enforces it).
 # shellcheck disable=SC2034 # read by tests and the resolve gate
 readonly DOT_PKG_LOGICAL=(
-    bash bat bats btop ca_certificates chafa curl fontconfig fzf gh git gnupg
-    httpie jq just lsof neovim nodejs openssh_client podman podman_rootless
-    shellcheck shfmt tar unzip vim xclip
+    bash bat bats btop ca_certificates chafa curl cxx_runtime fontconfig fzf gh
+    git gnupg httpie jq just lsof neovim nodejs openssh_client podman
+    podman_rootless python3 shellcheck shfmt tar unzip vim xclip
 )
 
 # _pkg_ready: detect once per process and require the manager.
@@ -52,8 +52,12 @@ function _pkg_ready() {
 
 # --- backends: installed? ---------------------------------------------
 
+# Query helpers read their command's whole output before matching: a
+# reader that stops early (grep -q, head, awk exit) kills the writer with
+# SIGPIPE, and under pipefail the pipeline then reports failure.
+
 function _pkg_debian_is_installed() {
-    dpkg-query -W -f='${Status}' "${1}" 2>/dev/null | grep -q 'install ok installed'
+    [[ "$(dpkg-query -W -f='${Status}' "${1}" 2>/dev/null)" == *'install ok installed'* ]]
 }
 
 function _pkg_gentoo_is_installed() {
@@ -110,7 +114,7 @@ function _pkg_alpine_install() {
 # --- backends: candidate version (raw distro version string) ----------
 
 function _pkg_debian_candidate() {
-    apt-cache policy "${1}" 2>/dev/null | awk '/Candidate:/ {print $2; exit}'
+    apt-cache policy "${1}" 2>/dev/null | awk '/Candidate:/ && !done {print $2; done = 1}'
 }
 
 function _pkg_gentoo_candidate() {
@@ -122,16 +126,18 @@ function _pkg_gentoo_candidate() {
 }
 
 function _pkg_arch_candidate() {
-    pacman -Si "${1}" 2>/dev/null | awk -F': *' '/^Version/ {print $2; exit}'
+    pacman -Si "${1}" 2>/dev/null | awk -F': *' '/^Version/ && !done {print $2; done = 1}'
 }
 
 function _pkg_redhat_candidate() {
-    dnf repoquery -q --latest-limit 1 --queryformat '%{version}\n' "${1}" 2>/dev/null | head -n1
+    local out
+    out="$(dnf repoquery -q --latest-limit 1 --queryformat '%{version}\n' "${1}" 2>/dev/null)" || return 0
+    printf '%s' "${out%%$'\n'*}"
 }
 
 function _pkg_alpine_candidate() {
     # First indented version line after "<name> policy:".
-    apk policy "${1}" 2>/dev/null | awk '/^  [^ ].*:$/ {sub(/^  /, ""); sub(/:$/, ""); print; exit}'
+    apk policy "${1}" 2>/dev/null | awk '/^  [^ ].*:$/ && !done {sub(/^  /, ""); sub(/:$/, ""); print; done = 1}'
 }
 
 # _pkg_norm_ver <raw>: drops an epoch (N:) and the distro revision
@@ -215,13 +221,15 @@ function _pkg_refresh_once() {
     : >"${stamp}"
 }
 
-# _pkg_transaction <pkg...>: refresh (if due) + install, under the lock.
-function _pkg_transaction() {
+# _pkg_locked <cmd...>: runs cmd under dottod's package lock (flock on
+# ${DOT_LOG_DIR}/pkg.lock), on a descriptor of this shell, not a subshell,
+# so process-local refresh memory survives; released on every path.
+function _pkg_locked() {
     local lock="${DOT_LOG_DIR}/pkg.lock"
 
     if ! command -v flock >/dev/null 2>&1; then
         log_warn 'flock not found; package transactions are not serialized'
-        _pkg_refresh_once && "_pkg_${DOTTOD_OS_FAMILY}_install" "$@"
+        "$@"
         return
     fi
     if [[ -L "${lock}" ]]; then
@@ -230,17 +238,35 @@ function _pkg_transaction() {
     fi
     (umask 077 && : >>"${lock}") || return 1
 
-    # Lock on a descriptor of this shell (not a subshell), so the
-    # process-local refresh memory survives; released on every path.
     local fd rc=0
     exec {fd}>>"${lock}" || return 1
     if flock "${fd}"; then
-        _pkg_refresh_once && "_pkg_${DOTTOD_OS_FAMILY}_install" "$@" || rc=$?
+        "$@" || rc=$?
     else
         rc=1
     fi
     exec {fd}>&-
     return "${rc}"
+}
+
+# _pkg_refresh_and_install <native...>: refresh (if due) + install.
+function _pkg_refresh_and_install() {
+    _pkg_refresh_once && "_pkg_${DOTTOD_OS_FAMILY}_install" "$@"
+}
+
+# _pkg_transaction <native...>: refresh (if due) + install, under the lock.
+function _pkg_transaction() {
+    _pkg_locked _pkg_refresh_and_install "$@"
+}
+
+# _pkg_refresh_index: refresh the package index now (once per run, under
+# the lock) so candidate lookups see current data — a fresh Debian has no
+# apt lists, and its candidate would read "none". May need privilege.
+# No-op with _DOT_NO_PACKAGES=1 and for families that never refresh.
+function _pkg_refresh_index() {
+    [[ "${_DOT_NO_PACKAGES:-0}" == 1 ]] && return 0
+    _pkg_ready || return 1
+    _pkg_locked _pkg_refresh_once
 }
 
 # _pkg_install <logical...>: installs what is missing; no privilege, refresh

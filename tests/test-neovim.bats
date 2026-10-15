@@ -34,6 +34,11 @@ if [[ "${NVIM_STUB_ABSENT:-0}" == 1 ]]; then
 fi
 if [[ "${1:-}" == "--version" ]]; then
     printf 'NVIM v%s\nBuild type: Release\n' "${NVIM_STUB_VERSION:-0.12.5}"
+    # NVIM_STUB_LONG=1: a long report, like Alpine's build, so an early
+    # reader would SIGPIPE the writer.
+    if [[ "${NVIM_STUB_LONG:-0}" == 1 ]]; then
+        for i in $(seq 1 20000); do printf 'feature line %s\n' "$i"; done
+    fi
     exit 0
 fi
 exit 0
@@ -149,6 +154,18 @@ nvim_present() { export NVIM_STUB_ABSENT=0; }
     assert_eq 'unknown rc 2' '2' "$status"
     run _nvim_ensure_binary
     assert_eq 'package install still attempted' '1' "$(grep -c '^PKGS:neovim' "$CALLS" || true)"
+}
+
+@test "version is read from a long --version report under pipefail" {
+    export NVIM_STUB_LONG=1
+    assert_eq 'version parsed' '0.12.5' "$(_nvim_version)"
+    unset NVIM_STUB_LONG
+}
+
+@test "tarball healing installs its own download tools first" {
+    _nvim_tarball_asset() { return 1; }
+    run _nvim_install_tarball v0.12.5 "$(id -un)"
+    assert_contains 'prerequisites requested' 'PKGS:curl ca_certificates tar python3' "$(cat "$CALLS")"
 }
 
 @test "tarball healing refuses musl systems" {

@@ -105,7 +105,7 @@ function _github_tarball_install() {
     fi
     tar -xzf "${tmpdir}/asset.tar.gz" -C "${tmpdir}"
 
-    extracted="$(find "${tmpdir}" -type f -name "${binary_name}" | head -n1)"
+    extracted="$(find "${tmpdir}" -type f -name "${binary_name}" -print -quit)"
     if [[ -z "${extracted}" ]]; then
         log_error "${binary_name} not found in downloaded archive"
         rm -rf "${tmpdir}"

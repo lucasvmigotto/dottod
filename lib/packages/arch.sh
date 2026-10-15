@@ -9,6 +9,8 @@ function _pkgmap_arch() {
         gh) printf 'github-cli' ;;
         openssh_client) printf 'openssh' ;;
         podman_rootless) printf 'shadow' ;;
+        python3) printf 'python' ;;
+        cxx_runtime) printf 'gcc-libs' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | fzf | \
             git | gnupg | httpie | jq | just | lsof | neovim | nodejs | podman | \
             shellcheck | shfmt | tar | unzip | vim | xclip)

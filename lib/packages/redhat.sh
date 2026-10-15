@@ -8,11 +8,12 @@ function _pkgmap_redhat() {
         gnupg) printf 'gnupg2' ;;
         openssh_client) printf 'openssh-clients' ;;
         podman_rootless) printf 'shadow-utils' ;;
+        cxx_runtime) printf 'libstdc++' ;;
         shellcheck) printf 'ShellCheck' ;;
         vim) printf 'vim-enhanced' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
             fzf | gh | git | httpie | jq | just | lsof | neovim | nodejs | podman | \
-            shfmt | tar | unzip | xclip)
+            python3 | shfmt | tar | unzip | xclip)
             printf '%s' "${1//_/-}"
             ;;
         *) return 1 ;;

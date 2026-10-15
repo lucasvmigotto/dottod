@@ -69,7 +69,10 @@ function _nvim_ver_ge() {
 # Print installed version (e.g. 0.12.5) or fail when absent/unparseable.
 function _nvim_version() {
     local out
-    out="$(nvim --version 2>/dev/null | head -n1)" || return 1
+    # Whole output first: `nvim --version | head -n1` under pipefail fails
+    # when head closes the pipe early (SIGPIPE), as Alpine's build showed.
+    out="$(nvim --version 2>/dev/null)" || return 1
+    out="${out%%$'\n'*}"
     if [[ "${out}" =~ NVIM\ v([0-9]+\.[0-9]+\.[0-9]+) ]]; then
         printf '%s' "${BASH_REMATCH[1]}"
         return 0
@@ -136,6 +139,9 @@ function _nvim_install_tarball() {
         log_error 'Install a Neovim >= 0.11 package from your distribution instead.'
         return 1
     fi
+    # python3 parses the GitHub release API for the asset digest (Neovim
+    # publishes no checksum file); the tarball is never installed unverified.
+    _install_packages curl ca_certificates tar python3
     local user_home
     user_home="$(_dot_user_home "${user}")" || return 1
     local root=${_DOT_NVIM_TARBALL_ROOT:-"${user_home}/.local/nvim"}
@@ -220,6 +226,8 @@ function _nvim_ensure_binary() {
         # Candidate-first: never attempt a doomed package install (sudo prompt
         # for a version we already know is too old). An unknown candidate
         # (no answer from the backend) is not "too old": try the package.
+        # Refresh the index first so the candidate reflects the repository.
+        _pkg_refresh_index || true
         cand="$(_nvim_pkg_candidate)" || cand=''
         if [[ -n "${cand}" ]] && ! _nvim_ver_ge "${cand}" "${min}"; then
             log_info "Neovim package candidate ${cand} is below minimum ${min}"
