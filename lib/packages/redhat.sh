@@ -12,7 +12,7 @@ function _pkgmap_redhat() {
         shellcheck) printf 'ShellCheck' ;;
         vim) printf 'vim-enhanced' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
-            fzf | gh | git | httpie | jq | just | lsof | neovim | nodejs | podman | \
+            fzf | gh | git | httpie | jq | just | lsof | neovim | podman | \
             python3 | shfmt | tar | unzip | xclip)
             printf '%s' "${1//_/-}"
             ;;

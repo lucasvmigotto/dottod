@@ -335,78 +335,73 @@ probe() {
     assert_contains 'warns about missing bun' 'bun binary missing' "$output"
 }
 
-@test "bun: devcontainer installs via bun global" {
-    devcontainer_absent
+# fake_bun_global: a ~/.local/bin/bun that behaves like Bun for the
+# devcontainer flow — `install --global <pkg>` records <pkg> and lays the
+# CLI out under ~/.bun/install/global; `--bun <cli> ...` "runs" it.
+# FAKE_BUN_RUN_FAILS=1 makes running the CLI fail.
+fake_bun_global() {
     mkdir -p "$FAKE_HOME/.local/bin"
     cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
 #!/usr/bin/env bash
 if [[ "$1" == "install" && "$2" == "--global" ]]; then
     printf '%s\n' "$3" >>"$CALLS.bun-global"
-    printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
-    chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+    cli="$HOME/.bun/install/global/node_modules/@devcontainers/cli"
+    mkdir -p "$cli"
+    printf '#!/usr/bin/env node\n' >"$cli/devcontainer.js"
+    exit 0
+fi
+if [[ "$1" == "--bun" && "$2" == */devcontainer.js ]]; then
+    [[ "${FAKE_BUN_RUN_FAILS:-0}" == 1 ]] && exit 1
+    printf 'RAN:%s\n' "$*" >>"$CALLS.bun-run"
+    [[ "$3" == "--version" ]] && echo 0.89.0
     exit 0
 fi
 exit 0
 INNER_EOF
     chmod +x "$FAKE_HOME/.local/bin/bun"
-    probe bun '_bun_devcontainer'
-    assert_eq 'global install rc 0' '0' "$status"
-    assert_contains 'package requested' '@devcontainers/cli' "$(cat "$CALLS.bun-global")"
-    assert_eq 'binary landed' '1' "$([[ -x "$FAKE_HOME/.local/bin/devcontainer" ]] && echo 1 || echo 0)"
 }
 
-@test "bun: devcontainer pulls nodejs only when node is missing" {
+@test "bun: devcontainer installs with bun and runs on bun, never node" {
     devcontainer_absent
-    mkdir -p "$FAKE_HOME/.local/bin"
-    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
-#!/usr/bin/env bash
-printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
-chmod +x "$FAKE_HOME/.local/bin/devcontainer"
-exit 0
-INNER_EOF
-    chmod +x "$FAKE_HOME/.local/bin/bun"
-    mkdir -p "$BATS_TEST_TMPDIR/nodebin"
-    cat >"$BATS_TEST_TMPDIR/nodebin/node" <<'INNER_EOF'
-#!/usr/bin/env bash
-exit 0
-INNER_EOF
-    chmod +x "$BATS_TEST_TMPDIR/nodebin/node"
-    export PATH="$BATS_TEST_TMPDIR/nodebin:$PATH"
-    probe bun '_bun_devcontainer >/dev/null'
-    assert_eq 'node present rc 0' '0' "$status"
-    assert_eq 'no package calls' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
-}
-
-@test "bun: devcontainer installs nodejs when node is absent" {
-    devcontainer_absent
-    # Hide any real node from `command -v` (a host-level install must
-    # not leak into the absence simulation).
     export HIDE_CMDS="node"
-    mkdir -p "$FAKE_HOME/.local/bin"
-    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
-#!/usr/bin/env bash
-printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
-chmod +x "$FAKE_HOME/.local/bin/devcontainer"
-exit 0
-INNER_EOF
-    chmod +x "$FAKE_HOME/.local/bin/bun"
-    probe bun '_bun_devcontainer >/dev/null'
-    assert_eq 'node absent rc 0' '0' "$status"
-    assert_contains 'nodejs requested' 'PKGS:nodejs' "$(cat "$CALLS")"
+    fake_bun_global
+    probe bun '_bun_devcontainer'
+    assert_eq 'install rc 0' '0' "$status"
+    assert_contains 'package requested' '@devcontainers/cli' "$(cat "$CALLS.bun-global")"
+    assert_contains 'reports the version' '0.89.0' "$output"
+    assert_eq 'no node.js requested' '0' "$(grep -c '^PKGS:' "$CALLS" || true)"
+    local wrapper="$FAKE_HOME/.local/bin/devcontainer"
+    assert_contains 'wrapper runs bun --bun' "--bun \"$FAKE_HOME/.bun/install/global/node_modules/@devcontainers/cli/devcontainer.js\"" "$(cat "$wrapper")"
+    "$wrapper" read-configuration --workspace-folder /x
+    assert_contains 'arguments pass through' 'read-configuration --workspace-folder /x' "$(cat "$CALLS.bun-run")"
     unset HIDE_CMDS
+}
+
+@test "bun: a devcontainer that does not run under bun fails loudly" {
+    devcontainer_absent
+    fake_bun_global
+    export FAKE_BUN_RUN_FAILS=1
+    probe bun '_bun_devcontainer'
+    assert_eq 'rc 1' '1' "$status"
+    assert_contains 'explains' 'does not run the devcontainer CLI under Bun' "$output"
+    unset FAKE_BUN_RUN_FAILS
+}
+
+@test "bun: a devcontainer the user put in ~/.local/bin is left alone" {
+    devcontainer_absent
+    fake_bun_global
+    printf '#!/bin/sh\nexit 1\n' >"$FAKE_HOME/.local/bin/devcontainer"
+    chmod +x "$FAKE_HOME/.local/bin/devcontainer"
+    probe bun '_bun_devcontainer'
+    assert_eq 'rc 0' '0' "$status"
+    assert_contains 'warns' "is not dottod's; leaving it alone" "$output"
+    assert_eq 'unchanged' $'#!/bin/sh\nexit 1' "$(cat "$FAKE_HOME/.local/bin/devcontainer")"
+    assert_eq 'nothing installed' '0' "$([[ -e "$CALLS.bun-global" ]] && echo 1 || echo 0)"
 }
 
 @test "bun: devcontainer honors package override" {
     devcontainer_absent
-    mkdir -p "$FAKE_HOME/.local/bin"
-    cat >"$FAKE_HOME/.local/bin/bun" <<'INNER_EOF'
-#!/usr/bin/env bash
-printf '%s\n' "$3" >>"$CALLS.bun-global"
-printf '#!/usr/bin/env bash\nexit 0\n' >"$FAKE_HOME/.local/bin/devcontainer"
-chmod +x "$FAKE_HOME/.local/bin/devcontainer"
-exit 0
-INNER_EOF
-    chmod +x "$FAKE_HOME/.local/bin/bun"
+    fake_bun_global
     export _DOT_DEVCONTAINER_PACKAGE='@devcontainers/cli@0.80.0'
     probe bun '_bun_devcontainer >/dev/null'
     assert_eq 'override rc 0' '0' "$status"

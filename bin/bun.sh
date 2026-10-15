@@ -148,10 +148,15 @@ function _bun_install_runtime() {
     return 0
 }
 
-# devcontainer CLI via a bun global install (the user asked for bun as the
-# installer, not npm): idempotent presence probe, pinned package unless
-# overridden. Runs with the fresh binary directly — ambient PATH may not
-# have ~/.local/bin yet in this same run.
+# Marker on the line after the shebang of the wrapper dottod writes; a
+# devcontainer file without it is the user's and is never overwritten.
+_DOT_DEVCONTAINER_MARKER='# dottod: devcontainer CLI on Bun (no Node.js)'
+
+# devcontainer CLI, installed and run by Bun: `bun install --global`, then
+# a ~/.local/bin/devcontainer wrapper that runs the CLI with `bun --bun`.
+# The package's own launcher starts with `#!/usr/bin/env node`; the
+# wrapper (first on PATH) makes Node.js unnecessary, so no distro ever
+# installs or compiles it for this. Pinned package unless overridden.
 function _bun_devcontainer() {
     local package=${_DOT_DEVCONTAINER_PACKAGE:-'@devcontainers/cli@latest'}
 
@@ -160,37 +165,42 @@ function _bun_devcontainer() {
         return 0
     fi
 
-    local bun_bin
+    local bun_bin wrapper cli
     bun_bin="$(_ensure_local_bin)/bun"
+    wrapper="$(_ensure_local_bin)/devcontainer"
     if [[ ! -x "${bun_bin}" ]]; then
         log_warn 'bun binary missing; skipping devcontainer CLI install.'
         return 0
     fi
-
-    # The devcontainer CLI is a Node script (#!/usr/bin/env node): ensure a
-    # runtime exists, escalating only when it is actually missing.
-    if ! command -v node >/dev/null 2>&1; then
-        log_step 'Installing Node.js runtime (for the devcontainer CLI)'
-        _install_packages nodejs
+    if [[ -e "${wrapper}" ]] && ! grep -qxF "${_DOT_DEVCONTAINER_MARKER}" "${wrapper}" 2>/dev/null; then
+        log_warn "${wrapper} exists and is not dottod's; leaving it alone."
+        return 0
     fi
 
-    log_step "Installing devcontainer CLI (${package})"
+    log_step "Installing devcontainer CLI (${package}) with Bun"
     if ! "${bun_bin}" install --global "${package}" >/dev/null 2>&1; then
         log_error 'devcontainer CLI install failed.'
         return 1
     fi
 
-    # `bun install --global` links binaries into the bun home's bin dir
-    # (~/.bun/bin by default), which config/.custom.bashrc already puts on
-    # PATH — accept that location as well as ~/.local/bin.
-    local bun_home_bin="${BUN_INSTALL:-"${HOME}/.bun"}/bin/devcontainer"
-    if [[ ! -x "$(_ensure_local_bin)/devcontainer" ]] &&
-        [[ ! -x "${bun_home_bin}" ]] &&
-        ! _is_installed devcontainer; then
-        log_error 'devcontainer CLI install did not yield a devcontainer binary on PATH.'
+    cli="${BUN_INSTALL:-"${HOME}/.bun"}/install/global/node_modules/@devcontainers/cli/devcontainer.js"
+    if [[ ! -f "${cli}" ]]; then
+        log_error "devcontainer CLI install did not yield ${cli}."
         return 1
     fi
-    log_ok 'devcontainer CLI installed'
+
+    {
+        printf '#!/bin/sh\n'
+        printf '%s\n' "${_DOT_DEVCONTAINER_MARKER}"
+        printf 'exec "%s" --bun "%s" "$@"\n' "${bun_bin}" "${cli}"
+    } >"${wrapper}"
+    chmod 0755 "${wrapper}"
+
+    if ! "${wrapper}" --version >/dev/null 2>&1; then
+        log_error "${wrapper} does not run the devcontainer CLI under Bun."
+        return 1
+    fi
+    log_ok "devcontainer CLI $("${wrapper}" --version 2>/dev/null) installed (runs on Bun)"
     return 0
 }
 

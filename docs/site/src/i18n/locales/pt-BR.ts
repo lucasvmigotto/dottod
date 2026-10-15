@@ -569,7 +569,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala o binário único do bun a partir do zip oficial (sha256 verificado, avisa quando não há digest) em ~/.local/bin — nunca o install.sh do bun, que editaria ~/.bashrc. Depois instala o CLI devcontainer com bun install --global (precisa de node; instalado via apt só quando falta).",
+            text: "Instala o binário único do bun a partir do zip oficial (sha256 verificado contra o SHASUMS256.txt do release; o build musl no Alpine) em ~/.local/bin — nunca o install.sh do bun, que editaria ~/.bashrc. Depois instala o CLI devcontainer com bun install --global e o executa com o Bun por um wrapper em ~/.local/bin/devcontainer: sem Node.js.",
           },
           {
             kind: "code",

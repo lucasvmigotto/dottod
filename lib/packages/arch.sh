@@ -12,7 +12,7 @@ function _pkgmap_arch() {
         python3) printf 'python' ;;
         cxx_runtime) printf 'gcc-libs' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | fzf | \
-            git | gnupg | httpie | jq | just | lsof | neovim | nodejs | podman | \
+            git | gnupg | httpie | jq | just | lsof | neovim | podman | \
             shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;

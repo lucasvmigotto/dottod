@@ -26,7 +26,6 @@ function _pkgmap_gentoo() {
         just) printf 'dev-build/just' ;;
         lsof) printf 'sys-process/lsof' ;;
         neovim) printf 'app-editors/neovim' ;;
-        nodejs) printf 'net-libs/nodejs' ;;
         openssh_client) printf 'net-misc/openssh' ;;
         podman) printf 'app-containers/podman' ;;
         podman_rootless) printf 'sys-apps/shadow' ;;
