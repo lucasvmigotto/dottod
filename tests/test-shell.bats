@@ -70,22 +70,22 @@ probe() {
 
 @test "custom.bashrc restores tool paths without duplicates" {
     local ihome="$BATS_TEST_TMPDIR/ihome3"
-    mkdir -p "$ihome/.local/bin" "$ihome/.opencode/bin" "$ihome/.bun/bin" "$ihome/.cargo/bin"
+    mkdir -p "$ihome/.local/bin" "$ihome/.bun/bin" "$ihome/.cargo/bin"
     run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; printf '%s' \"\$PATH\"" 2>/dev/null
     assert_eq 'path setup rc 0' '0' "$status"
-    local want="$ihome/.local/bin:$ihome/.opencode/bin:$ihome/.bun/bin:$ihome/.cargo/bin"
+    local want="$ihome/.local/bin:$ihome/.bun/bin:$ihome/.cargo/bin"
     assert_contains 'tool dirs first, in order' "$want" "$output"
-    assert_eq 'no duplicates on re-source' '1' "$(printf '%s' "$output" | tr ':' '\n' | grep -cx "$ihome/.opencode/bin" || true)"
+    assert_eq 'no duplicates on re-source' '1' "$(printf '%s' "$output" | tr ':' '\n' | grep -cx "$ihome/.bun/bin" || true)"
 }
 
 @test "custom.bashrc loads the utility libraries" {
     local ihome="$BATS_TEST_TMPDIR/ihome4"
     mkdir -p "$ihome"
-    run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; alias lll; command -v mkcd; command -v ocresume; command -v ctr; printf 'EDITOR=%s' \"\$EDITOR\"" 2>/dev/null
+    run env HOME="$ihome" bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; alias lll; command -v mkcd; command -v loadenv; command -v ctr; printf 'EDITOR=%s' \"\$EDITOR\"" 2>/dev/null
     assert_eq 'utilities rc 0' '0' "$status"
     assert_contains 'lll alias' "alias lll=" "$output"
     assert_contains 'mkcd function' 'mkcd' "$output"
-    assert_contains 'ocresume function' 'ocresume' "$output"
+    assert_contains 'loadenv function' 'loadenv' "$output"
     assert_contains 'ctr function' 'ctr' "$output"
     assert_contains 'editor default' 'EDITOR=vim' "$output"
 }

@@ -12,11 +12,11 @@ setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
 }
 
-@test "bootstrap lists the twelve tasks in order" {
+@test "bootstrap lists the eleven tasks in order" {
     run "$REPO_ROOT/bin/bootstrap.sh" --list
     assert_eq 'list rc 0' '0' "$status"
     assert_eq 'task order' \
-        "$(printf 'shell\nfonts\nvim\nneovim\ncontainer\nzed\nghostty\ngitconfig\nssh\ntools\ncargo\nbun')" \
+        "$(printf 'shell\nfonts\nvim\nneovim\ncontainer\nzed\ngitconfig\nssh\ntools\ncargo\nbun')" \
         "$output"
 }
 
@@ -43,7 +43,7 @@ setup() {
     local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
     mkdir -p "$fakeroot/bin"
     cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
-    for t in shell zed ghostty; do
+    for t in shell zed; do
         { printf '#!/usr/bin/env bash\n'; printf 'echo "RAN:$(basename "$0")" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/$t.sh"
         chmod +x "$fakeroot/bin/$t.sh"
     done
@@ -62,12 +62,32 @@ setup() {
     local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
     mkdir -p "$fakeroot/bin"
     cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
-    for t in shell zed ghostty; do
+    for t in shell zed; do
         { printf '#!/usr/bin/env bash\n'; printf 'echo "RAN:$(basename "$0")" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/$t.sh"
         chmod +x "$fakeroot/bin/$t.sh"
     done
-    run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --ui --only zed,ghostty --verbose
+    run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --ui --only zed --verbose
     assert_eq 'run rc 0' '0' "$status"
     assert_eq 'zed executed' '1' "$(grep -c 'RAN:zed' "$BATS_TEST_TMPDIR/calls.log" || true)"
-    assert_eq 'ghostty executed' '1' "$(grep -c 'RAN:ghostty' "$BATS_TEST_TMPDIR/calls.log" || true)"
+}
+
+@test "bootstrap --extras reaches the tools task" {
+    mkdir -p "$BATS_TEST_TMPDIR/stubbin"
+    printf '#!/usr/bin/env bash\nexit 0\n' >"$BATS_TEST_TMPDIR/stubbin/sudo"
+    chmod +x "$BATS_TEST_TMPDIR/stubbin/sudo"
+    export PATH="$BATS_TEST_TMPDIR/stubbin:$PATH"
+    local fakeroot="$BATS_TEST_TMPDIR/fakeroot"
+    mkdir -p "$fakeroot/bin"
+    cp "$REPO_ROOT/bin/bootstrap.sh" "$REPO_ROOT/bin/utils.sh" "$fakeroot/bin/"
+    { printf '#!/usr/bin/env bash\n'; printf 'echo "EXTRA:${DOT_TOOLS_EXTRA:-}" >>"%s/calls.log"\n' "$BATS_TEST_TMPDIR"; } >"$fakeroot/bin/tools.sh"
+    chmod +x "$fakeroot/bin/tools.sh"
+    run env _DOT_NO_PACKAGES=1 "$fakeroot/bin/bootstrap.sh" --only tools --extras gh,lazygit --verbose
+    assert_eq 'run rc 0' '0' "$status"
+    assert_eq 'extras exported' 'EXTRA:gh,lazygit' "$(cat "$BATS_TEST_TMPDIR/calls.log")"
+}
+
+@test "bootstrap rejects the retired runtime flag" {
+    run "$REPO_ROOT/bin/bootstrap.sh" --runtime docker --list
+    assert_eq 'retired flag rc 1' '1' "$status"
+    assert_contains 'unknown option' 'Unknown option' "$output"
 }

@@ -2,8 +2,8 @@
 #
 # test-containers.bats — tests for scripts/.containers.sh listing helpers.
 #
-# Hermetic: stub podman/docker binaries on a prepended PATH. Podman is
-# usable by default (info rc 0); flip *_STUB_INFO_RC to simulate a down
+# Hermetic: stub podman binary on a prepended PATH. Podman is usable by
+# default (info rc 0); flip PODMAN_STUB_INFO_RC to simulate a down
 # runtime. Follows tests/test-container.bats stub conventions.
 
 load helpers
@@ -22,19 +22,10 @@ case "${1:-}" in
     *) exit 0 ;;
 esac
 EOF
-    cat >"$STUBBIN/docker" <<'EOF'
-#!/usr/bin/env bash
-echo "docker $*" >>"${STUB_CALLS}"
-case "${1:-}" in
-    info) exit "${DOCKER_STUB_INFO_RC:-0}" ;;
-    *) exit 0 ;;
-esac
-EOF
-    chmod +x "$STUBBIN/podman" "$STUBBIN/docker"
+    chmod +x "$STUBBIN/podman"
 
     export STUB_CALLS="$CALLS"
-    export PODMAN_STUB_INFO_RC=0 DOCKER_STUB_INFO_RC=0
-    unset _DOT_CONTAINER_RUNTIME
+    export PODMAN_STUB_INFO_RC=0
     export PATH="$STUBBIN:$PATH"
 
     # shellcheck disable=SC1091
@@ -43,17 +34,15 @@ EOF
     source "${BATS_TEST_DIRNAME}/../scripts/.containers.sh"
 }
 
-@test "cps lists containers with the resolved runtime" {
+@test "cps lists containers with podman" {
     run cps
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'podman used' 'podman container ls -a' "$(cat "$CALLS")"
 }
 
-@test "cps honors an explicit docker runtime" {
-    export _DOT_CONTAINER_RUNTIME=docker
+@test "cps forwards extra args" {
     run cps --format 'table {{.ID}}'
     assert_eq 'rc 0' '0' "$status"
-    assert_contains 'docker used' 'docker container ls -a' "$(cat "$CALLS")"
     assert_contains 'extra args forwarded' "{{.ID}}" "$(cat "$CALLS")"
 }
 
@@ -64,11 +53,8 @@ EOF
 }
 
 @test "helpers fail loudly when the runtime is unusable" {
-    podman() { return 127; }
-    docker() { return 127; }
-    export -f podman docker
+    export PODMAN_STUB_INFO_RC=1
     run cps
-    unset -f podman docker
     if [[ "$status" == "0" ]]; then
         printf 'FAIL: expected nonzero with no usable runtime\n' >&2
         return 1

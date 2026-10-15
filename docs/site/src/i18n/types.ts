@@ -19,7 +19,6 @@ export const TASK_IDS = [
   "neovim",
   "container",
   "zed",
-  "ghostty",
   "gitconfig",
   "ssh",
   "tools",

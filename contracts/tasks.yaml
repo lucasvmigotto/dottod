@@ -14,17 +14,17 @@ tasks:
   - {id: neovim, script: bin/neovim.sh, ui: false, needs_apt: true}
   - {id: container, script: bin/container.sh, ui: false, needs_apt: true}
   - {id: zed, script: bin/zed.sh, ui: true, needs_apt: true}
-  - {id: ghostty, script: bin/ghostty.sh, ui: true, needs_apt: true}
   - {id: gitconfig, script: bin/gitconfig.sh, ui: false, needs_apt: false}
   - {id: ssh, script: bin/ssh.sh, ui: false, needs_apt: false}
   - {id: tools, script: bin/tools.sh, ui: false, needs_apt: true}
   - {id: cargo, script: bin/cargo.sh, ui: false, needs_apt: true}
   - {id: bun, script: bin/bun.sh, ui: false, needs_apt: true}
-bootstrap_flags: [--only LIST, --skip LIST, --runtime RUNTIME, --parallel, --ui, --no-ui, --yes, --verbose, --list, --help]
+bootstrap_flags: [--only LIST, --skip LIST, --extras LIST, --parallel, --ui, --no-ui, --yes, --verbose, --list, --help]
 conventions:
   idempotency: probe-before-act in every task
   backups: "<target>.dottod.bak[.timestamp], never delete user files"
   logging: "per-task /tmp/dottod/<task>.log in quiet mode; streamed in --verbose"
   exit_codes: "0 all pass; 1 on any failure (bootstrap counts failures)"
   privilege: "sudo|doas once per run, cached; TTY required unless passwordless"
-  ui: "GUI tasks (zed, ghostty) are skipped by default; --ui includes them"
+  ui: "GUI tasks (zed) are skipped by default; --ui includes them"
+  extras: "tools extras (gh, lazygit, lazydocker, k9s, resterm, httpie, chafa) are off by default; --extras / DOT_TOOLS_EXTRA opts in"

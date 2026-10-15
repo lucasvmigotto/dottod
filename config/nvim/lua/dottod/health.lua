@@ -60,7 +60,8 @@ function M.check()
     if vim.fn.executable(bin) == 1 then
       vim.health.ok(bin .. ' found (<leader>g' .. (bin == 'lazygit' and 'g' or bin == 'lazydocker' and 'k' or bin == 'k9s' and 'k' or 't') .. ')')
     else
-      vim.health.info(bin .. ' not found (./bin/tools.sh installs it)')
+      local how = bin == 'btop' and './bin/tools.sh' or ('DOT_TOOLS_EXTRA=' .. bin .. ' ./bin/tools.sh')
+      vim.health.info(bin .. ' not found (' .. how .. ' installs it)')
     end
   end
 
@@ -76,7 +77,7 @@ function M.check()
     vim.health.info('TERM=' .. vim.env.TERM .. (vim.env.TMUX ~= nil and ' (inside tmux)' or ''))
   end
   if vim.opt.termguicolors:get() then
-    vim.health.ok('termguicolors enabled (Ghostty/tmux handle 24-bit color)')
+    vim.health.ok('termguicolors enabled (modern terminals/tmux handle 24-bit color)')
   else
     vim.health.warn('termguicolors disabled; colorscheme may look off')
   end

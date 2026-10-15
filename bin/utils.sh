@@ -261,7 +261,7 @@ function _is_installed() {
 
 # Stronger than _is_installed: the binary must not only be on PATH but
 # execute (a broken shim counts as missing). Only for tools known to
-# support `--version` (cargo, bun, zed, ghostty, devcontainer).
+# support `--version` (cargo, bun, zed, devcontainer).
 function _is_runnable() {
     local bin=${1:?'Binary must be informed'}
     command -v "${bin}" >/dev/null 2>&1 && "${bin}" --version >/dev/null 2>&1
