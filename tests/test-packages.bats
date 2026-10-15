@@ -133,6 +133,12 @@ install_as() {
     assert_eq 'no apt fallback' '0' "$(grep -c 'apt-get' "$CALLS" || true)"
 }
 
+@test "gentoo warns that emerge may build from source" {
+    use_os gentoo
+    MISSING='app-misc/jq' run _install_packages jq
+    assert_contains 'warns before the build' 'emerge may build from source (app-misc/jq)' "$output"
+}
+
 @test "a failed transaction fails the call and explains" {
     export PRIV_RC=1 MISSING=jq
     run _install_packages curl jq
