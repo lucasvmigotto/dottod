@@ -61,14 +61,13 @@ const pages: Record<PageId, DocPage> = {
               ["fonts", "Nerd Fonts, user-level"],
               ["vim", "vim + vim-plug + plugins"],
               ["neovim", "Neovim ≥ 0.11, lazy.nvim, 16 pinned plugins"],
-              ["container", "Podman default, Docker alternative"],
+              ["container", "Rootless Podman"],
               ["zed", "Zed editor (GUI, opt-in)"],
-              ["ghostty", "Ghostty terminal (GUI, opt-in)"],
               ["gitconfig", "Git identity"],
               ["ssh", "GitHub host merge + ed25519 key"],
               [
                 "tools",
-                "lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just",
+                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, lazygit, lazydocker, k9s, resterm, httpie, chafa",
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
@@ -95,7 +94,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "You need Debian (or Debian-based) with apt, plus sudo or doas. If sudo is not passwordless you will be asked once; otherwise run as root. GUI tasks (zed, ghostty) are skipped by default — pass --ui to include them.",
+            text: "You need Debian (or Debian-based) with apt, plus sudo or doas. If sudo is not passwordless you will be asked once; otherwise run as root. GUI tasks (zed) are skipped by default — pass --ui to include them.",
           },
         ],
       },
@@ -152,7 +151,6 @@ const pages: Record<PageId, DocPage> = {
               ["neovim", "Yes", "apt or tarball (0.11+)"],
               ["container", "Yes", "apt on first run"],
               ["zed", "Yes (opt-in)", "network"],
-              ["ghostty", "Yes (opt-in)", "network"],
               ["gitconfig", "Yes", "GIT_NAME/GIT_EMAIL once"],
               ["ssh", "Yes", "nothing (keygen once)"],
               ["tools", "Yes", "apt + GitHub releases"],
@@ -337,7 +335,7 @@ const pages: Record<PageId, DocPage> = {
   "task-container": {
     id: "task-container",
     title: "container",
-    summary: "Podman by default, Docker when selected. Safe to re-run.",
+    summary: "Rootless Podman. Safe to re-run.",
     sections: [
       {
         id: "what",
@@ -345,20 +343,20 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Resolves podman, docker or auto (never silently switching an explicit choice), ensures rootless Podman (uidmap + subuid/subgid ranges) or delegates to the Docker installer. container.sh status prints the selection/installation/usability report without changing anything.",
+            text: "Ensures rootless Podman (uidmap + subuid/subgid ranges) and validates it with podman info as you, no sudo. container.sh status prints the installation/rootless report without changing anything.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Select and inspect",
-            code: "./bin/bootstrap.sh --runtime docker --only container\n./bin/container.sh status",
+            code: "./bin/bootstrap.sh --only container\n./bin/container.sh status",
           },
           {
             kind: "demo",
             gif: "status-commands.gif",
             alt: "Terminal recording: container.sh status and cargo.sh status reports.",
             transcript:
-              "➜ ./bin/container.sh status\n\nContainer runtime\n-----------------\nConfigured: <unset> (default: podman)\nSelected:   podman\nPodman:     installed 5.4.2\nDocker:     missing\nRootless:   yes\nUsable:     yes\n\n➜ ./bin/cargo.sh status\n\nRust toolchain\n--------------\nCargo:    cargo 1.98.0 (797e8a9bc 2026-08-05)\nHome:     /home/lucas/.cargo\nProfile:  minimal (default for fresh installs)\nToolchain: stable (default for fresh installs)\nRustup:   present",
+              "➜ ./bin/container.sh status\n\nContainer runtime\n-----------------\nPodman:     installed 5.4.2\nRootless:   yes\n\n➜ ./bin/cargo.sh status\n\nRust toolchain\n--------------\nCargo:    cargo 1.98.0 (797e8a9bc 2026-08-05)\nHome:     /home/lucas/.cargo\nProfile:  minimal (default for fresh installs)\nToolchain: stable (default for fresh installs)\nRustup:   present",
           },
         ],
       },
@@ -369,7 +367,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Yes. A usable engine is a no-op with zero privilege calls; subuid ranges are allocated once. Never migrates or destroys the other runtime.",
+            text: "Yes. A usable engine is a no-op with zero privilege calls; subuid ranges are allocated once. Never migrates or destroys other container engines.",
           },
         ],
       },
@@ -418,40 +416,6 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "Yes. A present zed skips without network. Skipped entirely without --ui.",
-          },
-        ],
-      },
-    ],
-  },
-  "task-ghostty": {
-    id: "task-ghostty",
-    title: "ghostty",
-    summary: "Ghostty terminal + default. Opt-in with --ui. Safe to re-run.",
-    sections: [
-      {
-        id: "what",
-        heading: "What it does",
-        blocks: [
-          {
-            kind: "p",
-            text: "Runs the ghostty-ubuntu installer from a downloaded file (never piped into a privileged shell), then sets Ghostty as the GNOME default terminal and x-terminal-emulator alternative.",
-          },
-          {
-            kind: "code",
-            lang: "bash",
-            caption: "Run it alone",
-            code: "./bin/bootstrap.sh --ui --only ghostty",
-          },
-        ],
-      },
-      {
-        id: "idempotent",
-        heading: "Idempotent?",
-        maturity: "implemented",
-        blocks: [
-          {
-            kind: "p",
-            text: "Yes. A present ghostty skips the install; the default-terminal setting re-applies. Skipped entirely without --ui.",
           },
         ],
       },
@@ -536,7 +500,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs btop, httpie, chafa, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from apt (skipped when all present), gh from its official apt repository (signed keyring), and lazygit, lazydocker, k9s and resterm from GitHub releases — sha256-verified against the release API digest, with warn-and-proceed when unpublished.",
+            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from apt (skipped when all present). Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie and chafa from apt, gh from its official apt repository (signed keyring), and lazygit, lazydocker, k9s and resterm from GitHub releases — sha256-verified against the release API digest, with warn-and-proceed when unpublished.",
           },
           {
             kind: "code",
@@ -678,7 +642,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "~/.local/bin first, then ~/.opencode/bin, ~/.bun/bin and ~/.cargo/bin when they exist. Prepended once per shell — re-sourcing never duplicates entries.",
+            text: "~/.local/bin first, then ~/.bun/bin and ~/.cargo/bin when they exist. Prepended once per shell — re-sourcing never duplicates entries.",
           },
         ],
       },
@@ -839,26 +803,17 @@ const pages: Record<PageId, DocPage> = {
   "guide-containers": {
     id: "guide-containers",
     title: "Containers",
-    summary: "Podman by default, Docker when selected.",
+    summary: "Rootless Podman only.",
     sections: [
       {
         id: "select",
-        heading: "Selection",
+        heading: "Setup",
         blocks: [
-          {
-            kind: "table",
-            headers: ["Value", "Meaning"],
-            rows: [
-              ["podman", "Use Podman (default)"],
-              ["docker", "Use Docker (explicit alternative)"],
-              ["auto", "Podman if usable, else Docker, else Podman"],
-            ],
-          },
           {
             kind: "code",
             lang: "bash",
-            caption: "Select and inspect",
-            code: "_DOT_CONTAINER_RUNTIME=docker ./bin/bootstrap.sh --only container\n./bin/container.sh status",
+            caption: "Install and inspect",
+            code: "./bin/bootstrap.sh --only container\n./bin/container.sh status",
           },
         ],
       },
@@ -868,7 +823,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Configured (env value) → installed (binary on PATH) → usable (works as you, no sudo) → selected (resolution). Binary-exists is not usable: a stopped daemon or missing user namespaces report exactly that, loudly.",
+            text: "Installed (binary on PATH) → usable (rootless podman info works as you, no sudo). Binary-exists is not usable: missing user namespaces or subuid ranges report exactly that, loudly.",
           },
         ],
       },
@@ -924,9 +879,12 @@ const pages: Record<PageId, DocPage> = {
             rows: [
               ["--only <list>", "run only these tasks"],
               ["--skip <list>", "skip these tasks"],
-              ["--runtime <name>", "podman, docker or auto (default podman)"],
+              [
+                "--extras <list>",
+                "opt-in tools for the tools task (gh, lazygit, lazydocker, k9s, resterm, httpie, chafa, or all)",
+              ],
               ["--parallel", "run tasks concurrently"],
-              ["--ui", "include GUI tasks (zed, ghostty)"],
+              ["--ui", "include GUI tasks (zed)"],
               ["--no-ui", "skip GUI tasks (the default)"],
               ["--yes", "assume yes for prompts"],
               ["--verbose, -v", "stream full task output"],
@@ -938,7 +896,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Common invocations",
-            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --skip ghostty,zed",
+            code: "./bin/bootstrap.sh\n./bin/bootstrap.sh --only shell,tools\n./bin/bootstrap.sh --ui --only zed\n./bin/bootstrap.sh --only tools --extras gh,lazygit",
           },
         ],
       },
@@ -951,7 +909,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Terminal recording: bootstrap.sh --help output, then the task list.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)\n  --parallel         Run tasks concurrently instead of sequentially\n  --ui               Include GUI tasks (zed, ghostty); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,\n                     k9s, resterm, httpie, chafa, or all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun",
           },
         ],
       },
@@ -972,7 +930,7 @@ const pages: Record<PageId, DocPage> = {
             rows: [
               ["_DOT_TARGET_USER", "id -un", "all"],
               ["_DOT_NO_PACKAGES", "0 (1 skips apt; tests)", "all"],
-              ["_DOT_CONTAINER_RUNTIME", "podman", "container"],
+              ["DOT_TOOLS_EXTRA", "none (comma list or all)", "tools"],
               ["_DOT_NVIM_MIN_VERSION", "0.11.0", "neovim"],
               ["_DOT_NVIM_VERSION", "v0.12.5", "neovim"],
               ["_DOT_NVIM_ALLOW_TARBALL", "0", "neovim"],
@@ -1015,11 +973,6 @@ const pages: Record<PageId, DocPage> = {
                 "Profile",
                 "DOTTOD_NVIM_PROFILE: minimal, terminal, development, full",
                 "mode, tier",
-              ],
-              [
-                "Configured / Selected / Usable",
-                "explicit choice vs auto-resolution vs working runtime",
-                "—",
               ],
               [
                 "Healing",
