@@ -9,6 +9,10 @@ generated from Conventional Commits since the last tag.
 
 ### Fixed
 
+- **Docs guide pages.** Sidebar, search and "Next" links pointed guides
+  at `#/guide-<name>` instead of their `#/guides/<name>` route, so every
+  Guides page showed "That page doesn't exist". All links now come from one
+  page-to-route mapping, with a test that opens every sidebar link.
 - **Docs footer versions.** The footer reads `dottod@vX.Y.Z · docs@vX.Y.Z`,
   each linked to the repository tree at its release tag (or the commit
   past it), and the site deploys after the release workflow, so it never

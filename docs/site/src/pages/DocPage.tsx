@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { PageHeader, Section, StatusBadge } from "../components/ui";
 import { useI18n } from "../i18n/index";
-import type { PageId } from "../i18n/types";
+import { type PageId, pathOf } from "../i18n/types";
 
 function OnThisPage({ pageId }: { pageId: PageId }) {
   const { content } = useI18n();
@@ -98,7 +98,7 @@ export function DocPageView({
           <p className="border-t border-border pt-4 text-sm">
             {content.ui.nextPage}:{" "}
             <Link
-              to={next === "overview" ? "/" : `/${next}`}
+              to={pathOf(next)}
               className="text-accent underline underline-offset-4"
             >
               {content.pages[next].title}

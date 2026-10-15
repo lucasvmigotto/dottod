@@ -46,6 +46,21 @@ export type PageId =
   | "architecture"
   | "roadmap";
 
+// The route of each page: tasks and guides live under /tasks/ and /guides/
+// (see app/router.tsx), the rest at /<id>. One mapping for every link, so a
+// page id is never used as a path directly.
+export function pathOf(id: PageId): string {
+  if (id === "overview") return "/";
+  if (id.startsWith("task-")) return `/tasks/${id.slice("task-".length)}`;
+  if (id.startsWith("guide-")) return `/guides/${id.slice("guide-".length)}`;
+  return `/${id}`;
+}
+
+// The page a route shows, for the sidebar's current item ("" if none).
+export function pageAt(pathname: string): PageId | "" {
+  return PAGE_IDS.find((id) => pathOf(id) === (pathname || "/")) ?? "";
+}
+
 export const PAGE_IDS: PageId[] = [
   "overview",
   "start",

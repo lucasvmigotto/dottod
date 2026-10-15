@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useI18n } from "../i18n/index";
-import { NAV_GROUPS, PAGE_IDS, type PageId } from "../i18n/types";
+import {
+  NAV_GROUPS,
+  PAGE_IDS,
+  type PageId,
+  pageAt,
+  pathOf,
+} from "../i18n/types";
 
 declare const __APP_VERSION__: string;
 
@@ -80,7 +86,7 @@ export function Search() {
             {results.map((p) => (
               <li key={p.id}>
                 <Link
-                  to={p.id === "overview" ? "/" : `/${p.id}`}
+                  to={pathOf(p.id)}
                   onClick={() => {
                     setOpen(false);
                     setQuery("");
@@ -192,7 +198,7 @@ export function Sidebar({
 }) {
   const { content } = useI18n();
   const location = useLocation();
-  const current = location.pathname.replace(/^\//, "") || "overview";
+  const current = pageAt(location.pathname);
   return (
     <nav
       aria-label={content.ui.menu}
@@ -210,12 +216,11 @@ export function Sidebar({
           <ul className="space-y-0.5 border-l border-border pl-3">
             {g.pages.map((id) => {
               const page = content.pages[id as PageId];
-              const active =
-                current === id || (id === "overview" && current === "");
+              const active = current === id;
               return (
                 <li key={id}>
                   <Link
-                    to={id === "overview" ? "/" : `/${id}`}
+                    to={pathOf(id as PageId)}
                     onClick={onNavigate}
                     aria-current={active ? "page" : undefined}
                     className={`block rounded px-2 py-1 text-sm ${active ? "bg-surface font-medium text-accent" : "text-muted hover:text-text"}`}
