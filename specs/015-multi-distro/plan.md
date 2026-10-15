@@ -181,8 +181,8 @@ containers:
 |---|---|---|---|
 | debian:trixie | candidate 0.10.4 < 0.11 → package skipped, verified tarball 0.12.5 (`_DOT_NVIM_ALLOW_TARBALL=1`) | x86_64-unknown-linux-gnu | 1.4.3, verified |
 | alpine:3.22 | package 0.11.1 | x86_64-unknown-linux-musl | 1.4.3 musl build, verified, runs |
-| arch, fedora | packages 0.12.6 / 0.11.5 | gnu | 1.4.3 (run predates the SHASUMS change) |
-| gentoo | not run: building app-editors/neovim exhausted memory on the 7.5 GiB dev host; the resolve gate shows 0.11.7 | — | — |
+| arch, fedora | packages 0.12.6 / 0.11.5 | gnu | 1.4.3 |
+| gentoo | package 0.11.7, built from source (rerun capped: `--memory 3g --cpus 2`, `MAKEOPTS=-j2`, `--jobs=1`; the first, uncapped run exhausted the 7.5 GiB host) | gnu | 1.4.3 |
 
 The first run found five problems, all fixed with tests:
 - `nvim --version | head -n1` under pipefail failed on Alpine (SIGPIPE),
@@ -198,3 +198,15 @@ The first run found five problems, all fixed with tests:
   `SHASUMS256.txt` (curl only; mirrors verify too).
 - Bun's musl build needs `libgcc`/`libstdc++` (`cxx_runtime`), absent on
   base Alpine; the new runnable check caught it.
+
+**Follow-up (2026-10-15): devcontainer CLI without Node.js.** On Gentoo
+the bun task went on to compile `net-libs/nodejs`, only because the
+devcontainer CLI launcher is `#!/usr/bin/env node`. Bun runs the CLI
+itself: `read-configuration` output is byte-identical under Node and
+`bun --bun`, and `devcontainer up` + `exec` work under Bun with Podman.
+The task now writes a `~/.local/bin/devcontainer` wrapper (`bun --bun`),
+and `nodejs` left the package tables. The same runs found Bun's checksum
+lookup ran before its prerequisites, so a fresh system without curl
+installed Bun unverified; prerequisites now come first. Verified on
+debian:trixie and alpine:3.22: Bun sha256-verified, devcontainer 0.89.0
+on Bun, no Node.js installed.
