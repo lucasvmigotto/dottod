@@ -87,16 +87,31 @@ __dottod_claude_ensure_profile() {
         return 1
     }
     chmod 700 -- "${dir}" 2>/dev/null || true
+    mkdir -p -- "${HOME}/.claude" 2>/dev/null || true
     # shellcheck disable=SC2086 # intentional word splitting on the entry list
     for entry in ${__DOTTOD_CLAUDE_SHARED}; do
         src="${HOME}/.claude/${entry}"
-        [[ -e "${src}" ]] || continue
         if [[ -L "${dir}/${entry}" ]]; then
             continue
         elif [[ -e "${dir}/${entry}" ]]; then
-            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (not replacing with a link)\n' "${dir}/${entry}" >&2
+            # The store lacks it: adopt the overlay's copy as the store's.
+            if [[ ! -e "${src}" ]] && mv -- "${dir}/${entry}" "${src}" 2>/dev/null; then
+                ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
+                continue
+            fi
+            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (run claude-profile consolidate to share it)\n' "${dir}/${entry}" >&2
             continue
         fi
+        # Create the store entry up front: Claude Code would otherwise write
+        # a private copy inside the overlay on first run.
+        if [[ ! -e "${src}" ]]; then
+            if [[ "${entry}" == *.jsonl ]]; then
+                : >>"${src}" 2>/dev/null && chmod 600 -- "${src}" 2>/dev/null
+            else
+                mkdir -p -- "${src}" 2>/dev/null
+            fi
+        fi
+        [[ -e "${src}" ]] || continue
         ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
     done
     if [[ ! -e "${dir}/settings.json" && -f "${HOME}/.claude/settings.json" ]]; then

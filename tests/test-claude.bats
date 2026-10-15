@@ -492,3 +492,20 @@ STUBEOF
     fi
     assert_eq 'nothing launched' '' "$(cat "$CALLS_LOG")"
 }
+
+@test "empty store: first launch creates shared entries and links them" {
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=work claude true" 2>/dev/null
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_eq 'projects linked' "$FAKE_HOME/.claude/projects" "$(readlink "$FAKE_HOME/.claude-work/projects")"
+    assert_eq 'history linked' "$FAKE_HOME/.claude/history.jsonl" "$(readlink "$FAKE_HOME/.claude-work/history.jsonl")"
+    [[ -d "$FAKE_HOME/.claude/projects" && -f "$FAKE_HOME/.claude/history.jsonl" ]]
+}
+
+@test "overlay copy is adopted when the store lacks the entry" {
+    mkdir -p "$FAKE_HOME/.claude-work/projects/p"
+    printf 'mine' >"$FAKE_HOME/.claude-work/projects/p/s.jsonl"
+    run bash -i -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=work claude true" 2>/dev/null
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_eq 'moved into the store' 'mine' "$(cat "$FAKE_HOME/.claude/projects/p/s.jsonl")"
+    [[ -L "$FAKE_HOME/.claude-work/projects" ]]
+}
