@@ -59,4 +59,6 @@ through `pass show`; container registries are its first consumer.
 - Passphrase prompting from a terminal-only session (Milestone S1).
 
 ## Status
-Planned.
+Implemented (2026-10-15), hermetic tests only. Milestone S1 (this
+machine: real key, store, `podman login` docker.io + dhi.io, a dhi.io
+pull) is the first real run.

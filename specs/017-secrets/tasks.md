@@ -27,9 +27,9 @@ ShellCheck/shfmt clean, each commit passing on its own).
   other keys and mode 0600 / rerun no-op / never prints a value.
 
 ## Phase 4 — doctor and docs (`docs/secrets`)
-- [ ] T175 `dottod-doctor`: store state, helper wired, plaintext registry
+- [x] T175 `dottod-doctor`: store state, helper wired, plaintext registry
   credentials warned (names only).
-- [ ] T176 `docs/secrets.md`, README, site page in both locales, contract.
+- [x] T176 `docs/secrets.md`, README, site page in both locales, contract.
 
 **Milestone S1 — this machine:** you create the key and run `pass init`,
 `./bin/bootstrap.sh --only secrets`, then `podman login docker.io` and
