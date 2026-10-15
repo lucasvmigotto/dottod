@@ -59,9 +59,9 @@ Same smoke on Arch, Fedora, Alpine, Debian before moving on.
 - [x] T074 Gentoo: warn before heavy builds; `-bin` atoms where available
 
 ## Phase 8 — CI (`ci/distro-matrix`)
-- [ ] T080 `distro.yml`: L1 mapping gate per distro, path-filtered on `lib/**`, `bin/**`
-- [ ] T081 scheduled L2 core smoke (Gentoo time-boxed), images pinned by digest
-- [ ] T082 neutral dev-tool hints in `justfile` and `tests/run.sh`
+- [x] T080 `distro.yml`: L1 mapping gate per distro, path-filtered on `lib/**`, `bin/**`
+- [x] T081 scheduled L2 core smoke (Gentoo time-boxed), images pinned by digest
+- [x] T082 neutral dev-tool hints in `justfile` and `tests/run.sh`
 
 ## Phase 9 — docs and support claims (`docs/distributions`)
 - [ ] T090 `docs/distributions.md`: support matrix from evidence only (L1/L2/L3 results), Gentoo/Arch policies, known limits

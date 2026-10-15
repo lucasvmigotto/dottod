@@ -249,3 +249,14 @@ request, and with them every upstream-release download in `tools.sh`
 (the python3-dependent digest lookup and an early-exit `head` pipe that
 the per-line guard could not see). Zed now skips musl with a reason and
 must run after install; emerge warns before source builds.
+
+**Phase 8 (2026-10-15).** `.github/workflows/distro.yml`: the resolve
+gate per distro on PRs/pushes touching the package layer, and the core
+smoke weekly + on demand (Gentoo time-boxed at 120 min). Images are pinned
+by digest in `tests/integration/distros.sh`; containers default to
+`--memory 3g --cpus 2` locally (`DOT_IT_PODMAN_ARGS=''` on CI runners).
+The shell/neovim/docs-ci/container workflows triggered on pushes to the
+stale `dev` branch; they now watch `develop`. `just tools` installs the
+dev toolchain through dottod's own package layer (verified on Alpine and
+Fedora). Not yet run on GitHub: the first push of `develop` will be the
+first CI run of the new workflow.
