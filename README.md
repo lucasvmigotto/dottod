@@ -24,12 +24,11 @@ tests/     BATS test suites (run with ./tests/run.sh)
 | `fonts`     | `bin/fonts.sh`    | Installs Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono) |
 | `vim`       | `bin/vim.sh`      | Installs vim + vim-plug, links `~/.vimrc`, installs plugins         |
 | `neovim`    | `bin/neovim.sh`   | Installs Neovim (>= 0.11) + lazy.nvim config (zero external deps), links `~/.config/nvim` (see [docs/neovim.md](docs/neovim.md); vim stays untouched) |
-| `container` | `bin/container.sh`| Container runtime: Podman by default, Docker when selected          |
-| `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download)             |
-| `ghostty`   | `bin/ghostty.sh`  | Installs Ghostty and sets it as the default terminal                |
+| `container` | `bin/container.sh`| Container runtime: rootless Podman                                  |
+| `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download; opt-in via `--ui`) |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
 | `ssh`       | `bin/ssh.sh`      | Merges GitHub host config into `~/.ssh/config` (never overwrites)   |
-| `tools`     | `bin/tools.sh`    | lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh |
+| `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
 
@@ -103,18 +102,28 @@ Select or exclude tasks:
 
 ```bash
 ./bin/bootstrap.sh --only shell,tools
-./bin/bootstrap.sh --skip ghostty,zed
+./bin/bootstrap.sh --skip fonts,cargo
 ./bin/bootstrap.sh --only vim,neovim
 ```
 
-GUI tasks (`zed`, `ghostty`) are skipped by default — the CLI is
-terminal-first. Pass `--ui` to include them.
+GUI tasks (`zed`) are skipped by default — the CLI is terminal-first.
+Pass `--ui` to include them.
+
+The `tools` task installs only the apt baseline. Extra tools are opt-in
+(all off by default): `gh`, `lazygit`, `lazydocker`, `k9s`, `resterm`,
+`httpie`, `chafa`, or `all`:
+
+```bash
+./bin/bootstrap.sh --only tools --extras gh,lazygit
+DOT_TOOLS_EXTRA=all ./bin/tools.sh
+```
 
 Flags:
 
 - `--only <list>` — run only the given comma-separated tasks
 - `--skip <list>` — skip the given comma-separated tasks
-- `--ui` — include GUI tasks (`zed ghostty`)
+- `--ui` — include GUI tasks (`zed`)
+- `--extras <list>` — opt-in tools for the `tools` task (sets `DOT_TOOLS_EXTRA`)
 - `--no-ui` — skip GUI tasks (the default; explicit form of omitting `--ui`)
 - `--parallel` — run tasks concurrently instead of sequentially
 - `--yes` — assume yes for prompts
@@ -223,9 +232,7 @@ corresponding tasks. Edit them there and re-run the task to reapply.
 * GitHub SSH: see `docs/ssh.md`; `config/.ssh.config` is the template of
   required options merged into `~/.ssh/config` by the `ssh` task, which also
   generates an `ed25519` key at `~/.ssh/github` when none exists.
-* Container runtime: see `docs/containers.md`; Podman by default, Docker via
-  `_DOT_CONTAINER_RUNTIME=docker` (or `--runtime docker`); `bin/docker.sh`
-  stays directly runnable for Docker-only setups.
+* Container runtime: see `docs/containers.md`; rootless Podman only.
 
 ## Design notes
 
@@ -234,5 +241,5 @@ corresponding tasks. Edit them there and re-run the task to reapply.
   dotfiles (suffixed `.dottod.bak`), curl retries, and a final PASS/FAIL summary.
 - **Parallelism**: `--parallel` runs tasks concurrently; apt operations are
   serialized by dpkg's own lock.
-- **Terminal-first**: GUI tasks (`zed`, `ghostty`) never run unless `--ui`
+- **Terminal-first**: GUI tasks (`zed`) never run unless `--ui`
   is passed.

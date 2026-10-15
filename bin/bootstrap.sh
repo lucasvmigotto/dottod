@@ -4,8 +4,8 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-readonly DOT_TASKS=(shell fonts vim neovim container zed ghostty gitconfig ssh tools cargo bun)
-readonly DOT_UI_TASKS=(zed ghostty)
+readonly DOT_TASKS=(shell fonts vim neovim container zed gitconfig ssh tools cargo bun)
+readonly DOT_UI_TASKS=(zed)
 
 function _in_list() {
     local needle=${1}
@@ -26,9 +26,10 @@ Bootstraps the workstation by running the dottod task scripts.
 Options:
   --only <list>      Comma-separated list of tasks to run (default: all)
   --skip <list>      Comma-separated list of tasks to skip
-  --runtime <name>   Container runtime: podman, docker, or auto (default: podman)
   --parallel         Run tasks concurrently instead of sequentially
-  --ui               Include GUI tasks (zed, ghostty); default skips them
+  --extras <list>    Opt-in tools for the tools task (gh, lazygit, lazydocker,
+                     k9s, resterm, httpie, chafa, or all); default none
+  --ui               Include GUI tasks (zed); default skips them
   --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)
   --yes              Assume yes for any prompts
   --verbose, -v      Stream full task output (default: summarized)
@@ -40,12 +41,11 @@ Tasks:
   fonts     Nerd Fonts (FiraCode, FiraMono, RobotoMono, NerdFontsSymbolsOnly, ZedMono)
   vim       vim + vim-plug + plugins
   neovim    Neovim + lazy.nvim + Telescope (first-class; vim untouched)
-  container Container runtime (Podman default, Docker alternative)
+  container Podman (rootless)
   zed       Zed editor (user-level install)
-  ghostty   Ghostty terminal + set as default
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely) + ed25519 key
-  tools     lazygit, lazydocker, k9s, btop, httpie, bat, resterm, xclip, chafa, fzf, gh, shellcheck, bats, shfmt, just
+  tools     btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just (+ --extras)
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
 EOF
@@ -121,17 +121,8 @@ function _main() {
                 skip="${2:?'--skip requires a comma-separated task list'}"
                 shift 2
                 ;;
-            --runtime)
-                _DOT_CONTAINER_RUNTIME="$(printf '%s' "${2:?'--runtime requires podman, docker, or auto'}" | tr '[:upper:]' '[:lower:]')"
-                case "${_DOT_CONTAINER_RUNTIME}" in
-                    podman | docker | auto)
-                        export _DOT_CONTAINER_RUNTIME
-                        ;;
-                    *)
-                        log_error "Invalid runtime: $2 (want podman|docker|auto)"
-                        return 1
-                        ;;
-                esac
+            --extras)
+                export DOT_TOOLS_EXTRA="${2:?'--extras requires a comma-separated tool list'}"
                 shift 2
                 ;;
             --parallel)

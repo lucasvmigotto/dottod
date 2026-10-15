@@ -156,27 +156,68 @@ function _github_cli_install() {
     return 0
 }
 
+# Opt-in tools (default: none). DOT_TOOLS_EXTRA is a comma-separated list
+# of these names, or `all`; bootstrap's --extras sets it.
+readonly DOT_TOOLS_EXTRAS=(gh lazygit lazydocker k9s resterm httpie chafa)
+
+# _extra_wanted <name>: 0 when DOT_TOOLS_EXTRA selects that tool.
+function _extra_wanted() {
+    local list=",${DOT_TOOLS_EXTRA:-},"
+    [[ "${list}" == *",all,"* || "${list}" == *",${1},"* ]]
+}
+
+function _extras_validate() {
+    local item known
+    local IFS=','
+    for item in ${DOT_TOOLS_EXTRA:-}; do
+        [[ -z "${item}" || "${item}" == all ]] && continue
+        for known in "${DOT_TOOLS_EXTRAS[@]}"; do
+            [[ "${item}" == "${known}" ]] && continue 2
+        done
+        log_error "Unknown extra tool '${item}' (want: ${DOT_TOOLS_EXTRAS[*]}, or all)"
+        return 1
+    done
+    return 0
+}
+
 function _main() {
-    local go_arch rust_arch
-    go_arch="$(_go_arch)"
-    rust_arch="$(_rust_arch)"
+    _extras_validate
 
     log_step 'Installing CLI tools (apt)'
-    _install_packages 'btop httpie chafa xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
-
-    _github_cli_install
+    _install_packages 'btop xclip bat jq curl tar ca-certificates lsof fzf shellcheck bats shfmt just'
 
     if ! _is_installed batcat && _is_installed bat; then
         ln -sf "$(command -v bat)" "$(_ensure_local_bin)/batcat"
         log_info 'Created batcat alias -> bat'
     fi
 
+    local go_arch rust_arch apt_extras=''
+    go_arch="$(_go_arch)"
+    rust_arch="$(_rust_arch)"
+
+    _extra_wanted httpie && apt_extras+=' httpie'
+    _extra_wanted chafa && apt_extras+=' chafa'
+    if [[ -n "${apt_extras}" ]]; then
+        log_step "Installing opt-in tools (apt):${apt_extras}"
+        _install_packages "${apt_extras# }"
+    fi
+
+    _extra_wanted gh && _github_cli_install
+
     # NOTE: lazygit upstream names Linux assets lowercase (`linux_`);
     # lazydocker still uses `Linux_`. Patterns are per-repo on purpose.
-    _github_tarball_install 'jesseduffield/lazygit' 'lazygit' "linux_${go_arch}.tar.gz"
-    _github_tarball_install 'jesseduffield/lazydocker' 'lazydocker' "Linux_${go_arch}.tar.gz"
-    _github_tarball_install 'derailed/k9s' 'k9s' "Linux_${rust_arch}.tar.gz"
-    _github_binary_install 'unkn0wn-root/resterm' 'resterm' 'resterm_Linux_'
+    if _extra_wanted lazygit; then
+        _github_tarball_install 'jesseduffield/lazygit' 'lazygit' "linux_${go_arch}.tar.gz"
+    fi
+    if _extra_wanted lazydocker; then
+        _github_tarball_install 'jesseduffield/lazydocker' 'lazydocker' "Linux_${go_arch}.tar.gz"
+    fi
+    if _extra_wanted k9s; then
+        _github_tarball_install 'derailed/k9s' 'k9s' "Linux_${rust_arch}.tar.gz"
+    fi
+    if _extra_wanted resterm; then
+        _github_binary_install 'unkn0wn-root/resterm' 'resterm' 'resterm_Linux_'
+    fi
 
     log_ok 'Tools installed'
     return 0
