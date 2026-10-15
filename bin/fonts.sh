@@ -79,11 +79,11 @@ function _main() {
     # User-level installs must not require privilege: only escalate for
     # prerequisites that are actually missing (probed, not assumed).
     local -a need=()
-    command -v curl >/dev/null 2>&1 || need+=('curl' 'ca-certificates')
+    command -v curl >/dev/null 2>&1 || need+=('curl' 'ca_certificates')
     command -v fc-list >/dev/null 2>&1 || need+=('fontconfig')
     command -v unzip >/dev/null 2>&1 || need+=('unzip')
     if [[ ${#need[@]} -gt 0 ]]; then
-        _install_packages "${need[*]}"
+        _install_packages "${need[@]}"
     else
         log_info 'Font prerequisites already present, skipping package install...'
     fi

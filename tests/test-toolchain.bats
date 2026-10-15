@@ -180,7 +180,7 @@ probe() {
     probe cargo '_cargo_ensure >/dev/null'
     assert_eq 'install rc 0' '0' "$status"
     assert_eq 'fake cargo planted' '1' "$([[ -x "$FAKE_CARGO_HOME/bin/cargo" ]] && echo 1 || echo 0)"
-    assert_eq 'deps requested once' '1' "$(grep -c '^PKGS:curl ca-certificates' "$CALLS" || true)"
+    assert_eq 'deps requested once' '1' "$(grep -c '^PKGS:curl ca_certificates' "$CALLS" || true)"
     assert_contains 'installer got toolchain flags' '--default-toolchain stable' "$(cat "$CALLS.rustup-args")"
 }
 

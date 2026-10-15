@@ -105,7 +105,7 @@ function _bun_install_runtime() {
     dest="$(_ensure_local_bin)/bun"
 
     log_step 'Installing Bun prerequisites'
-    _install_packages 'curl ca-certificates unzip'
+    _install_packages curl ca_certificates unzip
 
     tmpdir="$(mktemp -d)"
     log_step "Installing Bun ${version} (${target}) with sha256 verification"
@@ -159,7 +159,7 @@ function _bun_devcontainer() {
     # runtime exists, escalating only when it is actually missing.
     if ! command -v node >/dev/null 2>&1; then
         log_step 'Installing Node.js runtime (for the devcontainer CLI)'
-        _install_packages 'nodejs'
+        _install_packages nodejs
     fi
 
     log_step "Installing devcontainer CLI (${package})"

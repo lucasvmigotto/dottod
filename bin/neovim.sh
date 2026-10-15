@@ -222,7 +222,7 @@ function _nvim_ensure_binary() {
 
     if [[ "${need_tarball}" == 0 ]]; then
         log_step 'Installing Neovim (apt)'
-        _install_packages 'neovim'
+        _install_packages neovim
         if ver="$(_nvim_version 2>/dev/null)" && _nvim_ver_ge "${ver}" "${min}"; then
             log_ok "Neovim ${ver} installed"
             return 0
