@@ -150,3 +150,26 @@ confirmed against the repository itself:
 
 Gentoo picks: `dev-util/shellcheck-bin` (0.11.0, avoids a GHC build),
 `app-editors/neovim` 0.11.7 (meets the 0.11 floor from the package).
+
+**Phase 4 / milestone G1 (2026-10-15)**, `DOTTOD_TEST_INTEGRATION=1
+tests/integration/core-smoke.sh`: real `bootstrap.sh --only
+shell,vim,gitconfig,ssh,fonts` twice per container, as root.
+
+| Distro | Packages installed (run 1) | Login shell | Run 2 |
+|---|---|---|---|
+| debian:trixie | git curl ca-certificates, fontconfig unzip, vim | bash | no installs, no downloads, no file changed |
+| arch (synced) | git, fontconfig unzip, vim, openssh | bash (/usr/bin/bash) | same |
+| fedora:42 | git, fontconfig unzip, vim-enhanced | bash | same |
+| alpine:3.22 (+bash) | git curl ca-certificates, fontconfig, vim, openssh-client-default | stays /bin/sh: no chsh, warning gives `usermod -s` | same |
+| gentoo stage3 | dev-vcs/git, media-libs/fontconfig, app-editors/vim (built from source) | bash | same |
+
+Found on the way (pre-existing, all distros): every run re-downloaded
+all Nerd Fonts. `fc-list | grep -q` under pipefail failed whenever grep
+exited early (SIGPIPE), and `NerdFontsSymbolsOnly` registers as "Symbols
+Nerd Font". Info-ZIP unzip keeps archive mtimes, which hid it; BusyBox
+unzip on Alpine exposed it. Fixed in bin/fonts.sh with a regression test;
+the smoke now also checks "run 2 downloaded nothing".
+
+Known noise, not a failure: `vim PlugInstall reported errors` comes from
+vim-plug's status buffer mappings (E31) in headless `-es` mode; all 19
+plugins install.

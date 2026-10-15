@@ -36,7 +36,7 @@ maintainer's target.
 - [x] T042 `shell.sh`: verify `chsh` + `/etc/shells` before switching; clear manual hint otherwise
 - [x] T043 tests: `/var/home/u`, missing user, non-root target
 
-**Milestone G1 — Gentoo core, in a container.** stage3 + portage snapshot:
+**Milestone G1 — Gentoo core, in a container.** ✅ containers, 2026-10-15 (`tests/integration/core-smoke.sh`; real Gentoo host still to do). stage3 + portage snapshot:
 `bootstrap.sh --only shell,vim,gitconfig,ssh,fonts` twice, both pass,
 second is a no-op. Then the same on a real Gentoo (VM or the laptop).
 Same smoke on Arch, Fedora, Alpine, Debian before moving on.
