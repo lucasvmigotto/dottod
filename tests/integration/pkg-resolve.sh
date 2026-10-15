@@ -12,37 +12,12 @@
 #                                container per distro (default: all)
 #   pkg-resolve.sh --inside      inside a container (the host mode calls it)
 #
-# Distros: debian ubuntu gentoo arch fedora alpine. Gentoo needs a
-# Portage tree: a stopped `dottod-portage` container holding it is created
-# on first use (podman run --name dottod-portage gentoo/portage) and
-# reused through --volumes-from.
+# Distros and images: tests/integration/distros.sh.
 
 set -Eeuo pipefail
 
-readonly ALL_DISTROS=(debian ubuntu gentoo arch fedora alpine)
-
-function _image() {
-    case "${1}" in
-        debian) printf 'docker.io/library/debian:trixie' ;;
-        ubuntu) printf 'docker.io/library/ubuntu:24.04' ;;
-        gentoo) printf 'docker.io/gentoo/stage3:latest' ;;
-        arch) printf 'docker.io/library/archlinux:latest' ;;
-        fedora) printf 'docker.io/library/fedora:42' ;;
-        alpine) printf 'docker.io/library/alpine:3.22' ;;
-        *) return 1 ;;
-    esac
-}
-
-# Index preparation for the throwaway container only (dottod itself never
-# runs a lone pacman -Sy; this container is discarded afterwards).
-function _prep() {
-    case "${1}" in
-        debian | ubuntu) printf 'apt-get update -qq >/dev/null' ;;
-        arch) printf 'pacman -Sy --noconfirm >/dev/null' ;;
-        alpine) printf 'apk add -q bash >/dev/null && apk update -q >/dev/null' ;;
-        *) printf 'true' ;;
-    esac
-}
+# shellcheck source=distros.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/distros.sh"
 
 function _inside() {
     cd /w
@@ -75,11 +50,6 @@ function _inside() {
     ((failures == 0))
 }
 
-function _ensure_portage() {
-    podman container exists dottod-portage && return 0
-    podman run --name dottod-portage docker.io/gentoo/portage:latest >/dev/null
-}
-
 function _host() {
     local repo distro image failures=0
     local -a extra=()
@@ -90,20 +60,16 @@ function _host() {
         return 1
     }
 
-    for distro in "${@:-${ALL_DISTROS[@]}}"; do
-        image="$(_image "${distro}")" || {
-            echo "FAIL: unknown distro '${distro}' (want: ${ALL_DISTROS[*]})" >&2
+    for distro in "${@:-${DOT_IT_DISTROS[@]}}"; do
+        image="$(_it_image "${distro}")" || {
+            echo "FAIL: unknown distro '${distro}' (want: ${DOT_IT_DISTROS[*]})" >&2
             return 1
         }
-        extra=()
-        if [[ "${distro}" == gentoo ]]; then
-            _ensure_portage
-            extra=(--volumes-from dottod-portage)
-        fi
+        mapfile -t extra < <(_it_extra_args "${distro}")
         printf '=== %s\n' "${distro}"
         if ! podman run --rm "${extra[@]}" \
             -v "${repo}:/w:ro,Z" -e DOTTOD_TEST_INTEGRATION=1 \
-            "${image}" sh -c "$(_prep "${distro}") && bash /w/tests/integration/pkg-resolve.sh --inside"; then
+            "${image}" sh -c "$(_it_prep "${distro}" index) && bash /w/tests/integration/pkg-resolve.sh --inside"; then
             failures=$((failures + 1))
         fi
     done
