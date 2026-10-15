@@ -162,6 +162,9 @@ function _main() {
     done
 
     export DOT_VERBOSE="${verbose}"
+    # One id per bootstrap run: tasks share a single package-index refresh.
+    # PID + start time, so a stale stamp from an earlier run never matches.
+    export DOT_RUN_ID="${DOT_RUN_ID:-$$.$(date +%s)}"
 
     local -a tasks=()
     local task

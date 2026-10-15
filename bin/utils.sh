@@ -12,9 +12,12 @@ readonly DOT_LOG_DIR="/tmp/dottod"
 
 mkdir -p "${DOT_LOG_DIR}"
 
-# Platform detection (spec 015): definitions only; nothing runs on source.
+# Platform detection and package backends (spec 015): definitions only;
+# nothing runs on source.
 # shellcheck source=../lib/os.sh
 source "${DOT_REPO_ROOT}/lib/os.sh"
+# shellcheck source=../lib/package.sh
+source "${DOT_REPO_ROOT}/lib/package.sh"
 
 function _color_supported() {
     [[ -n "${DOT_FORCE_COLOR:-}" ]] && return 0
@@ -202,61 +205,27 @@ function _priv() {
     fi
 }
 
+# _install_packages <pkg...>: native packages through lib/package.sh.
+# Accepts separate arguments or one space-separated string (the original
+# form); words are split without glob expansion. _DOT_NO_PACKAGES=1 is the
+# test seam: nothing is detected or installed.
 function _install_packages() {
-    local package_list=${1:?'Package list not provided'}
-    local no_recommends=${2:-0}
-
+    (($# > 0)) || {
+        log_error 'Package list not provided'
+        return 1
+    }
     if [[ "${_DOT_NO_PACKAGES:-0}" == 1 ]]; then
         return 0
     fi
 
-    # Split the space-separated list robustly: a bare ${package_list}
-    # expansion would also glob-expand package names containing wildcards.
-    local -a extra_packages=()
-    read -ra extra_packages <<<"${package_list}" || true
-
-    # Idempotent fast path: every package already installed means no sudo,
-    # no apt update, no noise. (dpkg-query is the source of truth; the
-    # install below stays authoritative for anything missing.)
-    local pkg all_present=1
-    for pkg in "${extra_packages[@]}"; do
-        if ! _is_dpkg_installed "${pkg}"; then
-            all_present=0
-            break
-        fi
+    local -a packages=() words=()
+    local arg
+    for arg in "$@"; do
+        read -ra words <<<"${arg}" || true
+        packages+=("${words[@]}")
     done
-    if [[ "${all_present}" == 1 ]]; then
-        log_info "Packages already installed, skipping: ${package_list}"
-        return 0
-    fi
 
-    if declare -F _pkg_install >/dev/null 2>&1; then
-        if declare -F _pkg_update >/dev/null 2>&1; then
-            _pkg_update
-        fi
-        _pkg_install ${package_list}
-        if declare -F _pkg_clean >/dev/null 2>&1; then
-            _pkg_clean
-        fi
-        return 0
-    fi
-
-    if [[ -z "${DEBIAN_FRONTEND:-}" ]]; then
-        export DEBIAN_FRONTEND=noninteractive
-    fi
-
-    _priv apt-get update -qq --yes >/dev/null 2>&1
-
-    local -a install_args=(apt-get install -qq --yes)
-    if [[ "${no_recommends}" == 1 ]]; then
-        install_args+=(--no-install-recommends)
-    fi
-    install_args+=("${extra_packages[@]}")
-
-    _priv "${install_args[@]}" >/dev/null 2>&1
-    _priv rm -rf /var/lib/apt/lists/*
-
-    return 0
+    _pkg_install "${packages[@]}"
 }
 
 function _is_installed() {
@@ -269,10 +238,6 @@ function _is_installed() {
 function _is_runnable() {
     local bin=${1:?'Binary must be informed'}
     command -v "${bin}" >/dev/null 2>&1 && "${bin}" --version >/dev/null 2>&1
-}
-
-function _is_dpkg_installed() {
-    dpkg-query -W -f='${Status}' "${1}" 2>/dev/null | grep -q 'install ok installed'
 }
 
 function _ensure_local_bin() {
