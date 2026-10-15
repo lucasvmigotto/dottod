@@ -10,9 +10,11 @@ function _pkgmap_redhat() {
         podman_rootless) printf 'shadow-utils' ;;
         cxx_runtime) printf 'libstdc++' ;;
         shellcheck) printf 'ShellCheck' ;;
+        # Not packaged by Fedora.
+        pass_credential_helper) printf -- '-' ;;
         vim) printf 'vim-enhanced' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
-            fzf | gh | git | httpie | jq | just | lsof | neovim | podman | \
+            fzf | gh | git | httpie | jq | just | lsof | neovim | pass | podman | \
             python3 | shfmt | tar | unzip | xclip)
             printf '%s' "${1//_/-}"
             ;;

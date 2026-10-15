@@ -27,6 +27,10 @@ function _pkgmap_gentoo() {
         lsof) printf 'sys-process/lsof' ;;
         neovim) printf 'app-editors/neovim' ;;
         openssh_client) printf 'net-misc/openssh' ;;
+        pass) printf 'app-admin/pass' ;;
+        # Builds docker-credential-pass only with USE=pass (bin/secrets.sh
+        # checks and tells the user; dottod never edits /etc/portage).
+        pass_credential_helper) printf 'app-containers/docker-credential-helpers' ;;
         podman) printf 'app-containers/podman' ;;
         podman_rootless) printf 'sys-apps/shadow' ;;
         python3) printf 'dev-lang/python' ;;

@@ -10,8 +10,9 @@ function _pkgmap_debian() {
         openssh_client) printf 'openssh-client' ;;
         podman_rootless) printf 'uidmap' ;;
         cxx_runtime) printf 'libstdc++6' ;;
+        pass_credential_helper) printf 'golang-docker-credential-helpers' ;;
         bash | bat | bats | btop | chafa | curl | fontconfig | fzf | gh | git | \
-            gnupg | httpie | jq | just | lsof | neovim | podman | \
+            gnupg | httpie | jq | just | lsof | neovim | pass | podman | \
             python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1}"
             ;;

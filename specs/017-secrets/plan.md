@@ -25,3 +25,16 @@ Consequences for the task:
 - A passphrase-protected key prompts through the user's own agent:
   graphical pinentry or a cached passphrase work; terminal pinentry needs
   `GPG_TTY` — confirm in Milestone S1.
+
+**T171 (2026-10-15)**, resolve gate on the pinned images:
+
+| | pass | docker-credential-pass |
+|---|---|---|
+| debian / ubuntu | `pass` 1.7.4 | `golang-docker-credential-helpers` 0.6.4 |
+| gentoo | `app-admin/pass` 1.7.4-r5 | `app-containers/docker-credential-helpers` 0.9.8 — builds the pass helper only with `USE=pass` (no flag on by default) |
+| arch | `pass` 1.7.4 | not in the official repos (AUR only) → unsupported |
+| fedora | `pass` 1.7.4 | not packaged → unsupported |
+| alpine | `pass` 1.7.4 | not packaged → unsupported |
+
+Debian's helper (0.6.4) is older than the one proven in T170 (0.9.10):
+Milestone S1 on this Debian host exercises it directly.

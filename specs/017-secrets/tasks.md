@@ -13,7 +13,7 @@ ShellCheck/shfmt clean, each commit passing on its own).
   back, `podman logout` removes it. Record the evidence in plan.md.
 
 ## Phase 2 — packages (`feat/secrets-packages`)
-- [ ] T171 Logical names `pass` and `pass_credential_helper` in all five
+- [x] T171 Logical names `pass` and `pass_credential_helper` in all five
   tables; resolve gate green on every distro (unsupported → `-` with the
   reason, never a guess).
 

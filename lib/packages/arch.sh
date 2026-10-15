@@ -10,9 +10,11 @@ function _pkgmap_arch() {
         openssh_client) printf 'openssh' ;;
         podman_rootless) printf 'shadow' ;;
         python3) printf 'python' ;;
+        # docker-credential-pass is AUR-only (never used by dottod).
+        pass_credential_helper) printf -- '-' ;;
         cxx_runtime) printf 'gcc-libs' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | fzf | \
-            git | gnupg | httpie | jq | just | lsof | neovim | podman | \
+            git | gnupg | httpie | jq | just | lsof | neovim | pass | podman | \
             shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;

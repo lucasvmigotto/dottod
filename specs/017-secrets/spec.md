@@ -53,8 +53,9 @@ through `pass show`; container registries are its first consumer.
 - Re-running is a no-op.
 
 ## Open
-- `docker-credential-pass` packaging per distro (resolve gate, T171):
-  Debian `golang-docker-credential-helpers`, others to confirm.
+- Debian's packaged helper is 0.6.4 (T170 proved 0.9.10): confirm in
+  Milestone S1. Arch, Fedora and Alpine don't package the helper: the task
+  sets up pass and explains the manual install; Gentoo needs `USE=pass`.
 - Passphrase prompting from a terminal-only session (Milestone S1).
 
 ## Status

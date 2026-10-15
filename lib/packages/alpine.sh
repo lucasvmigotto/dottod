@@ -8,11 +8,13 @@ function _pkgmap_alpine() {
         # Needed by musl builds of C++ programs such as Bun.
         cxx_runtime) printf 'libgcc libstdc++' ;;
         gh) printf 'github-cli' ;;
+        # Not packaged by Alpine.
+        pass_credential_helper) printf -- '-' ;;
         openssh_client) printf 'openssh-client-default' ;;
         # usermod is in shadow; newuidmap and /etc/subuid in shadow-subids.
         podman_rootless) printf 'shadow shadow-subids' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
-            fzf | git | gnupg | httpie | jq | just | lsof | neovim | \
+            fzf | git | gnupg | httpie | jq | just | lsof | neovim | pass | \
             podman | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;
