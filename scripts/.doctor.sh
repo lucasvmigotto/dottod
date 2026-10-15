@@ -3,8 +3,8 @@
 # .doctor.sh — dottod health report for interactive shells.
 #
 # `dottod-doctor` prints one [ok]/[warn]/[fail] line per check: shell,
-# tools, PATH, prompt, projects (codes), updates, Claude profiles and the
-# checkout itself. Read-only: no installs, no network. Exits 1 only on hard
+# tools, PATH, prompt, projects (codes), updates, Claude profiles, rootless
+# Podman prerequisites (when podman is installed) and the checkout itself. Read-only: no installs, no network. Exits 1 only on hard
 # failures (warnings still exit 0).
 #
 # Config (environment variables):
@@ -157,6 +157,19 @@ dottod-doctor() {
         ((found == 1)) || __dottod_doc_warn "no claude profiles (run claude once)"
     else
         __dottod_doc_warn "claude library not loaded"
+    fi
+
+    # Containers: rootless Podman prerequisites, only where Podman is
+    # installed (scripts/.container.utils.sh; read-only checks).
+    if command -v podman >/dev/null 2>&1 && declare -F _ctr_rootless_findings >/dev/null; then
+        local state msg
+        while IFS=$'\t' read -r state msg; do
+            if [[ "${state}" == ok ]]; then
+                __dottod_doc_ok "podman: ${msg}"
+            else
+                __dottod_doc_warn "podman: ${msg}"
+            fi
+        done < <(_ctr_rootless_findings)
     fi
 
     # Checkout: branch, dirtiness, newest tag (when inside the repo).
