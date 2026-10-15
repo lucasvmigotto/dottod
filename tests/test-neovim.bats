@@ -287,7 +287,9 @@ EOF
 @test "config target honors env override and other users" {
     assert_eq 'env override' "$_DOT_NVIM_CONFIG_HOME/nvim" "$(_nvim_config_target "$(id -un)")"
     unset _DOT_NVIM_CONFIG_HOME
-    assert_eq 'other user path' "/home/otheruser/.config/nvim" "$(_nvim_config_target otheruser)"
+    getent() { printf 'otheruser:x:1001:1001::/srv/users/otheruser:/bin/bash\n'; }
+    assert_eq 'other user from passwd' "/srv/users/otheruser/.config/nvim" "$(_nvim_config_target otheruser)"
+    unset -f getent
 }
 
 @test "main rejects an invalid profile" {

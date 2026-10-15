@@ -107,3 +107,21 @@ probe() {
     leftovers="$(grep -niE "gsettings|desktop\.interface|font-name" "$REPO_ROOT/bin/fonts.sh" || true)"
     assert_eq 'no desktop font overrides' '' "$leftovers"
 }
+
+@test "installed fonts are detected under pipefail with a long font list" {
+    # Regression: `fc-list | grep -q` under pipefail failed whenever grep
+    # exited early, so every run re-downloaded every font.
+    run bash -c "
+        set -Eeuo pipefail
+        source '$REPO_ROOT/bin/fonts.sh'
+        fc-list() {
+            printf 'FiraCode Nerd Font\nSymbols Nerd Font\n'
+            local i; for i in \$(seq 1 20000); do printf 'Filler Family %s\n' \"\$i\"; done
+        }
+        _font_installed FiraCode && echo firacode-yes
+        _font_installed NerdFontsSymbolsOnly && echo symbols-yes
+        _font_installed RobotoMono || echo roboto-no
+    "
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'detections' $'firacode-yes\nsymbols-yes\nroboto-no' "$output"
+}

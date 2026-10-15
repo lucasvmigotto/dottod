@@ -4,15 +4,9 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
-# Home directory for a task user: the real $HOME for ourselves (honors test
-# redirection), /home/<user> otherwise. Mirrors bin/neovim.sh.
+# Home directory for a task user (see _dot_user_home in bin/utils.sh).
 function _vim_home() {
-    local user=${1:?'User must be informed'}
-    if [[ "${user}" == "$(id -un)" ]]; then
-        printf '%s' "${HOME}"
-    else
-        printf '/home/%s' "${user}"
-    fi
+    _dot_user_home "${1:?'User must be informed'}"
 }
 
 function _vim_vimplug_install() {

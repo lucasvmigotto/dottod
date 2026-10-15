@@ -31,12 +31,12 @@ maintainer's target.
 - [x] T031 run T030 locally under Podman for all five; fix the tables until green
 
 ## Phase 4 — target user and core tasks (`feat/user-home`)
-- [ ] T040 `_dot_user_home <user>` via `getent passwd` (fallback: `$HOME` for the current user); no `eval ~user`
-- [ ] T041 shell, vim, neovim, ssh use it (drop the four `/home/<user>` constructions)
-- [ ] T042 `shell.sh`: verify `chsh` + `/etc/shells` before switching; clear manual hint otherwise
-- [ ] T043 tests: `/var/home/u`, missing user, non-root target
+- [x] T040 `_dot_user_home <user>` via `getent passwd` (fallback: `$HOME` for the current user); no `eval ~user`
+- [x] T041 shell, vim, neovim, ssh use it (drop the four `/home/<user>` constructions)
+- [x] T042 `shell.sh`: verify `chsh` + `/etc/shells` before switching; clear manual hint otherwise
+- [x] T043 tests: `/var/home/u`, missing user, non-root target
 
-**Milestone G1 — Gentoo core, in a container.** stage3 + portage snapshot:
+**Milestone G1 — Gentoo core, in a container.** ✅ containers, 2026-10-15 (`tests/integration/core-smoke.sh`; real Gentoo host still to do). stage3 + portage snapshot:
 `bootstrap.sh --only shell,vim,gitconfig,ssh,fonts` twice, both pass,
 second is a no-op. Then the same on a real Gentoo (VM or the laptop).
 Same smoke on Arch, Fedora, Alpine, Debian before moving on.

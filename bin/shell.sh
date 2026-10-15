@@ -11,21 +11,46 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+# _bash_shells_path: the first executable bash listed in /etc/shells
+# (_DOT_SHELLS_FILE overrides it for tests); chsh only accepts those.
+function _bash_shells_path() {
+    local line
+    while IFS= read -r line; do
+        if [[ "${line}" == /*/bash && -x "${line}" ]]; then
+            printf '%s' "${line}"
+            return 0
+        fi
+    done <"${_DOT_SHELLS_FILE:-/etc/shells}"
+    return 1
+}
+
 function _bash_use_as_shell() {
     local current_user=${1:?'User must be informed'}
 
-    local bash_bin current_shell
-    bash_bin="$(command -v bash)"
-    current_shell="$(getent passwd "${current_user}" | cut -d: -f7)"
+    local bash_path current_shell
+    current_shell="$(_dot_passwd_entry "${current_user}" | cut -d: -f7)" || current_shell=''
 
-    if [[ "${bash_bin}" == "${current_shell}" ]]; then
+    # Any executable bash counts, whatever its path spelling (/bin/bash vs
+    # /usr/bin/bash on merged-/usr systems).
+    if [[ "${current_shell##*/}" == bash && -x "${current_shell}" ]]; then
         log_info 'bash already installed and in use, skipping...'
         return 0
     fi
 
+    if ! bash_path="$(_bash_shells_path 2>/dev/null)"; then
+        log_warn "bash is not listed in /etc/shells, so the login shell stays ${current_shell:-unchanged}."
+        log_warn "Add it, then switch: echo $(command -v bash) | sudo tee -a /etc/shells && chsh -s $(command -v bash)"
+        return 0
+    fi
+    if ! command -v chsh >/dev/null 2>&1; then
+        log_warn "chsh is not available, so the login shell stays ${current_shell:-unchanged}."
+        log_warn "Switch it as root: usermod -s ${bash_path} ${current_user}"
+        return 0
+    fi
+
     log_step 'Setting bash as the default shell'
-    _priv chsh -s "${bash_bin}" "${current_user}"
-    log_ok 'bash set as default shell'
+    _priv chsh -s "${bash_path}" "${current_user}"
+    log_ok "bash (${bash_path}) set as default shell"
 
     return 0
 }
@@ -33,7 +58,9 @@ function _bash_use_as_shell() {
 function _custom_bashrc() {
     local current_user=${1:?'User must be informed'}
 
-    _link_file "${DOT_CONFIG_DIR}/.custom.bashrc" "/home/${current_user}/.bashrc"
+    local home
+    home="$(_dot_user_home "${current_user}")" || return 1
+    _link_file "${DOT_CONFIG_DIR}/.custom.bashrc" "${home}/.bashrc"
 }
 
 function _main() {

@@ -4,9 +4,23 @@ set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 
+# _font_family <zip name>: the family name the font registers with
+# fontconfig (the Nerd Fonts zip names match it, except the symbols set).
+function _font_family() {
+    case "${1}" in
+        NerdFontsSymbolsOnly) printf 'Symbols Nerd Font' ;;
+        *) printf '%s' "${1}" ;;
+    esac
+}
+
+# Read the whole family list before matching: piping fc-list into
+# `grep -q` under pipefail fails whenever grep exits early (fc-list dies
+# of SIGPIPE), so installed fonts looked missing and re-downloaded.
 function _font_installed() {
     local font=${1:?'Font must be informed'}
-    fc-list --format='%{family}\n' | grep -qi "${font}"
+    local families
+    families="$(fc-list --format='%{family}\n' 2>/dev/null)" || return 1
+    grep -qiF -- "$(_font_family "${font}")" <<<"${families}"
 }
 
 function _install_nerdfont() {
