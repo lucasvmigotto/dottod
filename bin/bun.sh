@@ -25,12 +25,18 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/utils.sh"
 _DOT_BUN_VERSION_DEFAULT='latest'
 _DOT_BUN_GITHUB_DEFAULT='https://github.com'
 
+# Release target: linux-<arch>, plus -musl on musl systems (Alpine), where
+# the glibc build cannot run. An unknown libc gets the glibc build; the
+# runnable check after install refuses it if that guess was wrong.
 function _bun_arch() {
+    local arch
     case "$(uname -m)" in
-        x86_64 | amd64) printf 'linux-x64' ;;
-        arm64 | aarch64) printf 'linux-aarch64' ;;
+        x86_64 | amd64) arch='linux-x64' ;;
+        arm64 | aarch64) arch='linux-aarch64' ;;
         *) return 1 ;;
     esac
+    [[ "$(_os_libc)" == musl ]] && arch+='-musl'
+    printf '%s' "${arch}"
 }
 
 # Digest for a release asset from the public GitHub API. Prints the sha256
@@ -130,6 +136,11 @@ function _bun_install_runtime() {
     # ~/.local/bin yet).
     if [[ ! -x "${dest}" ]]; then
         log_error 'Bun install did not yield a bun binary on PATH.'
+        return 1
+    fi
+    if ! "${dest}" --version >/dev/null 2>&1; then
+        log_error "Installed ${dest} does not run on this system (libc: $(_os_libc)); removing it."
+        rm -f "${dest}"
         return 1
     fi
     log_ok "bun installed ($("${dest}" --version 2>/dev/null))"

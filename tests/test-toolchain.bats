@@ -112,7 +112,12 @@ EOF
 #!/usr/bin/env bash
 printf '%s\n' "$*" >>"${CALLS}.unzip-args"
 mkdir -p "${CALLS}.unzip-out/bun-linux-x64"
-printf '#!/usr/bin/env bash\necho "9.9.9"\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+# UNZIP_STUB_BROKEN=1 plants a binary that cannot run (wrong libc).
+if [[ "${UNZIP_STUB_BROKEN:-0}" == 1 ]]; then
+    printf '#!/usr/bin/env bash\nexit 126\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+else
+    printf '#!/usr/bin/env bash\necho "9.9.9"\n' >"${CALLS}.unzip-out/bun-linux-x64/bun"
+fi
 chmod +x "${CALLS}.unzip-out/bun-linux-x64/bun"
 # The real flow extracts into $tmpdir; mirror it by copying our plant there.
 for a in "$@"; do
@@ -128,7 +133,13 @@ EOF
 #!/usr/bin/env bash
 exit 0
 EOF
-    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip,devcontainer}
+    # libc is pinned to glibc whatever the host: no musl loader under the
+    # fake root, getconf answers glibc (tests opt into musl explicitly).
+    printf '#!/usr/bin/env bash\nprintf "glibc 2.41\\n"\n' >"$STUBBIN/getconf"
+    mkdir -p "$BATS_TEST_TMPDIR/libc-root/lib"
+    export _DOT_LIBC_ROOT="$BATS_TEST_TMPDIR/libc-root"
+    unset UNZIP_STUB_BROKEN
+    chmod +x "$STUBBIN"/{cargo,bun,curl,unzip,devcontainer,getconf}
 
     # Record-only package installs; never touch apt.
     cat >"$STUBBIN/pkg-shim-note" <<'EOF'
@@ -226,6 +237,22 @@ probe() {
 @test "bun: arch maps to a linux target" {
     probe bun '[[ "$(_bun_arch)" == linux-* ]]'
     assert_eq 'arch is a linux target' '0' "$status"
+}
+
+@test "bun: musl systems get the musl build" {
+    : >"$_DOT_LIBC_ROOT/lib/ld-musl-x86_64.so.1"
+    probe bun '[[ "$(_bun_arch)" == linux-*-musl ]]'
+    assert_eq 'musl target rc 0' '0' "$status"
+}
+
+@test "bun: a binary that does not run is refused and removed" {
+    bun_absent
+    export UNZIP_STUB_BROKEN=1 CURL_STUB_DIGEST
+    CURL_STUB_DIGEST="$(printf 'BUNZIP-DUMMY' | sha256sum | cut -d' ' -f1)"
+    probe bun '_bun_install_runtime'
+    assert_eq 'refused rc 1' '1' "$status"
+    assert_contains 'explains' 'does not run on this system' "$output"
+    assert_eq 'binary removed' '0' "$([[ -e "$FAKE_HOME/.local/bin/bun" ]] && echo 1 || echo 0)"
 }
 
 @test "bun: asset resolution builds latest URL and digest" {
