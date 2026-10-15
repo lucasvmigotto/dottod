@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+alias z='zed --existing .'
+
 function loadenv() {
 
     local env_file=${1:-'.env'}
