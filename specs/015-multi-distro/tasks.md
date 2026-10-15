@@ -13,15 +13,15 @@ maintainer's target.
 - [x] T004 `bin/utils.sh` sources `lib/`; nothing reads it yet (zero behavior change)
 
 ## Phase 2 — package backend (`feat/pkg-backend`)
-- [ ] T010 `lib/package.sh`: `_pkg_install` / `_pkg_is_installed` / `_pkg_candidate_version`; array args; manager stderr visible on failure
-- [ ] T011 apt backend at parity with today's `_install_packages` (fast path, no-recommends), minus the per-call list wipe; refresh once per run
-- [ ] T012 `_install_packages` becomes the wrapper; old string form still accepted
-- [ ] T013 `flock` lock + shared refresh stamp under `/tmp/dottod` (0600, no symlinks)
-- [ ] T014 gentoo backend (`emerge --noreplace --ask=n --autounmask=n`, `portageq`), no sync
-- [ ] T015 arch backend (`pacman -S --needed --noconfirm`, no lone `-Sy`)
-- [ ] T016 redhat backend (`dnf`, `rpm -q`)
-- [ ] T017 alpine backend (`apk add`, `apk info -e`)
-- [ ] T018 `tests/test-packages.bats` → per-backend argv/fast-path/failure/lock tests; unknown family invokes nothing
+- [x] T010 `lib/package.sh`: `_pkg_install` / `_pkg_is_installed` / `_pkg_candidate_version`; array args; manager stderr visible on failure
+- [x] T011 apt backend at parity with today's `_install_packages` (fast path, no-recommends), minus the per-call list wipe; refresh once per run
+- [x] T012 `_install_packages` becomes the wrapper; old string form still accepted
+- [x] T013 `flock` lock + shared refresh stamp under `/tmp/dottod` (0600, no symlinks)
+- [x] T014 gentoo backend (`emerge --noreplace --ask=n --autounmask=n`, `portageq`), no sync
+- [x] T015 arch backend (`pacman -S --needed --noconfirm`, no lone `-Sy`)
+- [x] T016 redhat backend (`dnf`, `rpm -q`)
+- [x] T017 alpine backend (`apk add`, `apk info -e`)
+- [x] T018 `tests/test-packages.bats` → per-backend argv/fast-path/failure/lock tests; unknown family invokes nothing
 
 ## Phase 3 — logical packages + mapping gate (`feat/pkg-mapping`)
 - [ ] T020 `lib/packages/<family>.sh` case-tables for every name tasks request today (see plan); `-` = unsupported

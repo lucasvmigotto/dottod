@@ -105,3 +105,29 @@ Containers run under the local Podman (`docker.io/gentoo/stage3`,
 - musl → libc in asset selection; skip, never fake success.
 - Debian regression → Debian stays the reference; L0 suites keep their
   current assertions as the apt-backend suite.
+
+## Evidence log
+
+**Phase 2 (2026-10-15)**, real managers in containers, backend from
+`lib/package.sh` (install twice, then candidate lookup):
+
+| Image | Detected | Install | Second run | neovim candidate |
+|---|---|---|---|---|
+| debian:trixie | debian/apt-get/glibc | ok | skipped | 0.10.4 (below floor: tarball healing still needed) |
+| fedora:42 | redhat/dnf/glibc | ok | skipped | 0.11.5 |
+| archlinux:latest | arch/pacman/glibc | `target not found` on a fresh image (empty sync db; dottod never runs `-Sy`), ok after `pacman -Syu` | skipped | 0.12.6 |
+| alpine:3.22 (+bash) | alpine/apk/musl | ok | skipped | 0.11.1 |
+| gentoo/stage3 + portage | gentoo/emerge/glibc | ok (`app-misc/jq` + dep built from source) | skipped | 0.11.7 |
+
+Learned:
+- Gentoo's real os-release single-quotes every value (`ID='gentoo'`);
+  the fixture now matches it.
+- `portageq has_version / jq` (no category) returns 1 without telling
+  absent from invalid: the Gentoo table must use full `category/name`
+  atoms (phase 3).
+- Alpine needs `bash` before dottod can run at all: a documented
+  prerequisite, not something dottod can install for itself.
+- Container recipes for L1/L2: Arch needs `pacman -Syu` first; Gentoo
+  needs the portage image run once (`podman run --name dottod-portage
+  gentoo/portage`) and `--volumes-from` it, since an image mount lands the
+  whole image root at the destination.
