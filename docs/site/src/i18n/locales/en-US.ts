@@ -23,7 +23,7 @@ const pages: Record<PageId, DocPage> = {
     hero: {
       eyebrow: "dottod",
       title: "dottod",
-      subtitle: "Rebuild a Debian workstation with one plain-bash command.",
+      subtitle: "Rebuild a Linux workstation with one plain-bash command.",
       ctaLabel: "Get started",
       ctaHref: "/start",
       transcript: TRANSCRIPT,
@@ -35,7 +35,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "dottod is a personal dotfiles and workstation bootstrap for Debian. One entry point — bin/bootstrap.sh — runs twelve idempotent tasks: shell, fonts, editors, container runtime, terminal, CLI tooling, and GitHub SSH. Every task checks before it acts, backs up what it replaces, and reports PASS or FAIL with a per-task log.",
+            text: "dottod is a personal dotfiles and workstation bootstrap for Debian/Ubuntu, Gentoo, Arch, Fedora and Alpine. One entry point — bin/bootstrap.sh — runs eleven idempotent tasks: shell, fonts, editors, container runtime, terminal, CLI tooling, and GitHub SSH. Every task checks before it acts, backs up what it replaces, and reports PASS or FAIL with a per-task log.",
           },
         ],
       },
@@ -94,7 +94,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "You need Debian (or Debian-based) with apt, plus sudo or doas. If sudo is not passwordless you will be asked once; otherwise run as root. GUI tasks (zed) are skipped by default — pass --ui to include them.",
+            text: "You need Debian/Ubuntu, Gentoo, Arch, Fedora or Alpine (with bash installed — on Alpine, apk add bash first), plus sudo or doas. dottod detects the distribution and uses its package manager; anything else is refused before any install. If sudo is not passwordless you will be asked once; otherwise run as root. GUI tasks (zed) are skipped by default — pass --ui to include them.",
           },
         ],
       },
@@ -121,7 +121,7 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "ol",
             items: [
-              "Reinstall Debian and clone this repository.",
+              "Reinstall your distribution and clone this repository.",
               "Run ./bin/bootstrap.sh (add GIT_NAME/GIT_EMAIL for a non-interactive gitconfig).",
               "For one failed task only: ./bin/bootstrap.sh --only <task>, then read /tmp/dottod/<task>.log.",
               "Neovim below 0.11: re-run with _DOT_NVIM_ALLOW_TARBALL=1 to heal via the verified tarball.",
@@ -135,7 +135,7 @@ const pages: Record<PageId, DocPage> = {
     id: "tasks",
     title: "Tasks",
     summary:
-      "The twelve bootstrap tasks: what each does and whether it is safe to re-run.",
+      "The eleven bootstrap tasks: what each does and whether it is safe to re-run.",
     sections: [
       {
         id: "all",
@@ -145,15 +145,15 @@ const pages: Record<PageId, DocPage> = {
             kind: "table",
             headers: ["Task", "Safe to re-run", "Needs"],
             rows: [
-              ["shell", "Yes", "apt (git, bash)"],
+              ["shell", "Yes", "packages (git, bash)"],
               ["fonts", "Yes", "nothing when present"],
               ["vim", "Yes", "network for missing plugins only"],
-              ["neovim", "Yes", "apt or tarball (0.11+)"],
-              ["container", "Yes", "apt on first run"],
+              ["neovim", "Yes", "package or tarball (0.11+)"],
+              ["container", "Yes", "packages on first run"],
               ["zed", "Yes (opt-in)", "network"],
               ["gitconfig", "Yes", "GIT_NAME/GIT_EMAIL once"],
               ["ssh", "Yes", "nothing (keygen once)"],
-              ["tools", "Yes", "apt + GitHub releases"],
+              ["tools", "Yes", "packages"],
               ["cargo", "Yes", "network once"],
               ["bun", "Yes", "network once"],
             ],
@@ -288,12 +288,12 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs Neovim (apt when the candidate is ≥ 0.11, otherwise fails with instructions), links ~/.config/nvim to the repo (existing configs are backed up, never deleted), and lets lazy.nvim sync 16 pinned plugins on first launch. Profiles via DOTTOD_NVIM_PROFILE: minimal, terminal, development (default), full.",
+            text: "Installs Neovim (the distro package when its candidate is ≥ 0.11, otherwise fails with instructions), links ~/.config/nvim to the repo (existing configs are backed up, never deleted), and lets lazy.nvim sync 16 pinned plugins on first launch. Profiles via DOTTOD_NVIM_PROFILE: minimal, terminal, development (default), full.",
           },
           {
             kind: "code",
             lang: "bash",
-            caption: "Heal via tarball when apt is too old",
+            caption: "Heal via tarball when the package is too old (glibc)",
             code: "_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh",
           },
         ],
@@ -307,7 +307,7 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Symptom", "Fix"],
             rows: [
               [
-                "0.10.4 via apt is below the minimum",
+                "0.10.4 from the distro packages is below the minimum",
                 "Re-run with _DOT_NVIM_ALLOW_TARBALL=1",
               ],
               ["Tarball did not yield nvim", "Check ~/.local/bin is on PATH"],
@@ -517,7 +517,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Yes. Every tool probes PATH-or-destination before downloading; apt is skipped wholesale when satisfied.",
+            text: "Yes. Every tool probes PATH before installing; the package manager is skipped wholesale when everything is present.",
           },
         ],
       },
@@ -800,6 +800,131 @@ const pages: Record<PageId, DocPage> = {
       },
     ],
   },
+  "guide-distributions": {
+    id: "guide-distributions",
+    title: "Distributions",
+    summary:
+      "Debian/Ubuntu, Gentoo, Arch, Fedora and Alpine — and what is verified where.",
+    sections: [
+      {
+        id: "how",
+        heading: "How it works",
+        blocks: [
+          {
+            kind: "p",
+            text: "Every task installs packages through one layer (lib/package.sh): it reads /etc/os-release, picks the distribution's own package manager and its real package names. Any other distribution is refused before a single package command runs.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "What dottod detected here",
+            code: "dottod-doctor | grep distro",
+          },
+        ],
+      },
+      {
+        id: "verified",
+        heading: "What has been verified",
+        blocks: [
+          {
+            kind: "p",
+            text: "Only what was actually run is claimed. Containers are throwaway pinned images, each task run twice; Ubuntu 24.04 was checked for package names only.",
+          },
+          {
+            kind: "table",
+            headers: [
+              "",
+              "Debian 13",
+              "Gentoo",
+              "Arch",
+              "Fedora 42",
+              "Alpine 3.22",
+            ],
+            rows: [
+              [
+                "shell, vim, gitconfig, ssh, fonts",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "neovim ≥ 0.11",
+                "✅ tarball (package is 0.10.4)",
+                "✅ 0.11.7",
+                "✅ 0.12.6",
+                "✅ 0.11.5",
+                "✅ 0.11.1",
+              ],
+              ["cargo (rustup)", "✅", "✅", "✅", "✅", "✅ musl"],
+              [
+                "bun",
+                "✅ verified",
+                "✅",
+                "✅ verified",
+                "✅ verified",
+                "✅ musl, verified",
+              ],
+              [
+                "tools + gh",
+                "✅ gh via GitHub's apt repo",
+                "names only",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "rootless Podman",
+                "✅ host",
+                "pending (real laptop)",
+                "—",
+                "rootful only",
+                "helpers + subids only",
+              ],
+              [
+                "zed (--ui)",
+                "not run",
+                "not run",
+                "not run",
+                "not run",
+                "unsupported (glibc only)",
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        id: "notes",
+        heading: "Per distribution",
+        blocks: [
+          {
+            kind: "ul",
+            items: [
+              "Debian/Ubuntu: apt-get, index refreshed once per run; batcat and fdfind also get the plain bat and fd names.",
+              'Gentoo: emerge with your profile, USE flags and EMERGE_DEFAULT_OPTS untouched; dottod never syncs and never writes /etc/portage. Packages may build from source; on OpenRC, rootless Podman needs rc_cgroup_mode="unified" (container status reports it).',
+              "Arch: pacman -S --needed, never a lone -Sy (partial upgrades); if a package is not found, run pacman -Syu first. No AUR.",
+              "Fedora: dnf install -y.",
+              "Alpine: install bash first. Bun and rustup use musl builds; Neovim comes from apk; Zed is skipped with a reason; no chsh, so the shell task prints the usermod command.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "check",
+        heading: "Check it yourself",
+        blocks: [
+          {
+            kind: "code",
+            lang: "bash",
+            caption:
+              "Package names, then the core bootstrap twice (Podman, capped at 3 GiB / 2 CPUs)",
+            code: "DOTTOD_TEST_INTEGRATION=1 tests/integration/pkg-resolve.sh gentoo arch\nDOTTOD_TEST_INTEGRATION=1 tests/integration/core-smoke.sh alpine",
+          },
+        ],
+      },
+    ],
+  },
   "guide-containers": {
     id: "guide-containers",
     title: "Containers",
@@ -840,7 +965,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Fonts land in ~/.local/share/fonts (system-wide only with _DOT_NERDFONT_GLOBAL_INSTALL=1). Prerequisites install via apt only when actually missing — a normal rerun touches neither sudo nor the network for present fonts.",
+            text: "Fonts land in ~/.local/share/fonts (system-wide only with _DOT_NERDFONT_GLOBAL_INSTALL=1). Prerequisites install from the distro packages only when actually missing — a normal rerun touches neither sudo nor the network for present fonts.",
           },
           {
             kind: "code",
@@ -957,7 +1082,11 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Variable", "Default", "Task"],
             rows: [
               ["_DOT_TARGET_USER", "id -un", "all"],
-              ["_DOT_NO_PACKAGES", "0 (1 skips apt; tests)", "all"],
+              [
+                "_DOT_NO_PACKAGES",
+                "0 (1 skips package installs; tests)",
+                "all",
+              ],
               ["DOT_TOOLS_EXTRA", "none (comma list or all)", "tools"],
               ["_DOT_NVIM_MIN_VERSION", "0.11.0", "neovim"],
               ["_DOT_NVIM_VERSION", "v0.12.5", "neovim"],
@@ -1004,7 +1133,7 @@ const pages: Record<PageId, DocPage> = {
               ],
               [
                 "Healing",
-                "opt-in tarball install when apt is too old",
+                "opt-in tarball install when the package is too old",
                 "upgrade",
               ],
               [
@@ -1029,13 +1158,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Single-host workstation provisioner. One interface — bin/bootstrap.sh — drives twelve task scripts against $HOME, /etc/apt and ~/.config, escalating once per run via sudo or doas. No servers, no databases; state lives in symlinks, backups (*.dottod.bak), caches and lockfiles.",
+            text: "Single-host workstation provisioner. One interface — bin/bootstrap.sh — drives eleven task scripts against $HOME, the distro package manager and ~/.config, escalating once per run via sudo or doas. No servers, no databases; state lives in symlinks, backups (*.dottod.bak), caches and lockfiles.",
           },
           {
             kind: "code",
             lang: "text",
             caption: "Layers",
-            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<task>.sh ─► $HOME, /etc/apt, ~/.config\n                    (via _priv sudo/doas, cached per run)",
+            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<task>.sh ─► $HOME, package manager, ~/.config\n                    (via _priv sudo/doas, cached per run)",
           },
         ],
       },
@@ -1118,7 +1247,7 @@ const pages: Record<PageId, DocPage> = {
 export const enUS: DocsContent = {
   ui: {
     siteName: "dottod",
-    siteTagline: "Debian workstation, rebuilt by one plain-bash command.",
+    siteTagline: "Linux workstation, rebuilt by one plain-bash command.",
     skipToContent: "Skip to content",
     menu: "Menu",
     close: "Close",

@@ -23,7 +23,7 @@ const pages: Record<PageId, DocPage> = {
     hero: {
       eyebrow: "dottod",
       title: "dottod",
-      subtitle: "Reconstrua uma estação Debian com um comando bash puro.",
+      subtitle: "Reconstrua uma estação Linux com um comando bash puro.",
       ctaLabel: "Começar",
       ctaHref: "/start",
       transcript: TRANSCRIPT,
@@ -35,7 +35,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "dottod são dotfiles pessoais e bootstrap de estação Debian. Um ponto de entrada — bin/bootstrap.sh — executa doze tarefas idempotentes: shell, fontes, editores, runtime de contêineres, terminal, ferramentas CLI e SSH do GitHub. Cada tarefa verifica antes de agir, faz backup do que substitui e relata PASS ou FAIL com um log por tarefa.",
+            text: "dottod são dotfiles pessoais e bootstrap de estação para Debian/Ubuntu, Gentoo, Arch, Fedora e Alpine. Um ponto de entrada — bin/bootstrap.sh — executa onze tarefas idempotentes: shell, fontes, editores, runtime de contêineres, terminal, ferramentas CLI e SSH do GitHub. Cada tarefa verifica antes de agir, faz backup do que substitui e relata PASS ou FAIL com um log por tarefa.",
           },
         ],
       },
@@ -94,7 +94,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "Você precisa de Debian (ou derivado) com apt, mais sudo ou doas. Se o sudo não for passwordless, a senha é pedida uma vez; senão rode como root. Tarefas GUI (zed) são puladas por padrão — passe --ui para incluí-las.",
+            text: "Você precisa de Debian/Ubuntu, Gentoo, Arch, Fedora ou Alpine (com bash instalado — no Alpine, apk add bash antes), mais sudo ou doas. O dottod detecta a distribuição e usa o gerenciador de pacotes dela; qualquer outra é recusada antes de instalar algo. Se o sudo não for passwordless, a senha é pedida uma vez; senão rode como root. Tarefas GUI (zed) são puladas por padrão — passe --ui para incluí-las.",
           },
         ],
       },
@@ -121,7 +121,7 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "ol",
             items: [
-              "Reinstale o Debian e clone este repositório.",
+              "Reinstale sua distribuição e clone este repositório.",
               "Rode ./bin/bootstrap.sh (passe GIT_NAME/GIT_EMAIL para um gitconfig não interativo).",
               "Para uma tarefa que falhou: ./bin/bootstrap.sh --only <tarefa>, depois leia /tmp/dottod/<tarefa>.log.",
               "Neovim abaixo de 0.11: rode de novo com _DOT_NVIM_ALLOW_TARBALL=1 para curar via tarball.",
@@ -134,7 +134,7 @@ const pages: Record<PageId, DocPage> = {
   tasks: {
     id: "tasks",
     title: "Tarefas",
-    summary: "As doze tarefas: o que cada uma faz e se é seguro repetir.",
+    summary: "As onze tarefas: o que cada uma faz e se é seguro repetir.",
     sections: [
       {
         id: "all",
@@ -144,15 +144,15 @@ const pages: Record<PageId, DocPage> = {
             kind: "table",
             headers: ["Tarefa", "Seguro repetir", "Precisa"],
             rows: [
-              ["shell", "Sim", "apt (git, bash)"],
+              ["shell", "Sim", "pacotes (git, bash)"],
               ["fonts", "Sim", "nada quando presentes"],
               ["vim", "Sim", "rede só para plugins faltantes"],
-              ["neovim", "Sim", "apt ou tarball (0.11+)"],
-              ["container", "Sim", "apt na primeira vez"],
+              ["neovim", "Sim", "pacote ou tarball (0.11+)"],
+              ["container", "Sim", "pacotes na primeira vez"],
               ["zed", "Sim (opt-in)", "rede"],
               ["gitconfig", "Sim", "GIT_NAME/GIT_EMAIL uma vez"],
               ["ssh", "Sim", "nada (chave uma vez)"],
-              ["tools", "Sim", "apt + releases do GitHub"],
+              ["tools", "Sim", "pacotes"],
               ["cargo", "Sim", "rede uma vez"],
               ["bun", "Sim", "rede uma vez"],
             ],
@@ -286,12 +286,12 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala Neovim (apt quando o candidato é ≥ 0.11, senão falha com instruções), liga ~/.config/nvim ao repositório (configs existentes viram backup, nunca deletadas), e deixa o lazy.nvim sincronizar 16 plugins fixos na primeira abertura. Perfis via DOTTOD_NVIM_PROFILE: minimal, terminal, development (padrão), full.",
+            text: "Instala Neovim (o pacote da distro quando o candidato é ≥ 0.11, senão falha com instruções), liga ~/.config/nvim ao repositório (configs existentes viram backup, nunca deletadas), e deixa o lazy.nvim sincronizar 16 plugins fixos na primeira abertura. Perfis via DOTTOD_NVIM_PROFILE: minimal, terminal, development (padrão), full.",
           },
           {
             kind: "code",
             lang: "bash",
-            caption: "Curar via tarball quando o apt é velho",
+            caption: "Curar via tarball quando o pacote é velho (glibc)",
             code: "_DOT_NVIM_ALLOW_TARBALL=1 ./bin/neovim.sh",
           },
         ],
@@ -305,7 +305,7 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Sintoma", "Correção"],
             rows: [
               [
-                "0.10.4 via apt abaixo do mínimo",
+                "0.10.4 dos pacotes da distro abaixo do mínimo",
                 "Rode de novo com _DOT_NVIM_ALLOW_TARBALL=1",
               ],
               [
@@ -518,7 +518,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Sim. Cada ferramenta verifica PATH-ou-destino antes de baixar; apt é pulado em bloco quando satisfeito.",
+            text: "Sim. Cada ferramenta verifica o PATH antes de instalar; o gerenciador de pacotes é pulado em bloco quando tudo está presente.",
           },
         ],
       },
@@ -801,6 +801,131 @@ const pages: Record<PageId, DocPage> = {
       },
     ],
   },
+  "guide-distributions": {
+    id: "guide-distributions",
+    title: "Distribuições",
+    summary:
+      "Debian/Ubuntu, Gentoo, Arch, Fedora e Alpine — e o que foi verificado em cada uma.",
+    sections: [
+      {
+        id: "how",
+        heading: "Como funciona",
+        blocks: [
+          {
+            kind: "p",
+            text: "Toda tarefa instala pacotes por uma camada só (lib/package.sh): ela lê /etc/os-release e usa o gerenciador de pacotes da própria distribuição, com os nomes reais dos pacotes. Qualquer outra distribuição é recusada antes de um único comando de pacote.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "O que o dottod detectou aqui",
+            code: "dottod-doctor | grep distro",
+          },
+        ],
+      },
+      {
+        id: "verified",
+        heading: "O que foi verificado",
+        blocks: [
+          {
+            kind: "p",
+            text: "Só o que de fato rodou é declarado. Contêineres são imagens descartáveis fixadas, cada tarefa rodada duas vezes; o Ubuntu 24.04 teve só os nomes de pacotes verificados.",
+          },
+          {
+            kind: "table",
+            headers: [
+              "",
+              "Debian 13",
+              "Gentoo",
+              "Arch",
+              "Fedora 42",
+              "Alpine 3.22",
+            ],
+            rows: [
+              [
+                "shell, vim, gitconfig, ssh, fonts",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "neovim ≥ 0.11",
+                "✅ tarball (o pacote é 0.10.4)",
+                "✅ 0.11.7",
+                "✅ 0.12.6",
+                "✅ 0.11.5",
+                "✅ 0.11.1",
+              ],
+              ["cargo (rustup)", "✅", "✅", "✅", "✅", "✅ musl"],
+              [
+                "bun",
+                "✅ verificado",
+                "✅",
+                "✅ verificado",
+                "✅ verificado",
+                "✅ musl, verificado",
+              ],
+              [
+                "tools + gh",
+                "✅ gh pelo repositório apt do GitHub",
+                "só nomes",
+                "✅",
+                "✅",
+                "✅",
+              ],
+              [
+                "Podman rootless",
+                "✅ host",
+                "pendente (laptop real)",
+                "—",
+                "só rootful",
+                "só helpers + subids",
+              ],
+              [
+                "zed (--ui)",
+                "não rodou",
+                "não rodou",
+                "não rodou",
+                "não rodou",
+                "sem suporte (só glibc)",
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        id: "notes",
+        heading: "Por distribuição",
+        blocks: [
+          {
+            kind: "ul",
+            items: [
+              "Debian/Ubuntu: apt-get, índice atualizado uma vez por execução; batcat e fdfind também ganham os nomes bat e fd.",
+              'Gentoo: emerge com seu perfil, USE flags e EMERGE_DEFAULT_OPTS intactos; o dottod nunca sincroniza e nunca escreve em /etc/portage. Pacotes podem compilar do fonte; no OpenRC, Podman rootless precisa de rc_cgroup_mode="unified" (o status do container avisa).',
+              "Arch: pacman -S --needed, nunca um -Sy sozinho (upgrades parciais); se um pacote não for encontrado, rode pacman -Syu antes. Sem AUR.",
+              "Fedora: dnf install -y.",
+              "Alpine: instale o bash antes. Bun e rustup usam builds musl; o Neovim vem do apk; o Zed é pulado com o motivo; sem chsh, a tarefa shell mostra o comando usermod.",
+            ],
+          },
+        ],
+      },
+      {
+        id: "check",
+        heading: "Confira você mesmo",
+        blocks: [
+          {
+            kind: "code",
+            lang: "bash",
+            caption:
+              "Nomes de pacotes, depois o bootstrap principal duas vezes (Podman, limitado a 3 GiB / 2 CPUs)",
+            code: "DOTTOD_TEST_INTEGRATION=1 tests/integration/pkg-resolve.sh gentoo arch\nDOTTOD_TEST_INTEGRATION=1 tests/integration/core-smoke.sh alpine",
+          },
+        ],
+      },
+    ],
+  },
   "guide-containers": {
     id: "guide-containers",
     title: "Contêineres",
@@ -841,7 +966,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Fontes vão para ~/.local/share/fonts (sistema todo só com _DOT_NERDFONT_GLOBAL_INSTALL=1). Dependências instalam via apt só quando realmente faltam — um rerun normal não toca sudo nem rede para fontes presentes.",
+            text: "Fontes vão para ~/.local/share/fonts (sistema todo só com _DOT_NERDFONT_GLOBAL_INSTALL=1). Dependências instalam dos pacotes da distro só quando realmente faltam — um rerun normal não toca sudo nem rede para fontes presentes.",
           },
           {
             kind: "code",
@@ -958,7 +1083,11 @@ const pages: Record<PageId, DocPage> = {
             headers: ["Variável", "Padrão", "Tarefa"],
             rows: [
               ["_DOT_TARGET_USER", "id -un", "todas"],
-              ["_DOT_NO_PACKAGES", "0 (1 pula apt; testes)", "todas"],
+              [
+                "_DOT_NO_PACKAGES",
+                "0 (1 pula instalações de pacotes; testes)",
+                "todas",
+              ],
               ["DOT_TOOLS_EXTRA", "nenhum (lista ou all)", "tools"],
               ["_DOT_NVIM_MIN_VERSION", "0.11.0", "neovim"],
               ["_DOT_NVIM_VERSION", "v0.12.5", "neovim"],
@@ -1005,7 +1134,7 @@ const pages: Record<PageId, DocPage> = {
               ],
               [
                 "Healing",
-                "instalação tarball opt-in quando o apt é velho",
+                "instalação tarball opt-in quando o pacote é velho",
                 "upgrade",
               ],
               [
@@ -1030,13 +1159,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Provisionador de estação única. Uma interface — bin/bootstrap.sh — dirige doze scripts de tarefa contra $HOME, /etc/apt e ~/.config, escalando uma vez por run via sudo ou doas. Sem servidores, sem bancos; estado vive em symlinks, backups (*.dottod.bak), caches e lockfiles.",
+            text: "Provisionador de estação única. Uma interface — bin/bootstrap.sh — dirige onze scripts de tarefa contra $HOME, o gerenciador de pacotes da distro e ~/.config, escalando uma vez por run via sudo ou doas. Sem servidores, sem bancos; estado vive em symlinks, backups (*.dottod.bak), caches e lockfiles.",
           },
           {
             kind: "code",
             lang: "text",
             caption: "Camadas",
-            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<tarefa>.sh ─► $HOME, /etc/apt, ~/.config\n                    (via _priv sudo/doas, cacheado por run)",
+            code: "./bin/bootstrap.sh --only/--skip/--parallel/--ui\n        └─► bin/<tarefa>.sh ─► $HOME, gerenciador de pacotes, ~/.config\n                    (via _priv sudo/doas, cacheado por run)",
           },
         ],
       },
@@ -1119,7 +1248,7 @@ const pages: Record<PageId, DocPage> = {
 export const ptBR: DocsContent = {
   ui: {
     siteName: "dottod",
-    siteTagline: "Estação Debian, reconstruída por um comando bash puro.",
+    siteTagline: "Estação Linux, reconstruída por um comando bash puro.",
     skipToContent: "Pular para o conteúdo",
     menu: "Menu",
     close: "Fechar",

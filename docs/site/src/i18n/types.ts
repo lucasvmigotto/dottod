@@ -27,6 +27,7 @@ export const TASK_IDS = [
 ] as const;
 
 export const GUIDE_IDS = [
+  "distributions",
   "shell",
   "neovim",
   "ssh",
@@ -160,6 +161,7 @@ export const NAV_GROUPS: NavGroup[] = [
   {
     key: "guides",
     pages: [
+      "guide-distributions",
       "guide-shell",
       "guide-neovim",
       "guide-ssh",
