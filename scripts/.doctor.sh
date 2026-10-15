@@ -58,6 +58,29 @@ dottod-doctor() {
         __dottod_doc_warn "bash ${BASH_VERSION} is older than 4"
     fi
 
+    # Distribution: what dottod's package layer detects (lib/os.sh, run in
+    # a subshell so none of its functions leak into this shell).
+    local distro_root distro
+    distro_root="$(_dottod_doctor_root)" || distro_root=''
+    if [[ -n "${distro_root}" && -f "${distro_root}/lib/os.sh" ]]; then
+        if distro="$(
+            # shellcheck source=../lib/os.sh
+            source "${distro_root}/lib/os.sh" &&
+                _os_detect 2>&1 &&
+                printf '%s %s (%s family, %s, %s)' "${DOTTOD_OS_ID}" "${DOTTOD_OS_VERSION_ID:-rolling}" \
+                    "${DOTTOD_OS_FAMILY}" "${DOTTOD_PKG}" "${DOTTOD_LIBC}" &&
+                { _os_require_pkg >/dev/null 2>&1 || printf ' — %s not on PATH' "${DOTTOD_PKG}"; }
+        )"; then
+            if [[ "${distro}" == *'not on PATH'* ]]; then
+                __dottod_doc_warn "distro: ${distro}"
+            else
+                __dottod_doc_ok "distro: ${distro}"
+            fi
+        else
+            __dottod_doc_warn "distro: ${distro#dottod: }"
+        fi
+    fi
+
     # Toolchain.
     # shellcheck disable=SC2086 # intentional word splitting on the tool list
     for t in ${DOT_DOCTOR_TOOLS:-${_DOTTOD_DOCTOR_TOOLS_DEFAULT}}; do

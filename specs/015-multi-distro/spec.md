@@ -68,4 +68,7 @@ what `ID`/`ID_LIKE=debian` fixtures prove.
 | zed (`--ui`) | optional | optional | optional | optional | unsupported (glibc) |
 
 ## Status
-Planned. Verified: no.
+Implemented (2026-10-15). Verified in containers on all five families
+(evidence: plan.md, support matrix: docs/distributions.md). Not yet
+verified on a real Gentoo host (milestone G2: the maintainer's laptop —
+full bootstrap, rootless Podman under OpenRC).

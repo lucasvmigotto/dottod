@@ -1,6 +1,8 @@
 # dottod
 
-Personal dotfiles and workstation bootstrap for Debian (GNOME). Reproducibly
+Personal dotfiles and workstation bootstrap for Debian/Ubuntu, Gentoo,
+Arch, Fedora and Alpine (see [docs/distributions.md](docs/distributions.md)
+for what is verified where). Reproducibly
 recreates a plain-bash terminal environment (lightweight prompt, no plugins),
 fonts, editor, terminal, CLI tooling, container runtime
 (Podman by default), and GitHub SSH configuration after a reset or fresh install.
@@ -36,7 +38,9 @@ tests/     BATS test suites (run with ./tests/run.sh)
 
 ### Prerequisites
 
-- Debian (or Debian-based) system with `apt`.
+- Debian/Ubuntu, Gentoo, Arch, Fedora or Alpine; dottod detects it and uses
+  its package manager (anything else is refused before any install). On
+  Alpine, install `bash` first. See [docs/distributions.md](docs/distributions.md).
 - `sudo` or `doas`; if not passwordless, the scripts prompt once for the
   password (needs a TTY) — otherwise run as root.
 - BATS (`bats` package) only to run the shell test suites — not needed
@@ -242,7 +246,8 @@ corresponding tasks. Edit them there and re-run the task to reapply.
 - **Idempotent**: every task checks for an existing install before acting.
 - **Failsafe**: `set -Eeuo pipefail`, per-task isolation, backup of existing
   dotfiles (suffixed `.dottod.bak`), curl retries, and a final PASS/FAIL summary.
-- **Parallelism**: `--parallel` runs tasks concurrently; apt operations are
-  serialized by dpkg's own lock.
+- **Parallelism**: `--parallel` runs tasks concurrently; dottod serializes
+  its own package transactions with a lock, and refreshes the package index
+  once per run.
 - **Terminal-first**: GUI tasks (`zed`) never run unless `--ui`
   is passed.

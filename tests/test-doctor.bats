@@ -140,3 +140,35 @@ doctor_with_containers() {
     run doctor_with_containers 0
     assert_eq 'no podman lines' '0' "$(grep -c 'podman:' <<<"$output" || true)"
 }
+
+# doctor_distro <fixture> [manager to stub]: doctor against an os-release
+# fixture, with only the named package manager stubbed on PATH.
+doctor_distro() {
+    local bin="$BATS_TEST_TMPDIR/distrobin"
+    mkdir -p "$bin"
+    if [[ -n "${2:-}" ]]; then
+        printf '#!/usr/bin/env bash\nexit 0\n' >"$bin/$2"
+        chmod +x "$bin/$2"
+    fi
+    _DOT_OS_RELEASE_FILE="$REPO_ROOT/tests/fixtures/os-release/$1" PATH="$bin:$PATH" doctor_run
+}
+
+@test "distro line names the family, manager and libc" {
+    run doctor_distro gentoo emerge
+    assert_contains 'gentoo ok' '[ok] distro: gentoo 2.18 (gentoo family, emerge,' "$output"
+}
+
+@test "distro line warns when the family's manager is missing" {
+    # Hide dnf whatever the host has (exported into the doctor's shell).
+    command() { [[ "$1 $2" == "-v dnf" ]] && return 1; builtin command "$@"; }
+    export -f command
+    run doctor_distro fedora
+    unset -f command
+    assert_contains 'missing dnf' "dnf not on PATH" "$output"
+    assert_contains 'is a warning' '[warn] distro: fedora' "$output"
+}
+
+@test "distro line warns on an unsupported distribution" {
+    run doctor_distro unknown
+    assert_contains 'unsupported' "[warn] distro: unsupported distribution 'nixos'" "$output"
+}

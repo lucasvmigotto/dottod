@@ -64,11 +64,16 @@ Same smoke on Arch, Fedora, Alpine, Debian before moving on.
 - [x] T082 neutral dev-tool hints in `justfile` and `tests/run.sh`
 
 ## Phase 9 — docs and support claims (`docs/distributions`)
-- [ ] T090 `docs/distributions.md`: support matrix from evidence only (L1/L2/L3 results), Gentoo/Arch policies, known limits
-- [ ] T091 README prerequisites, `docs/containers.md`, `docs/neovim.md`, contracts (`needs_apt` → `uses_packages`), docs site (both locales)
-- [ ] T092 `dottod-doctor` shows the detected distro/family/libc
-- [ ] T093 final search for apt/dpkg/`/home/`/glibc assumptions; each survivor has a reason
+- [x] T090 `docs/distributions.md`: support matrix from evidence only (L1/L2/L3 results), Gentoo/Arch policies, known limits
+- [x] T091 README prerequisites, `docs/containers.md`, `docs/neovim.md`, contracts (`needs_apt` → `uses_packages`), docs site (both locales)
+- [x] T092 `dottod-doctor` shows the detected distro/family/libc
+- [x] T093 final search for apt/dpkg/`/home/`/glibc assumptions; each survivor has a reason
 
 Promotion of `develop` to `main` (and the 2.x release) is a separate
 decision after Phase 9, or earlier if Gentoo core is wanted on `main`
 sooner.
+
+**Milestone G2 — real Gentoo host** (open): the full bootstrap on the
+maintainer's laptop (OpenRC, desktop), twice; `./bin/container.sh status`
+and `dottod-doctor` clean (cgroup v2 under OpenRC); record the result in
+plan.md and docs/distributions.md.

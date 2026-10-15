@@ -4,7 +4,8 @@ dottod's container runtime is **rootless Podman**. Nothing is ever migrated
 or deleted: existing container engines, images, and containers are left
 alone. Docker is not installed or managed by dottod.
 
-Linux-only (native, Debian/apt). No Podman Machine, WSL, Compose, Swarm, or
+Linux-only (native; the distributions in [distributions.md](distributions.md)).
+No Podman Machine, WSL, Compose, Swarm, or
 Kubernetes abstraction — dottod uses none of those.
 
 ## Detection vocabulary
@@ -21,7 +22,8 @@ Binary-exists is not usable: a Podman without user namespaces or subids is
 
 `./bin/container.sh` (the `container` bootstrap task) ensures Podman:
 
-1. Installs `podman` + `uidmap` via the repo apt helper (skipped if present;
+1. Installs `podman` and the rootless helpers (`newuidmap`, `usermod`)
+   from the distro's packages (skipped if present;
    honors `_DOT_NO_PACKAGES=1`).
 2. Ensures rootless `subuid`/`subgid` ranges (`100000-165535`, created with
    `usermod` only when missing).

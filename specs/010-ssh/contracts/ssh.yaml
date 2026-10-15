@@ -7,5 +7,5 @@ env:
 file_effects:
   - {path: "~/.ssh/config", action: merge-github-block, backup: "config.dottod.bak iff changed", mode: "600"}
   - {path: "~/.ssh/github[.pub]", action: generate-ed25519-if-neither-half-exists, mode: "600/644"}
-needs_apt: false
+uses_packages: true  # openssh_client when ssh-keygen is missing
 idempotency: byte-identical reruns; exactly one Host github.com stanza; key never regenerated
