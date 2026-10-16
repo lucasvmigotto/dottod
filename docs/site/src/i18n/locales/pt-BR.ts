@@ -937,6 +937,13 @@ const pages: Record<PageId, DocPage> = {
             caption: "O que o dottod detectou aqui",
             code: "dottod-doctor | grep distro",
           },
+          {
+            kind: "demo",
+            gif: "fetch.gif",
+            alt: "Gravação de terminal: o cartão dottod-fetch para Gentoo, Arch, Debian, Fedora e Alpine — distro, família, gerenciador de pacotes, libc e nomes de pacotes — com o estilo de prompt alternando entre powerline, kali e robbyrussell, depois bootstrap --list e um relatório --status.",
+            transcript:
+              "➜ ./scripts/dottod-fetch.sh --os-release tests/fixtures/os-release/gentoo\n\n _-----_         dottod 2.x\n(       \\        -------------\n\\    0   \\       Distro    Gentoo 2.18\n \\        )      Family    gentoo (emerge)\n /      _/       Libc      glibc\n(     _-         Shell     bash\n\\____-           Prompt    powerline\n                 Packages\n                   git -> dev-vcs/git\n                   vim -> app-editors/vim\n                   neovim -> app-editors/neovim\n                   openssh_client -> net-misc/openssh\n                   podman -> app-containers/podman\n                   pass -> app-admin/pass\n                   bats -> dev-util/bats\n\n(the same for Arch, Debian, Fedora and Alpine, switching the prompt style between powerline, kali and robbyrussell)\n\n➜ ./bin/bootstrap.sh --list\n➜ ./bin/bootstrap.sh --only tools --extras gh,httpie --status",
+          },
         ],
       },
       {

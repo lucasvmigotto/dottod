@@ -70,6 +70,9 @@ jobs:
           sudo chmod +x /usr/local/bin/ttyd
           vhs --version && ttyd --version
 
+      - name: Demo font (dottod's own fonts task; the fetch tape's powerline glyphs)
+        run: ./bin/fonts.sh FiraCode
+
       - name: Render demos (tapes must render cleanly)
         run: bun run demos
         working-directory: docs/site
