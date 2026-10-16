@@ -20,7 +20,7 @@ setup() {
     mkdir -p "$FAKE_HOME"
     export ROOTS="$BATS_TEST_TMPDIR/roots"
     export CODES_ROOTS="$ROOTS"
-    unset CODES_SUBMODULES CODES_GROUP
+    unset CODES_SUBMODULES CODES_GROUP CODES_CLAUDE CODES_CLAUDE_GLYPH CLAUDE_CONFIG_DIR
     mkdir -p "$ROOTS/solo" "$ROOTS/family/a" "$ROOTS/family/b"
     mkdir -p "$ROOTS/super/sub" "$ROOTS/super/vendor/nested"
     local r
@@ -160,4 +160,50 @@ codes_list() {
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'first row is work' 'work' "$(printf '%s\n' "$output" | sed -n 1p)"
     assert_eq 'one work row' '1' "$(printf '%s\n' "$output" | grep -cw 'work')"
+}
+
+# claude_key <path>: Claude Code's projects/ folder name for a path.
+claude_key() {
+    printf '%s' "${1//[^A-Za-z0-9]/-}"
+}
+
+@test "repos with a saved Claude conversation carry the mark" {
+    mkdir -p "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")"
+    : >"$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")/s.jsonl"
+    # A folder without a session file is not a conversation.
+    mkdir -p "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/family/a")"
+    run codes_list
+    assert_eq 'rc' '0' "$status"
+    assert_match 'solo marked' $'solo .*\xee\xb0\x90' "$(grep 'solo' <<<"$output")"
+    assert_eq 'family/a unmarked' '0' "$(grep 'family/a' <<<"$output" | grep -c $'\xee\xb0\x90' || true)"
+}
+
+@test "CODES_CLAUDE=0 hides the mark; CODES_CLAUDE_GLYPH replaces it" {
+    mkdir -p "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")"
+    : >"$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")/s.jsonl"
+    CODES_CLAUDE=0 run codes_list
+    assert_eq 'hidden' '0' "$(grep -c $'\xee\xb0\x90' <<<"$output" || true)"
+    CODES_CLAUDE_GLYPH='C*' run codes_list
+    assert_match 'custom glyph' 'solo .*C\*' "$(grep 'solo' <<<"$output")"
+}
+
+@test "CLAUDE_CONFIG_DIR points the lookup at another store" {
+    local store="$BATS_TEST_TMPDIR/other-store"
+    mkdir -p "$store/projects/$(claude_key "$ROOTS/solo")"
+    : >"$store/projects/$(claude_key "$ROOTS/solo")/s.jsonl"
+    CLAUDE_CONFIG_DIR="$store" run codes_list
+    assert_match 'solo marked' $'solo .*\xee\xb0\x90' "$(grep 'solo' <<<"$output")"
+}
+
+@test "codes -c jumps, then continues the Claude conversation there" {
+    run env CODES_ROOTS="$ROOTS" bash -i -c "
+        source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1
+        claude() { printf 'claude %s in %s\n' \"\$*\" \"\$PWD\"; }
+        codes -c solo
+    " 2>/dev/null
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'continued in the project' "claude -c in $ROOTS/solo" "$output"
+    run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -c -l" 2>&1
+    assert_eq 'with -l rc' '2' "$status"
+    assert_contains 'refused' 'not with -l or -p' "$output"
 }

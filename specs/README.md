@@ -27,6 +27,7 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 | 017 | secrets (`pass`, opt-in) + container registry logins | P1 | 015 | Implemented, verified on Debian (S1) |
 | 018 | segmented prompt themes + `prompt-style` | P2 | 001 | Implemented |
 | 019 | progress bars (`pv` + shortcuts) | P2 | 011 | Implemented |
+| 020 | Claude sessions: continue or start, `codes` marks | P2 | 016 | Implemented |
 
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
