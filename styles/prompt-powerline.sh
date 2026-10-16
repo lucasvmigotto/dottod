@@ -115,8 +115,8 @@ __dottod_prompt_powerline() {
         status_glyph='\[\e[1;31m\]✗\[\e[22m\]'
     fi
     time="$(date +%H:%M 2>/dev/null)"
-    right="$(__dottod_pw_rblock '' 236 14 "$(__dottod_duration "${dur}") ${status_glyph}")"
-    right+="$(__dottod_pw_rblock 236 31 15 "${time} $(__dottod_glyph clock)")"
+    right="$(__dottod_pw_rblock '' 240 14 "$(__dottod_duration "${dur}") ${status_glyph}")"
+    right+="$(__dottod_pw_rblock 240 31 15 "${time} $(__dottod_glyph clock)")"
     if [[ "${DOT_PROMPT_RESOURCES:-1}" == "1" ]] && avail="$(__dottod_disk_avail 2>/dev/null)"; then
         right+="$(__dottod_pw_rblock 31 214 0 "${avail} $(__dottod_glyph disk)")"
     fi
