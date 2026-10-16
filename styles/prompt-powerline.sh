@@ -34,9 +34,10 @@ __dottod_pw_rblock() {
     printf '\[\\e[48;5;%sm\\e[38;5;%sm\] %s ' "${2}" "${3}" "${4}"
 }
 
-# __dottod_pw_end <bg>: closing separator on the default background.
+# __dottod_pw_end <bg>: closing separator on the default background (reset
+# first: drawn on the block's own background, the arrow would vanish).
 __dottod_pw_end() {
-    printf '\[\\e[38;5;%sm\]%s\[\\e[0m\]' "${1}" "$(__dottod_glyph sep_left)"
+    printf '\[\\e[0m\\e[38;5;%sm\]%s\[\\e[0m\]' "${1}" "$(__dottod_glyph sep_left)"
 }
 
 # __dottod_visible_len <ps1>: printable width (strips \[ \] and ANSI).

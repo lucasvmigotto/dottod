@@ -90,12 +90,14 @@ setup() {
     assert_contains 'powerline ok status' '✓' "$output"
 }
 
-@test "powerline right side is filled blocks, not thin separators" {
+@test "powerline arrows are visible: filled on the right, closing one on the default background" {
     local ihome="$BATS_TEST_TMPDIR/ihome-pwright"
     mkdir -p "$ihome"
-    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline COLUMNS=200 bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
+    run env HOME="$ihome" DOT_PROMPT_STYLE=powerline COLUMNS=200 bash -i -c "cd '$ihome' && source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1; __dottod_prompt_powerline; printf '%s' \"\$PS1\"" 2>/dev/null
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'filled left-pointing arrow' $'\ue0b2' "$output"
+    # The left side's closing arrow sits on the default background.
+    assert_contains 'closing arrow after a reset' '\e[0m\e[38;5;27m\]'$'\ue0b0' "$output"
     if [[ "$output" == *$'\ue0b3'* ]]; then
         printf 'FAIL: thin separator on the right side\n' >&2
         return 1
