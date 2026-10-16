@@ -14,7 +14,7 @@ setup() {
     export FAKE_HOME="$BATS_TEST_TMPDIR/home"
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME"
-    unset GIT_NAME GIT_EMAIL
+    unset GIT_NAME GIT_EMAIL GIT_WORK_NAME GIT_WORK_EMAIL GIT_GLOBAL_IDENTITY
     # utils.sh replaces bats' EXIT trap; re-arm it so a failing test is
     # reported by name instead of dropping out of the run.
     local _bats_exit_trap
@@ -70,7 +70,7 @@ setup() {
     assert_contains 'skip message' 'already set' "$output"
 }
 
-@test "gitconfig writes work identity and includeIf from env" {
+@test "gitconfig writes the work file as data, with no includeIf" {
     export GIT_NAME="Personal User" GIT_EMAIL="personal@example.com"
     export GIT_WORK_NAME="Work User" GIT_WORK_EMAIL="work@example.com"
     run _main
@@ -78,27 +78,77 @@ setup() {
     assert_eq 'personal name' 'Personal User' "$(git config --global user.name)"
     assert_eq 'work name in file' 'Work User' "$(git config --file "$FAKE_HOME/.gitconfig-work" user.name)"
     assert_eq 'work email in file' 'work@example.com' "$(git config --file "$FAKE_HOME/.gitconfig-work" user.email)"
-    assert_contains 'includeIf present' 'includeIf "gitdir:~/codes/**"' "$(cat "$FAKE_HOME/.gitconfig")"
+    if grep -q 'includeIf' "$FAKE_HOME/.gitconfig"; then
+        printf 'FAIL: includeIf written\n' >&2
+        return 1
+    fi
 }
 
-@test "gitconfig resolves work identity inside ~/codes and personal outside" {
+@test "gitconfig leaves repos under ~/codes on the personal identity" {
     export GIT_NAME="Personal User" GIT_EMAIL="personal@example.com"
     export GIT_WORK_NAME="Work User" GIT_WORK_EMAIL="work@example.com"
     _main >/dev/null
-    mkdir -p "$FAKE_HOME/codes/workproj" "$FAKE_HOME/other"
-    git -C "$FAKE_HOME/codes/workproj" init -q
-    git -C "$FAKE_HOME/other" init -q
-    assert_eq 'work email in codes repo' 'work@example.com' "$(git -C "$FAKE_HOME/codes/workproj" config user.email)"
-    assert_eq 'personal email outside codes' 'personal@example.com' "$(git -C "$FAKE_HOME/other" config user.email)"
+    mkdir -p "$FAKE_HOME/codes/proj"
+    git -C "$FAKE_HOME/codes/proj" init -q
+    assert_eq 'personal email in codes repo' 'personal@example.com' "$(git -C "$FAKE_HOME/codes/proj" config user.email)"
 }
 
-@test "gitconfig without work env writes no work file and no includeIf" {
+@test "gitconfig drops the includeIf an older dottod wrote" {
+    export GIT_NAME="Personal User" GIT_EMAIL="personal@example.com"
+    _main >/dev/null
+    printf '[includeIf "gitdir:~/codes/**"]\n    path = ~/.gitconfig-work\n' >>"$FAKE_HOME/.gitconfig"
+    run _main
+    assert_eq 'rewrite rc 0' '0' "$status"
+    assert_contains 'backed up' 'Backing up' "$output"
+    if grep -q 'includeIf' "$FAKE_HOME/.gitconfig"; then
+        printf 'FAIL: includeIf kept\n' >&2
+        return 1
+    fi
+    assert_eq 'identity kept' 'personal@example.com' "$(git config --global user.email)"
+}
+
+@test "gitconfig without work env writes no work file and keeps an existing one" {
     export GIT_NAME="Test User" GIT_EMAIL="test@example.com"
     run _main
     assert_eq 'write rc 0' '0' "$status"
     assert_eq 'no work file' '0' "$([[ -e "$FAKE_HOME/.gitconfig-work" ]] && echo 1 || echo 0)"
-    if grep -q 'includeIf' "$FAKE_HOME/.gitconfig"; then
-        printf 'FAIL: includeIf present without work identity\n' >&2
-        return 1
-    fi
+    printf '[user]\n    name = W\n    email = w@example.com\n' >"$FAKE_HOME/.gitconfig-work"
+    _main >/dev/null
+    assert_eq 'work file kept' 'w@example.com' "$(git config --file "$FAKE_HOME/.gitconfig-work" user.email)"
+}
+
+@test "gitconfig needs both work variables" {
+    export GIT_NAME="Test User" GIT_EMAIL="test@example.com" GIT_WORK_EMAIL="work@example.com"
+    run _main
+    assert_eq 'partial rc 1' '1' "$status"
+    assert_contains 'names both' 'GIT_WORK_NAME and GIT_WORK_EMAIL' "$output"
+}
+
+@test "GIT_GLOBAL_IDENTITY=0 writes the config with no global identity, without asking" {
+    export GIT_GLOBAL_IDENTITY=0
+    run _main
+    assert_eq 'write rc 0' '0' "$status"
+    assert_eq 'config written' '1' "$([[ -f "$FAKE_HOME/.gitconfig" ]] && echo 1 || echo 0)"
+    assert_eq 'no global name' '' "$(git config --global user.name || true)"
+    assert_eq 'no global email' '' "$(git config --global user.email || true)"
+    run _main
+    assert_contains 'second run skips' 'already set' "$output"
+}
+
+@test "GIT_GLOBAL_IDENTITY=0 removes an existing global identity" {
+    export GIT_NAME="Test User" GIT_EMAIL="test@example.com"
+    _main >/dev/null
+    unset GIT_NAME GIT_EMAIL
+    export GIT_GLOBAL_IDENTITY=0
+    run _main
+    assert_eq 'rewrite rc 0' '0' "$status"
+    assert_eq 'no global email' '' "$(git config --global user.email || true)"
+    assert_eq 'backup holds it' 'test@example.com' "$(git config --file "$FAKE_HOME/.gitconfig.dottod.bak" user.email)"
+}
+
+@test "GIT_GLOBAL_IDENTITY rejects other values" {
+    export GIT_GLOBAL_IDENTITY=no
+    run _main
+    assert_eq 'bad value rc 1' '1' "$status"
+    assert_contains 'names the variable' 'GIT_GLOBAL_IDENTITY must be 0 or 1' "$output"
 }

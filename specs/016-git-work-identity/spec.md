@@ -59,4 +59,23 @@ the git error stays visible.
   one).
 
 ## Status
-Planned (after 015).
+Implemented on `feat/gwork` (2026-10-16).
+
+- `bin/gitconfig.sh`: no includeIf (an old one is dropped on the next
+  run, with a backup); `~/.gitconfig-work` written only from
+  `GIT_WORK_NAME` + `GIT_WORK_EMAIL`, never removed;
+  `GIT_GLOBAL_IDENTITY=0` writes no `user.*` and never prompts.
+- `scripts/.gwork.sh`: `gwork [status]|clone|set|unset`. `clone` adds
+  `-c user.name=… -c user.email=…` to `git clone`, which git writes to the
+  new repository's local config only when the clone succeeds.
+- `scripts/.codes.sh`: one `git config user.email` per repo in the
+  parallel worker; context column once a work email exists; `--work`,
+  `--personal`, `--by-context`.
+
+Evidence: `tests/test-gwork.bats` clones every URL of the acceptance
+table for real, offline (each mapped to a local bare repo with
+`url.<base>.insteadOf`, so git sees the URL as typed), checks the
+directory, the local identity and the cd; failed clone, missing identity,
+env precedence, set/unset/status. `tests/test-gitconfig.bats` and
+`tests/test-codes.bats` cover the task and the context column. Full
+suite: 328/328.

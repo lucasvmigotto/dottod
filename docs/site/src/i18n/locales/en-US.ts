@@ -434,13 +434,34 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Sets user.name and user.email from GIT_NAME/GIT_EMAIL, the existing global config, or one TTY prompt — then writes ~/.gitconfig (backed up first). A distinct work identity for repositories under ~/codes/ is written to ~/.gitconfig-work and wired in via [includeIf]; it falls back to personal when GIT_WORK_NAME/GIT_WORK_EMAIL are unset. Matching values are left untouched: no backup, no rewrite.",
+            text: "Sets user.name and user.email from GIT_NAME/GIT_EMAIL, the existing global config, or one TTY prompt — then writes ~/.gitconfig (backed up first). GIT_GLOBAL_IDENTITY=0 writes the rest of ~/.gitconfig with no global identity, for machines where every repository sets its own. With GIT_WORK_NAME/GIT_WORK_EMAIL, the work identity is stored in ~/.gitconfig-work for gwork. Matching values are left untouched: no backup, no rewrite.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Non-interactive",
-            code: 'GIT_NAME="Your Name" GIT_EMAIL="you@example.com" \\\nGIT_WORK_NAME="You At Work" GIT_WORK_EMAIL="you@work.example.com" \\\n  ./bin/gitconfig.sh',
+            code: 'GIT_NAME="Your Name" GIT_EMAIL="you@example.com" \\\nGIT_WORK_NAME="You At Work" GIT_WORK_EMAIL="you@work.example.com" \\\n  ./bin/gitconfig.sh\n\n# no global identity (each repo sets its own)\nGIT_GLOBAL_IDENTITY=0 ./bin/gitconfig.sh',
+          },
+        ],
+      },
+      {
+        id: "work",
+        heading: "Work repositories (gwork)",
+        maturity: "implemented",
+        blocks: [
+          {
+            kind: "p",
+            text: "The work identity is plain data: no includeIf, so a repository is personal until you say otherwise — in its own local config, wherever it lives. gwork clone hands the URL to git clone untouched: SSH or HTTPS, Azure DevOps, Bitbucket, GitLab, GitHub or your own host, and the clone lands where git clone would put it. A failed clone configures nothing. GIT_WORK_NAME/GIT_WORK_EMAIL in the environment take precedence over ~/.gitconfig-work.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "gwork",
+            code: "gwork clone git@ssh.dev.azure.com:v3/org/project/repo  # clone as work, cd in\ngwork clone https://gitlab.com/group/sub/repo.git api --depth 1\ngwork set [dir]     # mark an existing checkout as work\ngwork unset [dir]   # back to the global identity\ngwork               # which identity this repo resolves\ncodes --work        # only work repositories",
+          },
+          {
+            kind: "p",
+            text: "codes shows each repository's context — work when the email git resolves there is the work email, personal otherwise — and filters by it with --work, --personal and --by-context.",
           },
         ],
       },
@@ -782,7 +803,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before.",
+            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before. Once a work identity exists (see gitconfig), a context column marks work and personal repositories; --work, --personal and --by-context filter or group by it.",
           },
           {
             kind: "code",

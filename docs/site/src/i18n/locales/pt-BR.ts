@@ -435,13 +435,34 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Define user.name e user.email a partir de GIT_NAME/GIT_EMAIL, da config global existente, ou de um prompt no TTY — depois escreve ~/.gitconfig (com backup). Uma identidade de trabalho distinta para repositórios sob ~/codes/ é gravada em ~/.gitconfig-work e ligada via [includeIf]; ela volta para a pessoal quando GIT_WORK_NAME/GIT_WORK_EMAIL não são definidos. Valores iguais são deixados intactos: sem backup, sem reescrita.",
+            text: "Define user.name e user.email a partir de GIT_NAME/GIT_EMAIL, da config global existente, ou de um prompt no TTY — depois escreve ~/.gitconfig (com backup). GIT_GLOBAL_IDENTITY=0 escreve o resto do ~/.gitconfig sem identidade global, para máquinas onde cada repositório define a sua. Com GIT_WORK_NAME/GIT_WORK_EMAIL, a identidade de trabalho fica em ~/.gitconfig-work para o gwork. Valores iguais são deixados intactos: sem backup, sem reescrita.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Não interativo",
-            code: 'GIT_NAME="Seu Nome" GIT_EMAIL="voce@exemplo.com" \\\nGIT_WORK_NAME="Seu Nome no Trabalho" GIT_WORK_EMAIL="voce@trabalho.exemplo.com" \\\n  ./bin/gitconfig.sh',
+            code: 'GIT_NAME="Seu Nome" GIT_EMAIL="voce@exemplo.com" \\\nGIT_WORK_NAME="Seu Nome no Trabalho" GIT_WORK_EMAIL="voce@trabalho.exemplo.com" \\\n  ./bin/gitconfig.sh\n\n# sem identidade global (cada repo define a sua)\nGIT_GLOBAL_IDENTITY=0 ./bin/gitconfig.sh',
+          },
+        ],
+      },
+      {
+        id: "work",
+        heading: "Repositórios de trabalho (gwork)",
+        maturity: "implemented",
+        blocks: [
+          {
+            kind: "p",
+            text: "A identidade de trabalho é só um dado: sem includeIf, então um repositório é pessoal até você dizer o contrário — na config local dele, onde quer que esteja. gwork clone passa a URL intacta para o git clone: SSH ou HTTPS, Azure DevOps, Bitbucket, GitLab, GitHub ou seu próprio host, e o clone cai onde o git clone o colocaria. Um clone que falha não configura nada. GIT_WORK_NAME/GIT_WORK_EMAIL no ambiente têm precedência sobre ~/.gitconfig-work.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "gwork",
+            code: "gwork clone git@ssh.dev.azure.com:v3/org/project/repo  # clona como trabalho e entra\ngwork clone https://gitlab.com/group/sub/repo.git api --depth 1\ngwork set [dir]     # marca um checkout existente como trabalho\ngwork unset [dir]   # volta à identidade global\ngwork               # qual identidade este repo resolve\ncodes --work        # só repositórios de trabalho",
+          },
+          {
+            kind: "p",
+            text: "O codes mostra o contexto de cada repositório — trabalho quando o email que o git resolve ali é o de trabalho, pessoal caso contrário — e filtra por ele com --work, --personal e --by-context.",
           },
         ],
       },
@@ -783,7 +804,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "Repos irmãos sob um diretório aparecem como pai/nome, e checkouts de submódulo aninham sob seu superprojeto — cada linha continua sendo um caminho real. Busque pelo pai (codes coparticipacao) ou nome qualificado (codes coparticipacao/front). CODES_GROUP=0 restaura a lista plana, CODES_SUBMODULES=0 descarta checkouts aninhados como antes.",
+            text: "Repos irmãos sob um diretório aparecem como pai/nome, e checkouts de submódulo aninham sob seu superprojeto — cada linha continua sendo um caminho real. Busque pelo pai (codes coparticipacao) ou nome qualificado (codes coparticipacao/front). CODES_GROUP=0 restaura a lista plana, CODES_SUBMODULES=0 descarta checkouts aninhados como antes. Quando existe uma identidade de trabalho (veja gitconfig), uma coluna de contexto marca repositórios de trabalho e pessoais; --work, --personal e --by-context filtram ou agrupam por ele.",
           },
           {
             kind: "code",
