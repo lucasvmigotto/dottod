@@ -29,6 +29,17 @@ function _fetch_color_on() {
     [[ -z "${NO_COLOR:-}" && -t 1 ]]
 }
 
+# The prompt style that applies: DOT_PROMPT_STYLE, else the one saved in
+# ~/.prompt-style (prompt-style <name>), else robbyrussell.
+function _fetch_prompt_style() {
+    local style="${DOT_PROMPT_STYLE:-}" file="${DOT_PROMPT_STYLE_FILE:-${HOME}/.prompt-style}"
+    if [[ -z "${style}" && -r "${file}" ]]; then
+        IFS= read -r style <"${file}" || true
+        style="${style//[[:space:]]/}"
+    fi
+    printf '%s' "${style:-robbyrussell}"
+}
+
 function _fetch_version() {
     local v
     v="$(git -C "${DOT_REPO_ROOT}" describe --tags --abbrev=0 2>/dev/null)" || v='dev'
@@ -115,7 +126,7 @@ function _fetch_main() {
     shell='bash'
     ((simulated)) || shell="bash ${BASH_VERSION%%(*}"
     card+=("Shell"$'\t'"${shell}")
-    card+=("Prompt"$'\t'"${DOT_PROMPT_STYLE:-robbyrussell}")
+    card+=("Prompt"$'\t'"$(_fetch_prompt_style)")
     if [[ "${family}" != unknown ]]; then
         card+=("Packages"$'\t')
         for name in "${FETCH_PACKAGES[@]}"; do

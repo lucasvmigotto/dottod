@@ -9,7 +9,7 @@ load helpers
 setup() {
     REPO_ROOT="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     FIX="${BATS_TEST_DIRNAME}/fixtures/os-release"
-    unset DOT_FORCE_COLOR NO_COLOR DOT_PROMPT_STYLE
+    unset DOT_FORCE_COLOR NO_COLOR DOT_PROMPT_STYLE DOT_PROMPT_STYLE_FILE
     # No fastfetch unless a test installs the stub.
     export _DOT_FETCH_CMD=dottod-no-such-fastfetch
 }
@@ -63,9 +63,14 @@ EOF
     assert_eq 'no package list' '0' "$(grep -c 'Packages' <<<"$output" || true)"
 }
 
-@test "the prompt line follows DOT_PROMPT_STYLE" {
+@test "the prompt line follows DOT_PROMPT_STYLE, else the saved style" {
     DOT_PROMPT_STYLE=kali run fetch_plain --os-release "$FIX/debian"
     assert_contains 'kali' 'Prompt kali' "$output"
+    printf 'gruvbox\n' >"$BATS_TEST_TMPDIR/style"
+    DOT_PROMPT_STYLE_FILE="$BATS_TEST_TMPDIR/style" run fetch_plain --os-release "$FIX/debian"
+    assert_contains 'saved' 'Prompt gruvbox' "$output"
+    DOT_PROMPT_STYLE_FILE="$BATS_TEST_TMPDIR/none" run fetch_plain --os-release "$FIX/debian"
+    assert_contains 'default' 'Prompt robbyrussell' "$output"
 }
 
 @test "fastfetch draws a simulated system with its logo and the card as valid JSON" {

@@ -109,7 +109,7 @@ setup() {
     mkdir -p "$ihome"
     run env HOME="$ihome" DOT_PROMPT_STYLE=nope bash -i -c "source '$REPO_ROOT/config/.custom.bashrc' >/dev/null; __dottod_prompt; printf '%s' \"\$PS1\"" 2>&1
     assert_eq 'fallback source rc 0' '0' "$status"
-    assert_contains 'fallback warns' 'unknown DOT_PROMPT_STYLE' "$output"
+    assert_contains 'fallback warns' 'unknown prompt style' "$output"
     assert_contains 'fallback renders default' '➜' "$output"
 }
 
@@ -168,28 +168,47 @@ SH
     done
 }
 
-@test "prompt-style lists the styles, switches this shell, and refuses unknown names" {
-    local script="$BATS_TEST_TMPDIR/pstyle.sh"
+@test "prompt-style saves the style for new shells; --dry-run changes this shell only" {
+    local script="$BATS_TEST_TMPDIR/pstyle.sh" newshell="$BATS_TEST_TMPDIR/newshell.sh"
     cat >"$script" <<'SH'
 source "$REPO_ROOT/config/.custom.bashrc" >/dev/null 2>&1
 prompt-style
 echo "--"
-prompt-style catppuccin && echo "style=$DOT_PROMPT_STYLE hook=${PROMPT_COMMAND%%;*}"
+prompt-style catppuccin && echo "hook=${PROMPT_COMMAND%%;*} env=${DOT_PROMPT_STYLE:-none}"
 prompt-style | grep '^\*'
-prompt-style nope; echo "rc=$? style=$DOT_PROMPT_STYLE"
-COMP_WORDS=(prompt-style tok); COMP_CWORD=1; _prompt_style; echo "complete=${COMPREPLY[*]}"
+prompt-style --dry-run kali && echo "hook=${PROMPT_COMMAND%%;*} env=${DOT_PROMPT_STYLE:-none}"
+prompt-style | grep '^\*'
+echo "file=$(cat "$HOME/.prompt-style")"
+prompt-style nope; echo "rc=$? file=$(cat "$HOME/.prompt-style")"
+COMP_WORDS=(prompt-style --d); COMP_CWORD=1; _prompt_style; echo "complete=${COMPREPLY[*]}"
+SH
+    cat >"$newshell" <<'SH'
+source "$REPO_ROOT/config/.custom.bashrc" >/dev/null 2>&1
+echo "new shell hook=${PROMPT_COMMAND%%;*}"
 SH
     run bash -c "cd '$BATS_TEST_TMPDIR' && bash -i '$script' 2>&1"
-    assert_contains 'default marked' '* robbyrussell' "$output"
+    assert_contains 'default marked' '* robbyrussell  (default)' "$output"
     assert_contains 'themes listed' '  catppuccin' "$output"
-    assert_contains 'helpers not listed' '--' "$output"
-    if grep -qE '^\s+(lib|segments)$' <<<"$output"; then
-        printf 'FAIL: promptlib or segments listed as a style\n' >&2
-        return 1
-    fi
-    assert_contains 'switched' 'style=catppuccin hook=__dottod_prompt_segments' "$output"
-    assert_contains 'new current marked' '* catppuccin' "$output"
+    assert_contains 'saved' 'prompt-style: catppuccin, saved in ~/.prompt-style' "$output"
+    assert_contains 'applied here, no override' 'hook=__dottod_prompt_segments env=none' "$output"
+    assert_contains 'saved style marked' '* catppuccin  (~/.prompt-style)' "$output"
+    assert_contains 'dry run' 'prompt-style: kali in this shell only' "$output"
+    assert_contains 'dry run applied' 'hook=__dottod_prompt_kali env=kali' "$output"
+    assert_contains 'dry run marked' '* kali  (DOT_PROMPT_STYLE, this shell)' "$output"
+    assert_contains 'file untouched by dry run' 'file=catppuccin' "$output"
     assert_contains 'unknown refused' 'prompt-style: unknown style nope' "$output"
-    assert_contains 'unknown keeps the style' 'rc=1 style=catppuccin' "$output"
-    assert_contains 'completion' 'complete=tokyonight' "$output"
+    assert_contains 'unknown leaves the file' 'rc=1 file=catppuccin' "$output"
+    assert_contains 'completion' 'complete=--dry-run' "$output"
+    run bash -c "cd '$BATS_TEST_TMPDIR' && bash -i '$newshell' 2>/dev/null"
+    assert_contains 'a new shell uses the saved style' 'new shell hook=__dottod_prompt_segments' "$output"
+}
+
+@test "a saved style that isn't a style name is never sourced" {
+    mkdir -p "$BATS_TEST_TMPDIR/x"
+    printf 'touch "%s/SOURCED"\n' "$BATS_TEST_TMPDIR" >"$BATS_TEST_TMPDIR/x/evil.sh"
+    printf '../../../../../../..%s/x/evil\n' "$BATS_TEST_TMPDIR" >"$HOME/.prompt-style"
+    run bash -c "cd '$BATS_TEST_TMPDIR' && bash -i -c \"source '$REPO_ROOT/config/.custom.bashrc'; echo hook=\\\${PROMPT_COMMAND%%;*}\" 2>&1"
+    assert_eq 'not sourced' '0' "$([[ -e "$BATS_TEST_TMPDIR/SOURCED" ]] && echo 1 || echo 0)"
+    assert_contains 'warns' 'unknown prompt style' "$output"
+    assert_contains 'falls back' 'hook=__dottod_prompt' "$output"
 }

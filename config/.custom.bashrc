@@ -20,20 +20,41 @@ unset _d
 # Only for interactive shells
 [[ $- != *i* ]] && return
 
-# Prompt style (styles/): robbyrussell (default) | kali | powerline |
-# pastel | tokyonight | gruvbox | catppuccin.
-# Switch with DOT_PROMPT_STYLE in the environment. readlink -f follows
-# ~/.bashrc -> repo symlink to find the checkout.
+# Prompt style (styles/prompt-<name>.sh): DOT_PROMPT_STYLE in the
+# environment (this shell), else the name saved in ~/.prompt-style (every
+# new shell; `prompt-style <name>` writes it), else robbyrussell. readlink
+# -f follows ~/.bashrc -> repo symlink to find the checkout.
+__dottod_prompt_style_file() { printf '%s' "${DOT_PROMPT_STYLE_FILE:-${HOME}/.prompt-style}"; }
+
+# Prints "<style><TAB><where it came from>" (style possibly invalid).
+__dottod_prompt_style_resolve() {
+    local style="${DOT_PROMPT_STYLE:-}" file
+    if [[ -n "${style}" ]]; then
+        printf '%s\t%s\n' "${style}" 'DOT_PROMPT_STYLE, this shell'
+        return 0
+    fi
+    file="$(__dottod_prompt_style_file)"
+    if [[ -r "${file}" ]]; then
+        IFS= read -r style <"${file}" || true
+        style="${style//[[:space:]]/}"
+        [[ -n "${style}" ]] && printf '%s\t%s\n' "${style}" "${file/#"${HOME}"/\~}" && return 0
+    fi
+    printf '%s\t%s\n' robbyrussell default
+}
+
+# A style name is a plain word with its styles/prompt-<name>.sh: a value
+# read from a file must never point anywhere else.
+__dottod_prompt_style_valid() {
+    [[ "${1}" =~ ^[a-z0-9][a-z0-9_-]*$ && -f "${2}/styles/prompt-${1}.sh" ]]
+}
+
 if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     _dottod_root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
-    _dottod_style="${DOT_PROMPT_STYLE:-robbyrussell}"
-    case "${_dottod_style}" in
-        robbyrussell | kali | powerline | pastel | tokyonight | gruvbox | catppuccin) ;;
-        *)
-            printf 'dottod: unknown DOT_PROMPT_STYLE=%s (want robbyrussell|kali|powerline|pastel|tokyonight|gruvbox|catppuccin), using robbyrussell\n' "${_dottod_style}" >&2
-            _dottod_style="robbyrussell"
-            ;;
-    esac
+    IFS=$'\t' read -r _dottod_style _dottod_from < <(__dottod_prompt_style_resolve)
+    if ! __dottod_prompt_style_valid "${_dottod_style}" "${_dottod_root}"; then
+        printf 'dottod: unknown prompt style %s (from %s), using robbyrussell; prompt-style lists them\n' "${_dottod_style}" "${_dottod_from}" >&2
+        _dottod_style="robbyrussell"
+    fi
     # Drop any dottod prompt hook a previous load registered, so `reload`
     # with a new DOT_PROMPT_STYLE switches styles instead of stacking them
     # (the last hook to run would otherwise keep owning PS1).
@@ -46,7 +67,7 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     unset _dottod_pc _dottod_hook
     # shellcheck disable=SC1090 # resolved relative to this file
     [[ -f "${_dottod_root}/styles/prompt-${_dottod_style}.sh" ]] && source "${_dottod_root}/styles/prompt-${_dottod_style}.sh"
-    unset _dottod_style _dottod_root
+    unset _dottod_style _dottod_from _dottod_root
 fi
 
 # dottod shell utilities (aliases + functions): pure definitions, silent
@@ -249,10 +270,10 @@ gcl() {
 # shellcheck disable=SC1090 # user-local file by design
 reload() { source ~/.bashrc && echo "reloaded ~/.bashrc"; }
 
-# prompt-style [name]: switch this shell's prompt to <name> (sets
-# DOT_PROMPT_STYLE and reloads); no name lists the styles, * marks the
-# current one. This shell only: to keep a style, export DOT_PROMPT_STYLE
-# in your profile. Styles are the styles/prompt-*.sh files.
+# prompt-style [--dry-run] [name]: switch the prompt style. <name> is
+# saved in ~/.prompt-style, so new shells use it too; --dry-run changes
+# only this shell (DOT_PROMPT_STYLE). No name lists the styles, * marking
+# the current one and where it comes from. Styles: styles/prompt-*.sh.
 __dottod_prompt_styles() {
     local root f name
     root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
@@ -263,30 +284,67 @@ __dottod_prompt_styles() {
     done
 }
 prompt-style() {
-    local name current="${DOT_PROMPT_STYLE:-robbyrussell}" root
-    if (($# == 0)); then
+    local dry=0 name='' root file tmp current from
+    while (($# > 0)); do
+        case "${1}" in
+            --dry-run) dry=1 ;;
+            -h | --help)
+                printf 'usage: prompt-style [--dry-run] [name]\n'
+                printf '  (no name)  list the styles; * marks the current one\n'
+                printf '  name       use it here and in new shells (saved in %s)\n' "$(__dottod_prompt_style_file)"
+                printf '  --dry-run  use it in this shell only; the saved style stays\n'
+                return 0
+                ;;
+            -*)
+                printf 'prompt-style: unknown option %s\n' "${1}" >&2
+                return 2
+                ;;
+            *) name="${1}" ;;
+        esac
+        shift
+    done
+    root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+
+    if [[ -z "${name}" ]]; then
+        IFS=$'\t' read -r current from < <(__dottod_prompt_style_resolve)
         while IFS= read -r name; do
             if [[ "${name}" == "${current}" ]]; then
-                printf '* %s\n' "${name}"
+                printf '* %s  (%s)\n' "${name}" "${from}"
             else
                 printf '  %s\n' "${name}"
             fi
         done < <(__dottod_prompt_styles)
         return 0
     fi
-    if ! __dottod_prompt_styles | grep -qxF -- "${1}"; then
-        printf 'prompt-style: unknown style %s (want: %s)\n' "${1}" "$(__dottod_prompt_styles | paste -sd' ' -)" >&2
+    if ! __dottod_prompt_style_valid "${name}" "${root}"; then
+        printf 'prompt-style: unknown style %s (want: %s)\n' "${name}" "$(__dottod_prompt_styles | paste -sd' ' -)" >&2
         return 1
     fi
-    export DOT_PROMPT_STYLE="${1}"
-    root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+
+    if ((dry)); then
+        export DOT_PROMPT_STYLE="${name}"
+    else
+        file="$(__dottod_prompt_style_file)"
+        tmp="${file}.$$"
+        if ! { printf '%s\n' "${name}" >"${tmp}" && mv -f "${tmp}" "${file}"; }; then
+            rm -f "${tmp}"
+            printf 'prompt-style: could not write %s\n' "${file}" >&2
+            return 1
+        fi
+        # The saved style applies here too: drop a this-shell override.
+        unset DOT_PROMPT_STYLE
+    fi
     # shellcheck disable=SC1091 # the checkout's own bashrc
     source "${root}/config/.custom.bashrc"
+    if ((dry)); then
+        printf 'prompt-style: %s in this shell only\n' "${name}"
+    else
+        printf 'prompt-style: %s, saved in %s\n' "${name}" "${file/#"${HOME}"/\~}"
+    fi
 }
 _prompt_style() {
     local cur="${COMP_WORDS[COMP_CWORD]}" name
     COMPREPLY=()
-    ((COMP_CWORD == 1)) || return 0
-    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "$(__dottod_prompt_styles)" -- "${cur}")
+    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "--dry-run $(__dottod_prompt_styles)" -- "${cur}")
 }
 complete -F _prompt_style prompt-style
