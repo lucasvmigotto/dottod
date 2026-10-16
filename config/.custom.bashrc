@@ -20,16 +20,17 @@ unset _d
 # Only for interactive shells
 [[ $- != *i* ]] && return
 
-# Prompt style (styles/): robbyrussell (default) | kali | powerline.
+# Prompt style (styles/): robbyrussell (default) | kali | powerline |
+# pastel | tokyonight | gruvbox | catppuccin.
 # Switch with DOT_PROMPT_STYLE in the environment. readlink -f follows
 # ~/.bashrc -> repo symlink to find the checkout.
 if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     _dottod_root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
     _dottod_style="${DOT_PROMPT_STYLE:-robbyrussell}"
     case "${_dottod_style}" in
-        robbyrussell | kali | powerline) ;;
+        robbyrussell | kali | powerline | pastel | tokyonight | gruvbox | catppuccin) ;;
         *)
-            printf 'dottod: unknown DOT_PROMPT_STYLE=%s (want robbyrussell|kali|powerline), using robbyrussell\n' "${_dottod_style}" >&2
+            printf 'dottod: unknown DOT_PROMPT_STYLE=%s (want robbyrussell|kali|powerline|pastel|tokyonight|gruvbox|catppuccin), using robbyrussell\n' "${_dottod_style}" >&2
             _dottod_style="robbyrussell"
             ;;
     esac
@@ -37,7 +38,7 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
     # with a new DOT_PROMPT_STYLE switches styles instead of stacking them
     # (the last hook to run would otherwise keep owning PS1).
     _dottod_pc=";${PROMPT_COMMAND:-};"
-    for _dottod_hook in __dottod_prompt_powerline __dottod_prompt_kali __dottod_prompt; do
+    for _dottod_hook in __dottod_prompt_segments __dottod_prompt_powerline __dottod_prompt_kali __dottod_prompt; do
         _dottod_pc="${_dottod_pc//;${_dottod_hook};/;}"
     done
     _dottod_pc="${_dottod_pc#;}"
