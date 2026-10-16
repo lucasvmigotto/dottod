@@ -1,105 +1,32 @@
 #!/usr/bin/env bash
 #
-# dottod-fetch — a fetch-style card of what dottod sees on a system: the
+# dottod-fetch — a fetch card of what dottod sees on a system: the
 # distribution, its family and package manager, libc, shell, prompt style,
-# and what a few logical packages are called there. Everything comes from
+# and what a few logical packages are called there. The facts come from
 # dottod itself (lib/os.sh, lib/packages/*); nothing is installed.
 #
-# Usage: dottod-fetch.sh [--os-release FILE]
+# Usage: dottod-fetch.sh [--os-release FILE] [--plain]
 #   --os-release FILE   describe the system that file describes (e.g. one of
 #                       tests/fixtures/os-release/*) instead of this one
+#   --plain             the text card, even when fastfetch is installed
 #
-# Logos: the small distribution logos of neofetch (MIT, Dylan Araps).
+# With fastfetch installed (./bin/bootstrap.sh --only tools --extras
+# fastfetch), it draws the card: the distribution's real logo, and — on
+# this system, not a simulated one — its kernel, uptime, CPU and memory.
 
 set -Eeuo pipefail
 
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/bin/utils.sh"
 
+# The fastfetch to draw with (a seam for tests).
+FETCH_CMD="${_DOT_FETCH_CMD:-fastfetch}"
+
 # Logical packages shown on the card, in this order.
 readonly FETCH_PACKAGES=(git vim neovim openssh_client podman pass bats)
 
-function _fetch_logo() {
-    case "${1}" in
-        debian)
-            cat <<'EOF'
-  _____
- /  __ \
-|  /    |
-|  \___-
--_
-  --_
-EOF
-            ;;
-        arch)
-            cat <<'EOF'
-      /\
-     /  \
-    /\   \
-   /      \
-  /   ,,   \
- /   |  |  -\
-/_-''    ''-_\
-EOF
-            ;;
-        gentoo)
-            cat <<'EOF'
- _-----_
-(       \
-\    0   \
- \        )
- /      _/
-(     _-
-\____-
-EOF
-            ;;
-        redhat)
-            cat <<'EOF'
-      _____
-     /   __)\
-     |  /  \ \
-  ___|  |__/ /
- / (_    _)_/
-/ /  |  |
-\ \__/  |
- \(_____/
-EOF
-            ;;
-        alpine)
-            cat <<'EOF'
-   /\ /\
-  // \  \
- //   \  \
-///    \  \
-//      \  \
-         \
-EOF
-            ;;
-        *)
-            cat <<'EOF'
-    .--.
-   |o_o |
-   |:_/ |
-  //   \ \
- (|     | )
-/'\_   _/`\
-\___)=(___/
-EOF
-            ;;
-    esac
-}
-
-function _fetch_color() {
-    if [[ -n "${NO_COLOR:-}" || ! -t 1 ]] && [[ -z "${DOT_FORCE_COLOR:-}" ]]; then
-        return 0
-    fi
-    case "${1}" in
-        debian) printf '\033[31m' ;;
-        arch) printf '\033[36m' ;;
-        gentoo) printf '\033[35m' ;;
-        redhat) printf '\033[34m' ;;
-        alpine) printf '\033[34m' ;;
-        *) printf '\033[33m' ;;
-    esac
+function _fetch_color_on() {
+    [[ -n "${DOT_FORCE_COLOR:-}" ]] && return 0
+    [[ -z "${NO_COLOR:-}" && -t 1 ]]
 }
 
 function _fetch_version() {
@@ -108,8 +35,42 @@ function _fetch_version() {
     printf '%s' "${v}"
 }
 
+# A JSON string body: backslashes, quotes and control characters escaped.
+function _fetch_json_escape() {
+    local s="${1//\\/\\\\}"
+    s="${s//\"/\\\"}"
+    s="${s//$'\t'/\\t}"
+    printf '%s' "${s//$'\n'/\\n}"
+}
+
+# fastfetch config: the card as custom modules (key + text), then — only
+# for this system — fastfetch's own probes.
+# args: <real: 0|1>, then the card as key<TAB>value lines on stdin.
+function _fetch_fastfetch_config() {
+    local real="${1}" key value
+    printf '{\n  "display": {"separator": "  ", "key": {"width": 18}},\n  "modules": [\n'
+    printf '    {"type": "custom", "format": "{#1}dottod{#} %s"},\n' "$(_fetch_json_escape "$(_fetch_version)")"
+    printf '    "separator"'
+    while IFS=$'\t' read -r key value; do
+        printf ',\n    {"type": "custom", "key": "%s", "format": "%s"}' \
+            "$(_fetch_json_escape "${key}")" "$(_fetch_json_escape "${value}")"
+    done
+    if ((real)); then
+        printf ',\n    "kernel",\n    "uptime",\n    "cpu",\n    "memory"'
+    fi
+    printf '\n  ]\n}\n'
+}
+
+function _fetch_plain() {
+    local key value
+    printf 'dottod %s\n-------------\n' "$(_fetch_version)"
+    while IFS=$'\t' read -r key value; do
+        printf '%-18s%s\n' "${key}" "${value}"
+    done
+}
+
 function _fetch_main() {
-    local simulated=0
+    local simulated=0 plain=0
     while (($# > 0)); do
         case "$1" in
             --os-release)
@@ -117,8 +78,12 @@ function _fetch_main() {
                 simulated=1
                 shift 2
                 ;;
+            --plain)
+                plain=1
+                shift
+                ;;
             -h | --help)
-                sed -n '3,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+                sed -n '3,15p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
                 return 0
                 ;;
             *)
@@ -137,40 +102,49 @@ function _fetch_main() {
         libc="${DOTTOD_LIBC:-unknown}"
     fi
 
-    local -a lines=()
-    lines+=("dottod $(_fetch_version)")
-    lines+=('-------------')
-    lines+=("Distro    ${DOTTOD_OS_NAME:-unknown} ${DOTTOD_OS_VERSION_ID:-}")
+    # The card, as key<TAB>value lines.
+    local -a card=()
+    card+=("Distro"$'\t'"${DOTTOD_OS_NAME:-unknown} ${DOTTOD_OS_VERSION_ID:-}")
     if [[ "${family}" == unknown ]]; then
-        lines+=('Family    unsupported (no package command would run)')
+        card+=("Family"$'\t''unsupported (no package command would run)')
     else
-        lines+=("Family    ${family} (${DOTTOD_PKG})")
+        card+=("Family"$'\t'"${family} (${DOTTOD_PKG})")
     fi
-    lines+=("Libc      ${libc}")
+    card+=("Libc"$'\t'"${libc}")
     # The shell dottod sets up; its version only for this real system.
     shell='bash'
     ((simulated)) || shell="bash ${BASH_VERSION%%(*}"
-    lines+=("Shell     ${shell}")
-    lines+=("Prompt    ${DOT_PROMPT_STYLE:-robbyrussell}")
+    card+=("Shell"$'\t'"${shell}")
+    card+=("Prompt"$'\t'"${DOT_PROMPT_STYLE:-robbyrussell}")
     if [[ "${family}" != unknown ]]; then
-        lines+=('Packages')
+        card+=("Packages"$'\t')
         for name in "${FETCH_PACKAGES[@]}"; do
             native="$("_pkgmap_${family}" "${name}" 2>/dev/null)" || native='?'
             [[ "${native}" == '-' ]] && native='(not packaged)'
-            lines+=("  ${name} -> ${native}")
+            card+=("  ${name}"$'\t'"${native}")
         done
     fi
 
-    local color reset='' i=0 logo_line
-    local -a logo=()
-    color="$(_fetch_color "${family}")"
-    [[ -n "${color}" ]] && reset=$'\033[0m'
-    mapfile -t logo < <(_fetch_logo "${family}")
-    local rows=$((${#logo[@]} > ${#lines[@]} ? ${#logo[@]} : ${#lines[@]}))
-    for ((i = 0; i < rows; i++)); do
-        logo_line="${logo[$i]:-}"
-        printf '%s%-15s%s  %s\n' "${color}" "${logo_line}" "${reset}" "${lines[$i]:-}"
-    done
+    if ((plain)) || ! command -v "${FETCH_CMD}" >/dev/null 2>&1; then
+        printf '%s\n' "${card[@]}" | _fetch_plain
+        return 0
+    fi
+
+    local cfg rc=0
+    local -a args=()
+    cfg="$(mktemp "${TMPDIR:-/tmp}/dottod-fetch.XXXXXX.jsonc")"
+    printf '%s\n' "${card[@]}" | _fetch_fastfetch_config "$((!simulated))" >"${cfg}"
+    args=(--config "${cfg}")
+    # A simulated system gets its own logo; a real one, fastfetch's pick.
+    ((simulated)) && args+=(--logo "${DOTTOD_OS_ID:-linux}")
+    if _fetch_color_on; then
+        args+=(--pipe false)
+    else
+        args+=(--pipe true)
+    fi
+    "${FETCH_CMD}" "${args[@]}" || rc=$?
+    rm -f "${cfg}"
+    return "${rc}"
 }
 
 _fetch_main "$@"

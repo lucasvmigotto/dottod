@@ -5,8 +5,8 @@
 # Gentoo, Arch, Debian, Fedora and Alpine, with the prompt style switched
 # live (DOT_PROMPT_STYLE), then a few real bootstrap commands.
 # Render: vhs docs/site/tapes/fetch.tape (repo root).
-# Requires: vhs, ttyd, ffmpeg, and FiraCode Nerd Font (./bin/fonts.sh FiraCode)
-# for the powerline glyphs.
+# Requires: vhs, ttyd, ffmpeg, FiraCode Nerd Font (./bin/fonts.sh FiraCode)
+# for the powerline glyphs, and fastfetch for the distribution logos.
 
 Output docs/site/public/demos/fetch.gif
 Set Shell "bash"

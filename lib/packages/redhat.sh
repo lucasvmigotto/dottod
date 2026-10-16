@@ -13,7 +13,7 @@ function _pkgmap_redhat() {
         # Not packaged by Fedora.
         pass_credential_helper) printf -- '-' ;;
         vim) printf 'vim-enhanced' ;;
-        bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
+        bash | bat | bats | btop | ca_certificates | chafa | curl | fastfetch | fontconfig | \
             fzf | gh | git | httpie | jq | just | lsof | neovim | pass | podman | \
             python3 | shfmt | tar | unzip | xclip)
             printf '%s' "${1//_/-}"

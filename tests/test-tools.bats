@@ -89,12 +89,12 @@ probe() {
     assert_eq 'gh requested last' 'PKGS:gh' "$(tail -n1 "$CALLS")"
 }
 
-@test "extras accept gh, httpie, chafa and all; dropped tools are rejected" {
-    DOT_TOOLS_EXTRA=gh,httpie,chafa probe '_extras_validate'
+@test "extras accept gh, httpie, chafa, fastfetch and all; dropped tools are rejected" {
+    DOT_TOOLS_EXTRA=gh,httpie,chafa,fastfetch probe '_extras_validate'
     assert_eq 'known extras rc 0' '0' "$status"
     DOT_TOOLS_EXTRA=all probe '_extras_validate'
     assert_eq 'all rc 0' '0' "$status"
     DOT_TOOLS_EXTRA=lazygit probe '_extras_validate'
     assert_eq 'dropped tool rc 1' '1' "$status"
-    assert_contains 'lists the valid ones' 'want: gh,httpie,chafa' "$output"
+    assert_contains 'lists the valid ones' 'want: gh,httpie,chafa,fastfetch' "$output"
 }

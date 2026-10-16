@@ -60,7 +60,7 @@ function _github_cli_apt_repo() {
 
 # Opt-in tools (default: none). DOT_TOOLS_EXTRA is a comma-separated list
 # of these names, or `all`; bootstrap's --extras sets it.
-readonly DOT_TOOLS_EXTRAS=(gh httpie chafa)
+readonly DOT_TOOLS_EXTRAS=(gh httpie chafa fastfetch)
 
 # _extra_wanted <name>: 0 when DOT_TOOLS_EXTRA selects that tool.
 function _extra_wanted() {
@@ -171,6 +171,7 @@ function _main() {
     local pkg_extras=()
     _extra_wanted httpie && pkg_extras+=(httpie)
     _extra_wanted chafa && pkg_extras+=(chafa)
+    _extra_wanted fastfetch && pkg_extras+=(fastfetch)
     if ((${#pkg_extras[@]} > 0)); then
         log_step "Installing opt-in tools (native packages): ${pkg_extras[*]}"
         _install_packages "${pkg_extras[@]}"

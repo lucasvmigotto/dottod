@@ -67,7 +67,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "GitHub host merge + ed25519 key"],
               [
                 "tools",
-                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, httpie, chafa",
+                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, httpie, chafa, fastfetch",
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
@@ -502,7 +502,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from the distro's packages (skipped when all present), and links bat/batcat and fd/fdfind so both spellings work. Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie, chafa and gh from the distro's packages — gh from its official apt repository (signed keyring) on Debian/Ubuntu.",
+            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from the distro's packages (skipped when all present), and links bat/batcat and fd/fdfind so both spellings work. Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie, chafa, fastfetch and gh from the distro's packages — gh from its official apt repository (signed keyring) on Debian/Ubuntu.",
           },
           {
             kind: "code",
@@ -937,11 +937,15 @@ const pages: Record<PageId, DocPage> = {
             code: "dottod-doctor | grep distro",
           },
           {
+            kind: "p",
+            text: "dottod-fetch prints that card: dottod's own detection and package names for this system, or for any os-release file. With fastfetch installed (--extras fastfetch) it draws the card with the distribution's real logo — and, on this system, adds fastfetch's kernel, uptime, CPU and memory lines; otherwise, or with --plain, it prints the card as text.",
+          },
+          {
             kind: "demo",
             gif: "fetch.gif",
-            alt: "Terminal recording: the dottod-fetch card for Gentoo, Arch, Debian, Fedora and Alpine — distro, family, package manager, libc and package names — with the prompt style switching between powerline, kali and robbyrussell, then bootstrap --list and a --status report.",
+            alt: "Terminal recording: the dottod-fetch card, drawn by fastfetch with each distribution's logo, for Gentoo, Arch, Debian, Fedora and Alpine — distro, family, package manager, libc and package names — with the prompt style switching between powerline, kali and robbyrussell, then bootstrap --list and a --status report.",
             transcript:
-              "➜ ./scripts/dottod-fetch.sh --os-release tests/fixtures/os-release/gentoo\n\n _-----_         dottod 2.x\n(       \\        -------------\n\\    0   \\       Distro    Gentoo 2.18\n \\        )      Family    gentoo (emerge)\n /      _/       Libc      glibc\n(     _-         Shell     bash\n\\____-           Prompt    powerline\n                 Packages\n                   git -> dev-vcs/git\n                   vim -> app-editors/vim\n                   neovim -> app-editors/neovim\n                   openssh_client -> net-misc/openssh\n                   podman -> app-containers/podman\n                   pass -> app-admin/pass\n                   bats -> dev-util/bats\n\n(the same for Arch, Debian, Fedora and Alpine, switching the prompt style between powerline, kali and robbyrussell)\n\n➜ ./bin/bootstrap.sh --list\n➜ ./bin/bootstrap.sh --only tools --extras gh,httpie --status",
+              "➜ ./scripts/dottod-fetch.sh --os-release tests/fixtures/os-release/gentoo\n\n(fastfetch draws Gentoo's logo to the left of the card)\ndottod 2.x\n-------------\nDistro            Gentoo 2.18\nFamily            gentoo (emerge)\nLibc              glibc\nShell             bash\nPrompt            powerline\nPackages          \n  git             dev-vcs/git\n  vim             app-editors/vim\n  neovim          app-editors/neovim\n  openssh_client  net-misc/openssh\n  podman          app-containers/podman\n  pass            app-admin/pass\n  bats            dev-util/bats\n\n(the same for Arch, Debian, Fedora and Alpine, switching the prompt style between powerline, kali and robbyrussell)\n\n➜ ./bin/bootstrap.sh --list\n➜ ./bin/bootstrap.sh --only tools --extras gh,httpie --status",
           },
         ],
       },
@@ -1220,7 +1224,7 @@ const pages: Record<PageId, DocPage> = {
               ["--skip <list>", "skip these tasks"],
               [
                 "--extras <list>",
-                "opt-in tools for the tools task (gh, httpie, chafa, or all)",
+                "opt-in tools for the tools task (gh, httpie, chafa, fastfetch, or all)",
               ],
               ["--parallel", "run tasks concurrently"],
               ["--ui", "include GUI tasks (zed)"],
@@ -1263,7 +1267,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "status-report.gif",
             alt: "Terminal recording: bootstrap.sh --status printing the shell, vim and tools reports.",
             transcript:
-              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/3 present (missing: gh httpie chafa)\nSelected:  none (DOT_TOOLS_EXTRA)",
+              "➜ ./bin/bootstrap.sh --status --only shell,vim,tools\n\nShell\n-----\nBash:      GNU bash, version 5.2.37(1)-release (x86_64-pc-linux-gnu)\nLogin:     /bin/bash (bash)\nBashrc:    /home/demo/.bashrc (symlink -> /vhs/config/.custom.bashrc (dottod))\n\nVim\n---\nInstalled: VIM - Vi IMproved 9.1 (2024 Jan 02, compiled May 23 2025 00:48:59)\nVimrc:     /home/demo/.vimrc (missing)\nvim-plug:  missing\nPlugins:   0/0 installed\n\nTools\n-----\nCore:      8/12 present (missing: xclip bats shfmt just)\nExtras:    0/4 present (missing: gh httpie chafa fastfetch)\nSelected:  none (DOT_TOOLS_EXTRA)",
           },
         ],
       },
@@ -1276,7 +1280,7 @@ const pages: Record<PageId, DocPage> = {
             gif: "bootstrap-help.gif",
             alt: "Terminal recording: bootstrap.sh --help output, then the task list.",
             transcript:
-              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa, or\n                     all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun secrets",
+              "➜ ./bin/bootstrap.sh --help\n\nUsage: bootstrap.sh [options]\n\nBootstraps the workstation by running the dottod task scripts.\n\nOptions:\n  --only <list>      Comma-separated list of tasks to run (default: all)\n  --skip <list>      Comma-separated list of tasks to skip\n  --parallel         Run tasks concurrently instead of sequentially\n  --extras <list>    Opt-in tools for the tools task (gh, httpie, chafa,\n                     fastfetch, or all); default none\n  --ui               Include GUI tasks (zed); default skips them\n  --no-ui            Skip GUI tasks (the default; explicit form of omitting --ui)\n  --yes              Assume yes for prompts\n  --verbose, -v      Stream full task output (default: summarized)\n  --status           Print every selected task's status report (changes\n                     nothing; honours --only, --skip and --ui)\n  --list, -l         List available tasks and exit\n  --help, -h         Show this help\n\n➜ ./bin/bootstrap.sh --list\n\nshell fonts vim neovim container zed gitconfig ssh tools cargo bun secrets",
           },
         ],
       },

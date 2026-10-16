@@ -117,7 +117,8 @@ Pass `--ui` to include them.
 Opt-in tasks (`secrets`) never run by default; name them with `--only`.
 
 The `tools` task installs only the native-package baseline. Extra tools
-are opt-in (all off by default): `gh`, `httpie`, `chafa`, or `all`:
+are opt-in (all off by default): `gh`, `httpie`, `chafa`, `fastfetch`, or
+`all`:
 
 ```bash
 ./bin/bootstrap.sh --only tools --extras gh,httpie

@@ -73,6 +73,16 @@ jobs:
       - name: Demo font (dottod's own fonts task; the fetch tape's powerline glyphs)
         run: ./bin/fonts.sh FiraCode
 
+      # Ubuntu 24.04 doesn't package fastfetch: the release build, pinned
+      # by version and checksum (dottod-fetch draws the logos with it).
+      - name: Demo fastfetch (the fetch tape's distribution logos)
+        run: |
+          curl -fsSL -o /tmp/fastfetch.tgz "https://github.com/fastfetch-cli/fastfetch/releases/download/2.69.0/fastfetch-linux-amd64.tar.gz"
+          echo "9fe880a34de3fec88e57a69230c02fd7be0846db3f3ea9f88f2b74489a79ff55  /tmp/fastfetch.tgz" | sha256sum -c -
+          tar -xzf /tmp/fastfetch.tgz -C /tmp fastfetch-linux-amd64/usr/bin/fastfetch
+          sudo install -m 0755 /tmp/fastfetch-linux-amd64/usr/bin/fastfetch /usr/local/bin/fastfetch
+          fastfetch --version
+
       - name: Render demos (tapes must render cleanly)
         run: bun run demos
         working-directory: docs/site

@@ -11,7 +11,7 @@ function _pkgmap_debian() {
         podman_rootless) printf 'uidmap' ;;
         cxx_runtime) printf 'libstdc++6' ;;
         pass_credential_helper) printf 'golang-docker-credential-helpers' ;;
-        bash | bat | bats | btop | chafa | curl | fontconfig | fzf | gh | git | \
+        bash | bat | bats | btop | chafa | curl | fastfetch | fontconfig | fzf | gh | git | \
             gnupg | httpie | jq | just | lsof | neovim | pass | podman | \
             python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1}"

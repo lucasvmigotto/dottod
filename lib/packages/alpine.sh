@@ -13,7 +13,7 @@ function _pkgmap_alpine() {
         openssh_client) printf 'openssh-client-default' ;;
         # usermod is in shadow; newuidmap and /etc/subuid in shadow-subids.
         podman_rootless) printf 'shadow shadow-subids' ;;
-        bash | bat | bats | btop | ca_certificates | chafa | curl | fontconfig | \
+        bash | bat | bats | btop | ca_certificates | chafa | curl | fastfetch | fontconfig | \
             fzf | git | gnupg | httpie | jq | just | lsof | neovim | pass | \
             podman | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"

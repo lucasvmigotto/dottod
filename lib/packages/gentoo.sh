@@ -13,6 +13,7 @@ function _pkgmap_gentoo() {
         btop) printf 'sys-process/btop' ;;
         ca_certificates) printf 'app-misc/ca-certificates' ;;
         chafa) printf 'media-gfx/chafa' ;;
+        fastfetch) printf 'app-misc/fastfetch' ;;
         curl) printf 'net-misc/curl' ;;
         # libstdc++ ships with the system compiler on Gentoo.
         cxx_runtime) printf 'sys-devel/gcc' ;;

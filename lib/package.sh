@@ -35,7 +35,7 @@
 # entry in all five tables (tests/test-packages.bats enforces it).
 # shellcheck disable=SC2034 # read by tests and the resolve gate
 readonly DOT_PKG_LOGICAL=(
-    bash bat bats btop ca_certificates chafa curl cxx_runtime fontconfig fzf gh
+    bash bat bats btop ca_certificates chafa curl cxx_runtime fastfetch fontconfig fzf gh
     git gnupg httpie jq just lsof neovim openssh_client pass pass_credential_helper
     podman podman_rootless python3 shellcheck shfmt tar unzip vim xclip
 )
