@@ -167,3 +167,29 @@ SH
             'd$(touch${IFS}PWNED)`touch${IFS}PWNED`\$(touch${IFS}PWNED)' "$(render_prompt "$style" "$sub")"
     done
 }
+
+@test "prompt-style lists the styles, switches this shell, and refuses unknown names" {
+    local script="$BATS_TEST_TMPDIR/pstyle.sh"
+    cat >"$script" <<'SH'
+source "$REPO_ROOT/config/.custom.bashrc" >/dev/null 2>&1
+prompt-style
+echo "--"
+prompt-style catppuccin && echo "style=$DOT_PROMPT_STYLE hook=${PROMPT_COMMAND%%;*}"
+prompt-style | grep '^\*'
+prompt-style nope; echo "rc=$? style=$DOT_PROMPT_STYLE"
+COMP_WORDS=(prompt-style tok); COMP_CWORD=1; _prompt_style; echo "complete=${COMPREPLY[*]}"
+SH
+    run bash -c "cd '$BATS_TEST_TMPDIR' && bash -i '$script' 2>&1"
+    assert_contains 'default marked' '* robbyrussell' "$output"
+    assert_contains 'themes listed' '  catppuccin' "$output"
+    assert_contains 'helpers not listed' '--' "$output"
+    if grep -qE '^\s+(lib|segments)$' <<<"$output"; then
+        printf 'FAIL: promptlib or segments listed as a style\n' >&2
+        return 1
+    fi
+    assert_contains 'switched' 'style=catppuccin hook=__dottod_prompt_segments' "$output"
+    assert_contains 'new current marked' '* catppuccin' "$output"
+    assert_contains 'unknown refused' 'prompt-style: unknown style nope' "$output"
+    assert_contains 'unknown keeps the style' 'rc=1 style=catppuccin' "$output"
+    assert_contains 'completion' 'complete=tokyonight' "$output"
+}

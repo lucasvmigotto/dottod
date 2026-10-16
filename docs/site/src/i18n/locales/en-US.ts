@@ -745,7 +745,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Switch styles",
-            code: "DOT_PROMPT_STYLE=kali        # two-line kali terminal\nDOT_PROMPT_STYLE=powerline   # segmented blocks (needs a Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # or pastel, tokyonight, gruvbox",
+            code: "prompt-style                 # list styles, * marks the current one\nprompt-style catppuccin      # switch this shell (tab-completes)\n\n# or set it yourself, e.g. in your profile to keep it:\nDOT_PROMPT_STYLE=kali        # two-line kali terminal\nDOT_PROMPT_STYLE=powerline   # segmented blocks (needs a Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # or pastel, tokyonight, gruvbox",
           },
           {
             kind: "code",

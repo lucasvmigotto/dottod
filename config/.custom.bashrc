@@ -248,3 +248,45 @@ gcl() {
 # Quick reload
 # shellcheck disable=SC1090 # user-local file by design
 reload() { source ~/.bashrc && echo "reloaded ~/.bashrc"; }
+
+# prompt-style [name]: switch this shell's prompt to <name> (sets
+# DOT_PROMPT_STYLE and reloads); no name lists the styles, * marks the
+# current one. This shell only: to keep a style, export DOT_PROMPT_STYLE
+# in your profile. Styles are the styles/prompt-*.sh files.
+__dottod_prompt_styles() {
+    local root f name
+    root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    for f in "${root}"/styles/prompt-*.sh; do
+        [[ -f "${f}" ]] || continue
+        name="${f##*/prompt-}"
+        printf '%s\n' "${name%.sh}"
+    done
+}
+prompt-style() {
+    local name current="${DOT_PROMPT_STYLE:-robbyrussell}" root
+    if (($# == 0)); then
+        while IFS= read -r name; do
+            if [[ "${name}" == "${current}" ]]; then
+                printf '* %s\n' "${name}"
+            else
+                printf '  %s\n' "${name}"
+            fi
+        done < <(__dottod_prompt_styles)
+        return 0
+    fi
+    if ! __dottod_prompt_styles | grep -qxF -- "${1}"; then
+        printf 'prompt-style: unknown style %s (want: %s)\n' "${1}" "$(__dottod_prompt_styles | paste -sd' ' -)" >&2
+        return 1
+    fi
+    export DOT_PROMPT_STYLE="${1}"
+    root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+    # shellcheck disable=SC1091 # the checkout's own bashrc
+    source "${root}/config/.custom.bashrc"
+}
+_prompt_style() {
+    local cur="${COMP_WORDS[COMP_CWORD]}" name
+    COMPREPLY=()
+    ((COMP_CWORD == 1)) || return 0
+    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "$(__dottod_prompt_styles)" -- "${cur}")
+}
+complete -F _prompt_style prompt-style
