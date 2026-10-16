@@ -8,6 +8,8 @@
 #   codes -p [name]     print the chosen path instead of cd-ing (for scripts)
 #   codes -f            `git fetch` every project first (so ⇣ behind is fresh)
 #   codes -i <name>     never auto-jump; always open the picker
+#   codes --work / --personal   only repos of that git identity context
+#   codes --by-context          work repos first, then personal
 #
 # Source it from ~/.bashrc:   source ~/codes.sh
 # Requires: bash, git, find, awk, sort, xargs; fzf for the interactive picker.
@@ -145,10 +147,10 @@ __codes_match() {
 # ──────────────────────────────────────────────────────────────
 # Per-repo info (runs in parallel workers; must stay self-contained)
 # args: <stat flavor: gnu|bsd> <fetch: 0|1> <path>
-# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash
+# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash email
 # ──────────────────────────────────────────────────────────────
 __codes_info() {
-    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary
+    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary email
     command -v timeout >/dev/null 2>&1 && tm="timeout 8"
     # Never take index.lock: avoids fighting your editor and keeps .git/index's
     # mtime meaningful (a refreshing `git status` would bump it and ruin the sort).
@@ -186,18 +188,23 @@ __codes_info() {
             /^\? /               { ut++ }
             END { printf "%s\t%s\t%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", head, oid, up, hasab + 0, ahead + 0, behind + 0, st + 0, un + 0, ut + 0, cf + 0 }')
 
-    printf '%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}"
+    # The email git resolves here (local, else global): the repo's context.
+    email=$(git -C "$p" config user.email 2>/dev/null)
+
+    printf '%s\t%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}" "$email"
 }
 
 # ──────────────────────────────────────────────────────────────
 # Table: stdin = paths, stdout = "path<TAB>display" sorted by activity desc
+# args: <fetch: 0|1> <only: ""|work|personal> <bycontext: 0|1>
 # ──────────────────────────────────────────────────────────────
 __codes_table() {
-    local fetch=${1:-0} flavor=bsd fn visits rts
+    local fetch=${1:-0} only=${2:-} bycontext=${3:-0} flavor=bsd fn visits rts work
     stat -c %Y / >/dev/null 2>&1 && flavor=gnu
     visits=${XDG_STATE_HOME:-$HOME/.local/state}/codes/visits
     fn=$(declare -f __codes_info)
     rts=$(__codes_roots | paste -sd'|' -)
+    work=$(__codes_work_email)
 
     tr '\n' '\0' |
         xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" |
@@ -211,7 +218,8 @@ __codes_table() {
             }
             { if (($2 in v) && v[$2] + 0 > $1 + 0) $1 = v[$2]; print }' |
         sort -t $'\t' -k1,1nr |
-        awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" '
+        awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" \
+            -v work="$work" -v only="$only" -v bycontext="$bycontext" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
@@ -239,6 +247,8 @@ __codes_table() {
                 if (home != "" && index(dir, home) == 1) dir = "~" substr(dir, length(home) + 1)
                 head = $3; oid = $4; up = $5; hasab = $6; ah = $7; bh = $8
                 st = $9; un = $10; ut = $11; cf = $12; sh = $13
+                ctx = (work != "" && tolower($14) == tolower(work)) ? "work" : "personal"
+                if (only != "" && ctx != only) next
                 br = head
                 if (head == "(detached)") br = "@" substr(oid, 1, 7)
                 if (head == "") br = "?"
@@ -264,6 +274,7 @@ __codes_table() {
                 pts[N] = $1; pt[N] = path; nm0[N] = name
                 pdir = path; sub(/\/[^\/]*$/, "", pdir); pdr[N] = pdir
                 pb = pdir; sub(/.*\//, "", pb); ppb[N] = pb
+                cx[N] = ctx
                 bn[N] = trunc(br, 24)
                 ag[N] = age($1); sp[N] = plain; sc[N] = col; dr[N] = dir
                 if (length(bn[N]) > wb) wb = length(bn[N])
@@ -273,9 +284,15 @@ __codes_table() {
             END {
                 # Render order + display names. Ungrouped (CODES_GROUP=0):
                 # the flat basename list in activity order, as before.
+                # --by-context: two passes, work rows (groups) then personal.
                 nog = 0
+                npass = bycontext == 1 ? 2 : 1
                 if (groupopt != 1) {
-                    for (i = 1; i <= N; i++) { nm[i] = trunc(nm0[i], 32); ord[++nog] = i }
+                    for (pass = 1; pass <= npass; pass++)
+                        for (i = 1; i <= N; i++) {
+                            if (npass == 2 && cx[i] != (pass == 1 ? "work" : "personal")) continue
+                            nm[i] = trunc(nm0[i], 32); ord[++nog] = i
+                        }
                 } else {
                     for (i = 1; i <= N; i++) cnt[pdr[i]]++
                     for (i = 1; i <= N; i++) {
@@ -285,14 +302,17 @@ __codes_table() {
                                 && length(pt[j]) > length(key[i])) key[i] = pt[j]
                         }
                         if (key[i] == "") key[i] = pt[i]
+                        if (key[i] == pt[i]) gcx[pt[i]] = cx[i]
                         if (!(key[i] in gts) || pts[i] > gts[key[i]]) gts[key[i]] = pts[i]
                     }
                     # Groups by activity (group = its hottest member);
                     # the group root first, then children newest-first.
+                    for (pass = 1; pass <= npass; pass++)
                     while (1) {
                         bestk = ""; bestt = -1
                         for (k in gts) {
                             if ((k in done)) continue
+                            if (npass == 2 && gcx[k] != (pass == 1 ? "work" : "personal")) continue
                             if (gts[k] > bestt || (gts[k] == bestt && (bestk == "" || k < bestk))) {
                                 bestt = gts[k]; bestk = k
                             }
@@ -331,11 +351,23 @@ __codes_table() {
                         namef = D substr(nm[i], 1, slash) R B pad(substr(nm[i], slash + 1), wn - slash) R
                     else
                         namef = B pad(nm[i], wn) R
-                    printf "%s\t%s%s  %s  %s  %s%s  %s\n", pt[i], pre,
-                        namef, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
+                    # Context column only once a work identity exists.
+                    cxf = ""
+                    if (work != "")
+                        cxf = (cx[i] == "work" ? YEL : D) pad(cx[i], 8) R "  "
+                    printf "%s\t%s%s  %s%s  %s  %s%s  %s\n", pt[i], pre,
+                        namef, cxf, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
                         sc[i], fill, D dr[i] R
                 }
             }'
+}
+
+# The work email (GIT_WORK_EMAIL, else ~/.gitconfig-work — see gwork), or
+# nothing: then every repo is personal and no context column is shown.
+__codes_work_email() {
+    local e=${GIT_WORK_EMAIL:-}
+    [[ -z $e ]] && e=$(git config --file "$HOME/.gitconfig-work" user.email 2>/dev/null)
+    printf '%s' "$e"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -367,7 +399,13 @@ options:
   -p, --path         print the selected path instead of cd-ing
   -f, --fetch        git fetch all projects first (fresh ⇣ behind counts)
   -i, --interactive  never auto-jump; always open the picker
+      --work         only work repos (git resolves the work email there)
+      --personal     only personal repos (everything else)
+      --by-context   work repos first, then personal
   -h, --help         this help
+
+context: a repo is work when the email git resolves in it is the work
+  email (GIT_WORK_EMAIL or ~/.gitconfig-work; mark repos with gwork set).
 
 grouping (CODES_GROUP=0 for the old flat list):
   sibling repos under one dir show as parent/name; submodule checkouts
@@ -385,7 +423,7 @@ EOF
 # codes
 # ──────────────────────────────────────────────────────────────
 codes() {
-    local list=0 printpath=0 fetch=0 always=0
+    local list=0 printpath=0 fetch=0 always=0 only="" bycontext=0
     local -a args=()
     while (($#)); do
         case $1 in
@@ -393,6 +431,9 @@ codes() {
             -p | --path) printpath=1 ;;
             -f | --fetch) fetch=1 ;;
             -i | --interactive) always=1 ;;
+            --work) only=work ;;
+            --personal) only=personal ;;
+            --by-context) bycontext=1 ;;
             -h | --help)
                 __codes_usage
                 return 0
@@ -436,6 +477,11 @@ codes() {
         return 1
     fi
 
+    if [[ (-n $only || $bycontext == 1) && -z $(__codes_work_email) ]]; then
+        echo "codes: no work identity (GIT_WORK_EMAIL or ~/.gitconfig-work) to tell contexts apart" >&2
+        return 1
+    fi
+
     local picked=""
     local -a pool=("${all[@]}")
 
@@ -476,7 +522,11 @@ codes() {
 
     if [[ -z $picked ]]; then
         local table
-        table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch")
+        table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch" "$only" "$bycontext")
+        if [[ -z $table ]]; then
+            echo "codes: no ${only:-matching} projects" >&2
+            return 1
+        fi
         if ((list)); then
             if [[ -t 1 ]]; then
                 printf '%s\n' "$table" | cut -f2-
@@ -509,7 +559,7 @@ _codes() {
     COMPREPLY=()
     if [[ $cur == -* ]]; then
         while IFS= read -r line; do COMPREPLY+=("$line"); done \
-            < <(compgen -W "-l --list -p --path -f --fetch -i --interactive -h --help" -- "$cur")
+            < <(compgen -W "-l --list -p --path -f --fetch -i --interactive --work --personal --by-context -h --help" -- "$cur")
         return
     fi
     while IFS= read -r line; do COMPREPLY+=("$line"); done \
