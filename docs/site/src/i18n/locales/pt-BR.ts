@@ -1147,22 +1147,22 @@ const pages: Record<PageId, DocPage> = {
         ],
       },
       {
-        id: "azure-devops",
-        heading: "Exemplo: a CLI do Azure DevOps",
+        id: "github",
+        heading: "Exemplo: a CLI do GitHub",
         blocks: [
           {
             kind: "p",
-            text: "Guarde um PAT restrito (escopos só-leitura como Work Items, Code, Build: Read; a validade mais curta) no pass e rode o az via pass-run: o comando recebe o token, mais nada recebe. Não use az devops login (ele guarda o PAT fora do pass); a extensão lê AZURE_DEVOPS_EXT_PAT do ambiente. Guia completo: docs/secret-commands.md.",
+            text: "Guarde um token fine-grained (só os repositórios necessários, permissões só-leitura, a validade mais curta) no pass e rode o gh via pass-run: o gh lê GH_TOKEN, que tem precedência sobre o que o gh auth login guardou, então o gh nunca precisa de login próprio. Guia completo: docs/secret-commands.md.",
           },
           {
             kind: "code",
             lang: "bash",
-            code: "pass insert azure-devops/pat\naz extension add --name azure-devops\naz devops configure --defaults organization=https://dev.azure.com/<org> project=<project>\npass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az repos pr list --status active",
+            code: "pass insert github/pat\npass-run GH_TOKEN=github/pat -- gh pr list\npass-run GH_TOKEN=github/pat -- gh run list --limit 5",
           },
           {
             kind: "callout",
             tone: "warning",
-            text: "O pass-run entrega o segredo a qualquer coisa depois de -- (pass-run X=… -- env o imprimiria). Quando um script ou agente de IA puder rodá-lo, fixe os comandos que ele pode pôr depois de --, mantenha o pass show fechado para ele e conte com os escopos restritos e a validade curta do token. Os guardrails do Claude Code ficam no repositório ai-gent.",
+            text: "O pass-run entrega o segredo a qualquer coisa depois de -- (pass-run X=… -- env o imprimiria). Quando um script ou agente de IA puder rodá-lo, fixe os comandos que ele pode pôr depois de --, mantenha o pass show fechado para ele e conte com o escopo restrito e a validade curta do token. Os guardrails do Claude Code ficam no repositório ai-gent.",
           },
         ],
       },

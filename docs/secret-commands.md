@@ -17,7 +17,6 @@ Pick a path per secret, `<service>/<what>`:
 
 ```bash
 pass insert github/pat              # prompts twice; nothing echoes
-pass insert azure-devops/pat
 pass insert -m openai/api-key       # -m: multi-line; the first line is the key
 pass ls                             # names only
 ```
@@ -29,7 +28,7 @@ Registry logins made through `podman login` live under
 
 ```bash
 pass-run GH_TOKEN=github/pat -- gh pr list
-pass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat GH_TOKEN=github/pat -- ./release.sh
+pass-run GH_TOKEN=github/pat NPM_TOKEN=npm/token -- ./release.sh
 ```
 
 `pass-run VAR=store/path [VAR=store/path …] -- command [args…]`:
@@ -56,12 +55,12 @@ current shell. A value written as `pass:store/path` is read from the store:
 # .env — safe to keep next to the code: it names secrets, never holds them
 API_URL=https://api.example.com
 GH_TOKEN=pass:github/pat
-AZURE_DEVOPS_EXT_PAT=pass:azure-devops/pat
+NPM_TOKEN=pass:npm/token
 ```
 
 ```console
 $ loadenv
-loadenv: 3 from .env: API_URL GH_TOKEN AZURE_DEVOPS_EXT_PAT (from pass: GH_TOKEN AZURE_DEVOPS_EXT_PAT)
+loadenv: 3 from .env: API_URL GH_TOKEN NPM_TOKEN (from pass: GH_TOKEN NPM_TOKEN)
 ```
 
 - The file is **data, never code**: no `$(…)`, no backticks, no `$VAR`
@@ -84,45 +83,37 @@ A graphical pinentry prompts on demand; in a terminal-only session,
 anything:
 
 ```bash
-pass-run X=azure-devops/pat -- true
+pass-run X=github/pat -- true
 ```
 
-## Example: the Azure DevOps CLI
+## Example: the GitHub CLI
 
-A PAT in pass, used by `az` through `pass-run` — work items, pull requests
-and pipelines without the token ever sitting in a file or your shell.
+A token in pass, used by `gh` through `pass-run` — pull requests, issues
+and workflow runs without the token ever sitting in a file or your shell.
 
-### 1. A narrow PAT
+### 1. A narrow token
 
-In Azure DevOps → User settings → Personal access tokens
-(`https://dev.azure.com/<org>/_usersSettings/tokens`), create one for your
-organization with the **narrowest scopes** that do the job — read-only
-(Work Items: Read, Code: Read, Build: Read) for looking things up — and the
+On GitHub → Settings → Developer settings → Personal access tokens →
+**Fine-grained tokens**, create one limited to the repositories it needs,
+with the **narrowest permissions** that do the job — read-only (Contents,
+Pull requests, Issues, Actions: Read) for looking things up — and the
 **shortest expiry** that works for you.
 
 ```bash
-pass insert azure-devops/pat         # paste it once; nowhere else
+pass insert github/pat               # paste it once; nowhere else
 ```
 
-### 2. The `az` CLI, set up without the token
+### 2. Use it through `pass-run`
+
+`gh` reads `GH_TOKEN` from the environment, and it takes precedence over
+any credentials stored by `gh auth login` — so there's no need to log `gh`
+in at all (`gh auth login` would keep the token in its own config or
+keyring, outside pass).
 
 ```bash
-az extension add --name azure-devops
-az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>
-```
-
-Don't use `az devops login`: it saves the PAT in the extension's own
-credential store, outside pass. The extension reads `AZURE_DEVOPS_EXT_PAT`
-from the environment instead — exactly what `pass-run` provides. If you
-also use `az login`, the extension tries that identity first; `az logout`
-makes it use the PAT.
-
-### 3. The commands
-
-```bash
-pass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az boards work-item show --id 1234
-pass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az repos pr list --status active
-pass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az pipelines runs list --top 5
+pass-run GH_TOKEN=github/pat -- gh pr list
+pass-run GH_TOKEN=github/pat -- gh issue view 12
+pass-run GH_TOKEN=github/pat -- gh run list --limit 5
 ```
 
 ## From scripts and AI agents

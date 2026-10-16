@@ -42,5 +42,5 @@ ShellCheck/shfmt clean, each commit passing on its own).
 - [x] T178 `loadenv` reads `.env` as data (no eval), resolves `pass:`
   values, all-or-nothing, reports names only.
 - [x] T179 Guide `docs/secret-commands.md` + site page (both locales),
-  with the Azure DevOps CLI example. Claude Code guardrails are out of
-  scope here: they belong in the ai-gent repository.
+  with the GitHub CLI example. Claude Code guardrails are out of scope
+  here: they belong in the ai-gent repository.

@@ -1140,22 +1140,22 @@ const pages: Record<PageId, DocPage> = {
         ],
       },
       {
-        id: "azure-devops",
-        heading: "Example: the Azure DevOps CLI",
+        id: "github",
+        heading: "Example: the GitHub CLI",
         blocks: [
           {
             kind: "p",
-            text: "Store a narrow PAT (read-only scopes such as Work Items, Code, Build: Read; the shortest expiry) in pass, and run az through pass-run: the command gets the token, nothing else does. Don't use az devops login (it stores the PAT outside pass); the extension reads AZURE_DEVOPS_EXT_PAT from the environment. Full guide: docs/secret-commands.md.",
+            text: "Store a fine-grained token (only the repositories it needs, read-only permissions, the shortest expiry) in pass, and run gh through pass-run: gh reads GH_TOKEN, which takes precedence over anything gh auth login stored, so gh never needs a login of its own. Full guide: docs/secret-commands.md.",
           },
           {
             kind: "code",
             lang: "bash",
-            code: "pass insert azure-devops/pat\naz extension add --name azure-devops\naz devops configure --defaults organization=https://dev.azure.com/<org> project=<project>\npass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az repos pr list --status active",
+            code: "pass insert github/pat\npass-run GH_TOKEN=github/pat -- gh pr list\npass-run GH_TOKEN=github/pat -- gh run list --limit 5",
           },
           {
             kind: "callout",
             tone: "warning",
-            text: "pass-run hands the secret to whatever follows -- (pass-run X=… -- env would print it). When a script or an AI agent may run it, pin the commands it can put after --, keep pass show closed to it, and rely on the token's narrow scopes and short expiry. Guardrails for Claude Code live in the ai-gent repository.",
+            text: "pass-run hands the secret to whatever follows -- (pass-run X=… -- env would print it). When a script or an AI agent may run it, pin the commands it can put after --, keep pass show closed to it, and rely on the token's narrow scope and short expiry. Guardrails for Claude Code live in the ai-gent repository.",
           },
         ],
       },
