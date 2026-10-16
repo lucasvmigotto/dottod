@@ -5,6 +5,13 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.2.0 — 2026-10-16
+
+### Added
+
+- **prompt:** pastel, tokyonight, gruvbox and catppuccin themes
+- **prompt:** theme glyphs; ASCII glyphs on bash before 4.2
+
 ## 2.1.1 — 2026-10-16
 
 ### Fixed
