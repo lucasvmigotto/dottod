@@ -167,35 +167,85 @@ up() {
     cd "${path:-.}" || return
 }
 
-# extract: unpack almost any archive
+# extract: unpack almost any archive. With pv installed, tar archives and
+# single-file .gz/.bz2/.xz/.zst stream through it for a progress bar
+# (same results: the single-file ones still replace the compressed file);
+# zip, rar and 7z read their archive directly and print their own output.
 extract() {
     if [[ $# -eq 0 ]]; then
         echo "usage: extract <file>..." >&2
         return 1
     fi
-    local f
+    local f rc=0 bar=0
+    command -v pv >/dev/null 2>&1 && bar=1
     for f in "$@"; do
         if [[ ! -f $f ]]; then
             echo "extract: '$f' is not a file" >&2
+            rc=1
             continue
         fi
+        if ((bar)); then
+            case "${f,,}" in
+                *.tar.bz2 | *.tbz2) __dottod_extract_pv "$f" '' bzip2 -dc || rc=1 ;;
+                *.tar.gz | *.tgz) __dottod_extract_pv "$f" '' gzip -dc || rc=1 ;;
+                *.tar.xz | *.txz) __dottod_extract_pv "$f" '' xz -dc || rc=1 ;;
+                *.tar.zst | *.tzst) __dottod_extract_pv "$f" '' zstd -qdc || rc=1 ;;
+                *.tar) __dottod_extract_pv "$f" '' cat || rc=1 ;;
+                *.bz2) __dottod_extract_pv "$f" "${f%.*}" bzip2 -dc || rc=1 ;;
+                *.gz) __dottod_extract_pv "$f" "${f%.*}" gzip -dc || rc=1 ;;
+                *.xz) __dottod_extract_pv "$f" "${f%.*}" xz -dc || rc=1 ;;
+                *.zst) __dottod_extract_pv "$f" "${f%.*}" zstd -qdc || rc=1 ;;
+                *) bar=2 ;;
+            esac
+            ((bar == 2)) || continue
+            bar=1
+        fi
         case "${f,,}" in
-            *.tar.bz2 | *.tbz2) tar xjf "$f" ;;
-            *.tar.gz | *.tgz) tar xzf "$f" ;;
-            *.tar.xz | *.txz) tar xJf "$f" ;;
-            *.tar.zst) tar --zstd -xf "$f" ;;
-            *.tar) tar xf "$f" ;;
-            *.bz2) bunzip2 "$f" ;;
-            *.gz) gunzip "$f" ;;
-            *.xz) unxz "$f" ;;
-            *.zip | *.jar) unzip "$f" ;;
-            *.rar) unrar x "$f" ;;
-            *.7z) 7z x "$f" ;;
-            *.zst) unzstd "$f" ;;
-            *.z) uncompress "$f" ;;
-            *) echo "extract: unknown archive type '$f'" >&2 ;;
+            *.tar.bz2 | *.tbz2) tar xjf "$f" || rc=1 ;;
+            *.tar.gz | *.tgz) tar xzf "$f" || rc=1 ;;
+            *.tar.xz | *.txz) tar xJf "$f" || rc=1 ;;
+            *.tar.zst | *.tzst) tar --zstd -xf "$f" || rc=1 ;;
+            *.tar) tar xf "$f" || rc=1 ;;
+            *.bz2) bunzip2 "$f" || rc=1 ;;
+            *.gz) gunzip "$f" || rc=1 ;;
+            *.xz) unxz "$f" || rc=1 ;;
+            *.zip | *.jar) unzip "$f" || rc=1 ;;
+            *.rar) unrar x "$f" || rc=1 ;;
+            *.7z) 7z x "$f" || rc=1 ;;
+            *.zst) unzstd "$f" || rc=1 ;;
+            *.z) uncompress "$f" || rc=1 ;;
+            *)
+                echo "extract: unknown archive type '$f'" >&2
+                rc=1
+                ;;
         esac
     done
+    return "${rc}"
+}
+
+# __dottod_extract_pv <file> <out|''> <decompressor...>: <file> through pv
+# and the decompressor, into tar (no <out>) or into <out>, which must not
+# exist yet; the compressed file goes only once <out> is complete.
+__dottod_extract_pv() {
+    local f=$1 out=$2
+    shift 2
+    if [[ -n $out && -e $out ]]; then
+        echo "extract: '$out' already exists" >&2
+        return 1
+    fi
+    if [[ -z $out ]]; then
+        pv -N "${f##*/}" -- "$f" | "$@" | tar xf -
+    else
+        pv -N "${f##*/}" -- "$f" | "$@" >"$out"
+    fi
+    local st=("${PIPESTATUS[@]}") s
+    for s in "${st[@]}"; do
+        ((s == 0)) && continue
+        echo "extract: '$f' failed" >&2
+        [[ -n $out ]] && rm -f -- "$out"
+        return 1
+    done
+    [[ -z $out ]] || rm -f -- "$f"
 }
 
 # bak: quick timestamped backup of a file/dir
@@ -273,7 +323,9 @@ reload() { source ~/.bashrc && echo "reloaded ~/.bashrc"; }
 # prompt-style [--dry-run] [name]: switch the prompt style. <name> is
 # saved in ~/.prompt-style, so new shells use it too; --dry-run changes
 # only this shell (DOT_PROMPT_STYLE). No name lists the styles, * marking
-# the current one and where it comes from. Styles: styles/prompt-*.sh.
+# the current one and where it comes from. --preview [name...] renders
+# them here, in this directory, changing nothing. Styles:
+# styles/prompt-*.sh.
 __dottod_prompt_styles() {
     local root f name
     root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
@@ -283,27 +335,80 @@ __dottod_prompt_styles() {
         printf '%s\n' "${name%.sh}"
     done
 }
+# __dottod_prompt_preview <root> <name>: prints <name>'s prompt as it
+# would render here — in a subshell: the style's hook runs once, PS1 is
+# expanded (${PS1@P}, bash 4.4+) and nothing of this shell changes.
+__dottod_prompt_preview() {
+    (
+        PROMPT_COMMAND=''
+        # shellcheck disable=SC1090 # a validated styles/prompt-<name>.sh
+        source "${1}/styles/prompt-${2}.sh" >/dev/null 2>&1 || exit 1
+        true
+        ${PROMPT_COMMAND%%;*} 2>/dev/null
+        local out="${PS1@P}"
+        out="${out//$'\001'/}"
+        printf '%s\e[0m\n' "${out//$'\002'/}"
+    )
+}
 prompt-style() {
-    local dry=0 name='' root file tmp current from
+    local dry=0 preview=0 name='' root file tmp current from
+    local -a names=()
     while (($# > 0)); do
         case "${1}" in
             --dry-run) dry=1 ;;
+            --preview) preview=1 ;;
             -h | --help)
                 printf 'usage: prompt-style [--dry-run] [name]\n'
+                printf '       prompt-style --preview [name...]\n'
                 printf '  (no name)  list the styles; * marks the current one\n'
                 printf '  name       use it here and in new shells (saved in %s)\n' "$(__dottod_prompt_style_file)"
                 printf '  --dry-run  use it in this shell only; the saved style stays\n'
+                printf '  --preview  show how each style (or the named ones) renders here\n'
                 return 0
                 ;;
             -*)
                 printf 'prompt-style: unknown option %s\n' "${1}" >&2
                 return 2
                 ;;
-            *) name="${1}" ;;
+            *)
+                name="${1}"
+                names+=("${1}")
+                ;;
         esac
         shift
     done
     root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+
+    if ((preview)); then
+        if ((dry)); then
+            printf 'prompt-style: --preview changes nothing; drop --dry-run\n' >&2
+            return 2
+        fi
+        if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
+            printf 'prompt-style: --preview needs bash 4.4 or newer\n' >&2
+            return 1
+        fi
+        if ((${#names[@]} == 0)); then
+            while IFS= read -r name; do names+=("${name}"); done < <(__dottod_prompt_styles)
+        fi
+        IFS=$'\t' read -r current from < <(__dottod_prompt_style_resolve)
+        local first=1
+        for name in "${names[@]}"; do
+            if ! __dottod_prompt_style_valid "${name}" "${root}"; then
+                printf 'prompt-style: unknown style %s (want: %s)\n' "${name}" "$(__dottod_prompt_styles | paste -sd' ' -)" >&2
+                return 1
+            fi
+            ((first)) || printf '\n'
+            first=0
+            if [[ "${name}" == "${current}" ]]; then
+                printf '\e[1m* %s\e[0m  (current, %s)\n' "${name}" "${from}"
+            else
+                printf '\e[1m  %s\e[0m\n' "${name}"
+            fi
+            __dottod_prompt_preview "${root}" "${name}"
+        done
+        return 0
+    fi
 
     if [[ -z "${name}" ]]; then
         IFS=$'\t' read -r current from < <(__dottod_prompt_style_resolve)
@@ -345,6 +450,6 @@ prompt-style() {
 _prompt_style() {
     local cur="${COMP_WORDS[COMP_CWORD]}" name
     COMPREPLY=()
-    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "--dry-run $(__dottod_prompt_styles)" -- "${cur}")
+    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "--dry-run --preview $(__dottod_prompt_styles)" -- "${cur}")
 }
 complete -F _prompt_style prompt-style

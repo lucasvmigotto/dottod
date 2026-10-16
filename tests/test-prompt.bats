@@ -212,3 +212,38 @@ SH
     assert_contains 'warns' 'unknown prompt style' "$output"
     assert_contains 'falls back' 'hook=__dottod_prompt' "$output"
 }
+
+@test "prompt-style --preview renders every style here and changes nothing" {
+    local script="$BATS_TEST_TMPDIR/preview.sh"
+    cat >"$script" <<'SH'
+source "$REPO_ROOT/config/.custom.bashrc" >/dev/null 2>&1
+before="$PROMPT_COMMAND|$PS1"
+prompt-style --preview
+echo "unchanged=$([[ "$PROMPT_COMMAND|$PS1" == "$before" ]] && echo yes || echo no) file=$(cat "$HOME/.prompt-style" 2>/dev/null || echo none)"
+echo "--"
+prompt-style --preview kali
+echo "--"
+prompt-style --preview nope; echo "rc=$?"
+prompt-style --preview --dry-run kali; echo "rc=$?"
+SH
+    mkdir -p "$BATS_TEST_TMPDIR/demo"
+    run bash -c "cd '$BATS_TEST_TMPDIR/demo' && bash -i '$script' 2>&1"
+    local plain
+    plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
+    assert_contains 'current marked' '* robbyrussell  (current, default)' "$plain"
+    local s
+    for s in catppuccin gruvbox kali pastel powerline tokyonight; do
+        assert_contains "${s} listed" "  ${s}" "$plain"
+    done
+    assert_contains 'robbyrussell rendered in this dir' '➜  demo' "$plain"
+    assert_contains 'kali rendered' '└─$' "$plain"
+    assert_contains 'nothing changed or saved' 'unchanged=yes file=none' "$plain"
+    assert_eq 'one style when named' '1' "$(sed -n '/^--$/,/^--$/p' <<<"$plain" | grep -c '^  [a-z]')"
+    assert_contains 'unknown refused' 'prompt-style: unknown style nope' "$plain"
+    assert_contains 'rc 1' 'rc=1' "$plain"
+    assert_contains 'no --dry-run with it' 'drop --dry-run' "$plain"
+    if [[ "$plain" == *$'\001'* || "$plain" == *$'\002'* ]]; then
+        printf 'FAIL: readline markers leaked into the preview\n' >&2
+        return 1
+    fi
+}

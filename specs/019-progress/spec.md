@@ -50,3 +50,13 @@ Implemented on `feat/progress` (2026-10-16).
 - Smoke-tested with the real pv 1.9.31 on Debian 13 and Alpine 3.22
   containers (pcp file and tree, ptar/puntar gz and xz, psum -c, pchain).
   pdd was not run against a real device.
+
+### 2.5.0 addition: `extract` through pv
+With pv installed, `extract` streams tar archives (`.tar.gz/.tgz`,
+`.tar.bz2/.tbz2`, `.tar.xz/.txz`, `.tar.zst/.tzst`, `.tar`) and single
+`.gz/.bz2/.xz/.zst` files through it. Results match the old commands: the
+single-file ones still replace the compressed file, but only once the
+output is complete; an existing output is never overwritten and a failed
+one is removed. zip, rar and 7z are unchanged. `extract` now returns 1
+when any file fails (it returned 0 before). Tested in
+`test-progress.bats` (+4) and with the real pv on Debian 13.

@@ -299,3 +299,53 @@ hide_pv() {
     _pchain
     assert_contains 'commands' 'tr' "${COMPREPLY[*]}"
 }
+
+# run_extract <args>: extract from the interactive bashrc, in $W.
+run_extract() {
+    run bash -i -c "source '${BATS_TEST_DIRNAME}/../config/.custom.bashrc' >/dev/null 2>&1; cd '$W' && extract $*" 2>/dev/null
+}
+
+@test "extract streams tar archives through pv" {
+    tar -czf tree.tar.gz tree && rm -rf tree
+    run_extract tree.tar.gz
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'extracted' 'beta' "$(cat "$W/tree/sub/b.txt")"
+    assert_contains 'through pv' 'pv -N tree.tar.gz -- tree.tar.gz' "$(cat "$PV_CALLS")"
+    assert_eq 'archive kept, as tar does' '1' "$([[ -f "$W/tree.tar.gz" ]] && echo 1 || echo 0)"
+}
+
+@test "extract of a single .gz/.xz replaces it with the file, like gunzip" {
+    gzip -k file.bin && mv file.bin orig.bin
+    xz -c orig.bin >other.bin.xz
+    run_extract file.bin.gz other.bin.xz
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'gz content' 'payload' "$(cat "$W/file.bin")"
+    assert_eq 'xz content' 'payload' "$(cat "$W/other.bin")"
+    assert_eq 'compressed files removed' '0' "$(ls "$W"/*.gz "$W"/*.xz 2>/dev/null | wc -l)"
+}
+
+@test "extract never overwrites, and keeps the archive when it fails" {
+    gzip -k file.bin
+    run_extract file.bin.gz
+    assert_eq 'existing rc' '1' "$status"
+    assert_eq 'untouched' 'payload' "$(cat "$W/file.bin")"
+    assert_eq 'archive kept' '1' "$([[ -f "$W/file.bin.gz" ]] && echo 1 || echo 0)"
+    printf 'not gzip' >bad.txt.gz
+    run_extract bad.txt.gz
+    assert_eq 'corrupt rc' '1' "$status"
+    assert_eq 'no partial output' '0' "$([[ -e "$W/bad.txt" ]] && echo 1 || echo 0)"
+    assert_eq 'corrupt archive kept' '1' "$([[ -f "$W/bad.txt.gz" ]] && echo 1 || echo 0)"
+}
+
+@test "extract without pv unpacks as before; unknown types fail" {
+    tar -cJf tree.tar.xz tree && rm -rf tree
+    run bash -i -c "
+        source '${BATS_TEST_DIRNAME}/../config/.custom.bashrc' >/dev/null 2>&1
+        command() { [[ \$1 == -v && \$2 == pv ]] && return 1; builtin command \"\$@\"; }
+        cd '$W' && extract tree.tar.xz && extract file.bin
+    " 2>&1
+    assert_eq 'extracted' 'alpha' "$(cat "$W/tree/a.txt")"
+    assert_eq 'pv unused' '' "$(cat "$PV_CALLS")"
+    assert_contains 'unknown type' "unknown archive type 'file.bin'" "$output"
+    assert_eq 'rc 1' '1' "$status"
+}

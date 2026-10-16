@@ -12,7 +12,7 @@ setup() {
     export FAKE_HOME="$BATS_TEST_TMPDIR/home"
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME/.claude"
-    unset CLAUDE_PROFILE CLAUDE_DEFAULT_PROFILE CLAUDE_NO_PICKER
+    unset CLAUDE_PROFILE CLAUDE_DEFAULT_PROFILE CLAUDE_NO_PICKER CLAUDE_CONFIG_DIR
     export STUBBIN="$BATS_TEST_TMPDIR/bin"
     mkdir -p "$STUBBIN"
     export PATH="$STUBBIN:$PATH"
@@ -552,4 +552,111 @@ STUBEOF
     run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid() { printf 42; }; claude-profile consolidate a"
     assert_eq 'refused' '1' "$status"
     [[ -d "$FAKE_HOME/.claude-a/projects" && ! -L "$FAKE_HOME/.claude-a/projects" ]]
+}
+
+# continue_probe <answer> <args...>: claude in a project dir, as if on a
+# terminal (the can_ask seam), answering the y/N question with <answer>.
+continue_probe() {
+    local answer="$1"
+    shift
+    mkdir -p "$BATS_TEST_TMPDIR/proj.x"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1
+        __dottod_claude_can_ask() { return 0; }
+        cd '$BATS_TEST_TMPDIR/proj.x'
+        CLAUDE_PROFILE=work claude $* <<<'$answer'
+    "
+}
+
+conversation_key() {
+    local p
+    p="$(cd "$BATS_TEST_TMPDIR/proj.x" && pwd -P)"
+    printf '%s' "${p//[^A-Za-z0-9]/-}"
+}
+
+@test "--continue with no conversation asks; y starts a new one" {
+    continue_probe y --continue --model opus
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'asks' 'no conversation to continue in' "$output"
+    assert_contains 'y/N' 'Start a new one? [y/N]' "$output"
+    assert_contains 'launched without --continue' 'ARGS=--model opus' "$(cat "$CALLS_LOG")"
+}
+
+@test "--continue with no conversation: N (or enter) launches nothing" {
+    continue_probe '' -c
+    assert_eq 'rc' '1' "$status"
+    assert_eq 'never launched' '' "$(cat "$CALLS_LOG")"
+    continue_probe n -c
+    assert_eq 'n rc' '1' "$status"
+    assert_eq 'still never launched' '' "$(cat "$CALLS_LOG")"
+}
+
+@test "--continue with a saved conversation goes straight through" {
+    mkdir -p "$BATS_TEST_TMPDIR/proj.x"
+    mkdir -p "$FAKE_HOME/.claude/projects/$(conversation_key)"
+    : >"$FAKE_HOME/.claude/projects/$(conversation_key)/abc.jsonl"
+    continue_probe n -c
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no question' '' "$output"
+    assert_contains 'continue kept' 'ARGS=-c' "$(cat "$CALLS_LOG")"
+}
+
+@test "--continue without a terminal passes through untouched" {
+    mkdir -p "$BATS_TEST_TMPDIR/proj.x"
+    run bash -c "
+        source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1
+        cd '$BATS_TEST_TMPDIR/proj.x'
+        CLAUDE_PROFILE=work claude --continue -p hi </dev/null
+    "
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no question' '' "$output"
+    assert_contains 'Claude Code decides' 'ARGS=--continue -p hi' "$(cat "$CALLS_LOG")"
+}
+
+@test "only options ask: -c after -- is an argument, and is kept" {
+    continue_probe n -- -c
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no question' '' "$output"
+    assert_contains 'forwarded' 'ARGS=-- -c' "$(cat "$CALLS_LOG")"
+}
+
+@test "conversation lookup keys the path like Claude Code" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    local d="$BATS_TEST_TMPDIR/cfg"
+    mkdir -p "$d/projects/-srv-my-app-v1-2"
+    run __dottod_claude_has_conversation "$d" /srv/my_app/v1.2
+    assert_eq 'empty dir: none' '1' "$status"
+    : >"$d/projects/-srv-my-app-v1-2/s.jsonl"
+    run __dottod_claude_has_conversation "$d" /srv/my_app/v1.2
+    assert_eq 'found' '0' "$status"
+    run __dottod_claude_has_conversation "$d" "/$(printf 'x%.0s' {1..210})"
+    assert_eq 'long path: Claude Code decides' '0' "$status"
+}
+
+@test "a bare --resume with no conversation asks too; y starts a new one" {
+    continue_probe y -r --model opus
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'asks about resuming' 'no conversation to resume in' "$output"
+    assert_contains 'launched without -r' 'ARGS=--model opus' "$(cat "$CALLS_LOG")"
+    : >"$CALLS_LOG"
+    continue_probe n --resume
+    assert_eq 'n rc' '1' "$status"
+    assert_eq 'never launched' '' "$(cat "$CALLS_LOG")"
+}
+
+@test "--resume with a session id or search term is Claude Code's to resolve" {
+    continue_probe n --resume 3f2a-id
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no question' '' "$output"
+    assert_contains 'id kept' 'ARGS=--resume 3f2a-id' "$(cat "$CALLS_LOG")"
+}
+
+@test "--resume with a saved conversation goes straight to the picker" {
+    mkdir -p "$BATS_TEST_TMPDIR/proj.x"
+    mkdir -p "$FAKE_HOME/.claude/projects/$(conversation_key)"
+    : >"$FAKE_HOME/.claude/projects/$(conversation_key)/abc.jsonl"
+    continue_probe n -r
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no question' '' "$output"
+    assert_contains 'resume kept' 'ARGS=-r' "$(cat "$CALLS_LOG")"
 }

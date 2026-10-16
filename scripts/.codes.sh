@@ -10,6 +10,7 @@
 #   codes -i <name>     never auto-jump; always open the picker
 #   codes --work / --personal   only repos of that git identity context
 #   codes --by-context          work repos first, then personal
+#   codes -c [name]     jump, then continue its Claude conversation (claude -c)
 #
 # Source it from ~/.bashrc:   source ~/codes.sh
 # Requires: bash, git, find, awk, sort, xargs; fzf for the interactive picker.
@@ -25,6 +26,9 @@
 #   CODES_GROUP          0 = flat basename list like before (default 1 nests
 #                        submodule checkouts under their superproject and shows
 #                        sibling repos as parent/name)
+#   CODES_CLAUDE         0 = no Claude mark (default 1: repos with a saved
+#                        Claude Code conversation show nf-cod-sparkle)
+#   CODES_CLAUDE_GLYPH   the mark itself (e.g. '*' without a Nerd Font)
 
 [[ $- != *i* ]] && return 0 2>/dev/null
 
@@ -147,10 +151,10 @@ __codes_match() {
 # ──────────────────────────────────────────────────────────────
 # Per-repo info (runs in parallel workers; must stay self-contained)
 # args: <stat flavor: gnu|bsd> <fetch: 0|1> <path>
-# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash email
+# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash email claude
 # ──────────────────────────────────────────────────────────────
 __codes_info() {
-    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary email
+    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary email claude=0 key f
     command -v timeout >/dev/null 2>&1 && tm="timeout 8"
     # Never take index.lock: avoids fighting your editor and keeps .git/index's
     # mtime meaningful (a refreshing `git status` would bump it and ruin the sort).
@@ -191,7 +195,16 @@ __codes_info() {
     # The email git resolves here (local, else global): the repo's context.
     email=$(git -C "$p" config user.email 2>/dev/null)
 
-    printf '%s\t%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}" "$email"
+    # A saved Claude Code conversation for this path: <session>.jsonl under
+    # projects/<path, non-alphanumerics as '-'> (CODES_CLAUDE_PROJECTS).
+    if [[ -n ${CODES_CLAUDE_PROJECTS:-} ]]; then
+        key=${p//[^A-Za-z0-9]/-}
+        for f in "$CODES_CLAUDE_PROJECTS/$key"/*.jsonl; do
+            [[ -f $f ]] && claude=1 && break
+        done
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}" "$email" "$claude"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -206,8 +219,12 @@ __codes_table() {
     rts=$(__codes_roots | paste -sd'|' -)
     work=$(__codes_work_email)
 
+    # Claude mark: nf-cod-sparkle (U+EC10, as UTF-8 bytes for any bash).
+    local cproj="" cglyph=$'\xee\xb0\x90'
+    [[ -n ${CODES_CLAUDE_GLYPH:-} ]] && cglyph=$CODES_CLAUDE_GLYPH
+    [[ ${CODES_CLAUDE:-1} != 0 ]] && cproj=${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects
     tr '\n' '\0' |
-        xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" |
+        CODES_CLAUDE_PROJECTS=$cproj xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" |
         awk -F'\t' -v OFS='\t' -v visits="$visits" '
             BEGIN {
                 while ((getline l < visits) > 0) {
@@ -219,14 +236,28 @@ __codes_table() {
             { if (($2 in v) && v[$2] + 0 > $1 + 0) $1 = v[$2]; print }' |
         sort -t $'\t' -k1,1nr |
         awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" \
-            -v work="$work" -v only="$only" -v bycontext="$bycontext" '
+            -v work="$work" -v only="$only" -v bycontext="$bycontext" \
+            -v cglyph="$cglyph" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
+                CLD = E "[38;5;173m"
+                BYTES = length("✔") == 3
+                if (BYTES) for (i = 128; i < 192; i++) CONT = CONT sprintf("%c", i)
                 RED = E "[31m"; GRN = E "[32m"; YEL = E "[33m"
                 BLU = E "[34m"; MAG = E "[35m"; CYN = E "[36m"
             }
             function trunc(s, w) { return length(s) > w ? substr(s, 1, w - 1) "…" : s }
+            # Display width. An awk that counts bytes (mawk) skips UTF-8
+            # continuation bytes; one that counts characters (gawk, busybox
+            # in a UTF-8 locale) needs nothing. No byte-range regex: those
+            # are invalid in UTF-8 locales.
+            function wlen(s,    i, n) {
+                if (!BYTES) return length(s)
+                n = 0
+                for (i = 1; i <= length(s); i++) if (!index(CONT, substr(s, i, 1))) n++
+                return n
+            }
             function pad(s, w,    n) { n = w - length(s); while (n-- > 0) s = s " "; return s }
             function seg(t, c) {
                 plain = plain (plain == "" ? "" : " ") t
@@ -269,6 +300,7 @@ __codes_table() {
                     }
                     if (sh > 0) seg("*" sh, D)
                 }
+                if ($15 == 1) seg(cglyph, CLD)                     # a saved Claude conversation
 
                 N++
                 pts[N] = $1; pt[N] = path; nm0[N] = name
@@ -279,7 +311,7 @@ __codes_table() {
                 ag[N] = age($1); sp[N] = plain; sc[N] = col; dr[N] = dir
                 if (length(bn[N]) > wb) wb = length(bn[N])
                 if (length(ag[N]) > wa) wa = length(ag[N])
-                if (length(plain)  > ws) ws = length(plain)
+                if (wlen(plain) > ws) ws = wlen(plain)
             }
             END {
                 # Render order + display names. Ungrouped (CODES_GROUP=0):
@@ -346,7 +378,7 @@ __codes_table() {
                     pre = ""
                     if (groupopt == 1 && key[i] != pt[i])
                         pre = D (lastc[i] ? "└─ " : "├─ ") R
-                    fill = ""; for (k = length(sp[i]); k < ws; k++) fill = fill " "
+                    fill = ""; for (k = wlen(sp[i]); k < ws; k++) fill = fill " "
                     if (slash = index(nm[i], "/"))
                         namef = D substr(nm[i], 1, slash) R B pad(substr(nm[i], slash + 1), wn - slash) R
                     else
@@ -402,6 +434,8 @@ options:
       --work         only work repos (git resolves the work email there)
       --personal     only personal repos (everything else)
       --by-context   work repos first, then personal
+  -c, --claude       after the jump, continue its Claude conversation
+                     (claude -c; asks to start one when there is none)
   -h, --help         this help
 
 context: a repo is work when the email git resolves in it is the work
@@ -416,6 +450,7 @@ status legend:
   ✔ clean   +N staged   !N modified   ?N untracked   ✖N conflicts
   ⇡N unpushed commits   ⇣N upstream commits not pulled   *N stashes
   local = branch has no upstream   gone = upstream branch was deleted
+   = a saved Claude Code conversation (CODES_CLAUDE=0 hides it)
 EOF
 }
 
@@ -423,7 +458,7 @@ EOF
 # codes
 # ──────────────────────────────────────────────────────────────
 codes() {
-    local list=0 printpath=0 fetch=0 always=0 only="" bycontext=0
+    local list=0 printpath=0 fetch=0 always=0 only="" bycontext=0 withclaude=0
     local -a args=()
     while (($#)); do
         case $1 in
@@ -434,6 +469,7 @@ codes() {
             --work) only=work ;;
             --personal) only=personal ;;
             --by-context) bycontext=1 ;;
+            -c | --claude) withclaude=1 ;;
             -h | --help)
                 __codes_usage
                 return 0
@@ -452,6 +488,10 @@ codes() {
         shift
     done
     local query="${args[*]}"
+    if ((withclaude && (list || printpath))); then
+        echo "codes: --claude jumps into the project; not with -l or -p" >&2
+        return 2
+    fi
     ((list)) && always=1
 
     local d
@@ -521,7 +561,7 @@ codes() {
     fi
 
     if [[ -z $picked ]]; then
-        local table
+        local table cmark=${CODES_CLAUDE_GLYPH:-$'\xee\xb0\x90'}
         table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch" "$only" "$bycontext")
         if [[ -z $table ]]; then
             echo "codes: no ${only:-matching} projects" >&2
@@ -537,7 +577,7 @@ codes() {
             fzf --ansi --delimiter=$'\t' --with-nth=2 --tiebreak=index \
                 --height=70% --layout=reverse --border \
                 --prompt='codes> ' \
-                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  local=no upstream' \
+                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  local=no upstream  '"$cmark"'=claude' \
                 --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 12 --oneline --decorate --color=always' \
                 --preview-window='right,45%,border-left,<110(down,40%,border-top)' \
                 --bind='ctrl-/:toggle-preview' |
@@ -550,6 +590,11 @@ codes() {
         printf '%s\n' "$picked"
     else
         cd -- "$picked" || return
+        if ((withclaude)); then
+            # The dottod claude() wrapper when loaded (profiles, and the
+            # "start a new one?" question), else the binary.
+            claude -c
+        fi
     fi
 }
 
@@ -559,7 +604,7 @@ _codes() {
     COMPREPLY=()
     if [[ $cur == -* ]]; then
         while IFS= read -r line; do COMPREPLY+=("$line"); done \
-            < <(compgen -W "-l --list -p --path -f --fetch -i --interactive --work --personal --by-context -h --help" -- "$cur")
+            < <(compgen -W "-l --list -p --path -f --fetch -i --interactive --work --personal --by-context -c --claude -h --help" -- "$cur")
         return
     fi
     while IFS= read -r line; do COMPREPLY+=("$line"); done \
