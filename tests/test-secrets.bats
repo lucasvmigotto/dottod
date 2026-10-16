@@ -38,7 +38,7 @@ esac
 EOF
     chmod +x "$STUBBIN"/*
     export PATH="$STUBBIN:$PATH"
-    unset GPG_STUB_KEY AGENT_SOCKET
+    unset GPG_STUB_KEY AGENT_SOCKET _DOT_SECRETS_HELPER
 }
 
 with_helper() {
@@ -74,6 +74,8 @@ dropin() { printf '%s' "$HOME/.config/containers/registries.conf.d/50-dottod-pas
 @test "helper missing: pass is ready, registries not wired, rc 0" {
     ready
     rm -f "$STUBBIN/docker-credential-pass"
+    # Absent whatever the host has installed.
+    export _DOT_SECRETS_HELPER=dottod-test-no-helper
     run_task
     assert_eq 'rc 0 (degraded)' '0' "$status"
     assert_contains 'manual install' 'docker-credential-helpers/releases' "$output"
@@ -83,6 +85,8 @@ dropin() { printf '%s' "$HOME/.config/containers/registries.conf.d/50-dottod-pas
 @test "gentoo without USE=pass: prints the package.use line, edits nothing" {
     ready
     rm -f "$STUBBIN/docker-credential-pass"
+    # Absent whatever the host has installed.
+    export _DOT_SECRETS_HELPER=dottod-test-no-helper
     export _DOT_OS_RELEASE_FILE="${BATS_TEST_DIRNAME}/fixtures/os-release/gentoo"
     printf '#!/usr/bin/env bash\nexit 0\n' >"$STUBBIN/emerge"
     printf '#!/usr/bin/env bash\nexit 1\n' >"$STUBBIN/portageq"
@@ -175,4 +179,15 @@ dropin() { printf '%s' "$HOME/.config/containers/registries.conf.d/50-dottod-pas
     assert_eq 'not run' '0' "$(grep -c 'RAN:secrets' "$BATS_TEST_TMPDIR/calls.log" 2>/dev/null || true)"
     PATH="$BATS_TEST_TMPDIR/sudo:$PATH" run "$fakeroot/bin/bootstrap.sh" --only secrets --verbose
     assert_eq 'run when named' '1' "$(grep -c 'RAN:secrets' "$BATS_TEST_TMPDIR/calls.log")"
+}
+
+@test "pass-run is linked onto PATH; a foreign one is left alone" {
+    ready
+    run_task
+    assert_eq 'linked to the repo script' "$REPO_ROOT/scripts/pass-run.sh" "$(readlink "$HOME/.local/bin/pass-run")"
+    rm "$HOME/.local/bin/pass-run"
+    printf '#!/bin/sh\n' >"$HOME/.local/bin/pass-run"
+    run_task
+    assert_contains 'warns' "is not dottod's pass-run; leaving it alone" "$output"
+    assert_eq 'unchanged' '#!/bin/sh' "$(cat "$HOME/.local/bin/pass-run")"
 }

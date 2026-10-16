@@ -21,6 +21,7 @@
 #
 # Env overrides (tests):
 #   PASSWORD_STORE_DIR   the store (pass's own variable; default ~/.password-store)
+#   _DOT_SECRETS_HELPER  credential helper command (default docker-credential-pass)
 #   _DOT_NO_PACKAGES     1 skips package installs
 
 set -Eeuo pipefail
@@ -124,6 +125,23 @@ function _secrets_redirect() {
     log_ok "GnuPG socket redirect -> ${socket}"
 }
 
+# pass-run (scripts/pass-run.sh) on PATH as a real program, so scripts and
+# non-interactive shells (AI agents included) can use it. A pass-run that
+# isn't dottod's link is left alone.
+function _secrets_link_pass_run() {
+    local dest src
+    dest="$(_ensure_local_bin)/pass-run"
+    src="${DOT_REPO_ROOT}/scripts/pass-run.sh"
+    if [[ -L "${dest}" && "$(readlink "${dest}")" == "${src}" ]]; then
+        log_info 'pass-run already linked, skipping...'
+    elif [[ -e "${dest}" || -L "${dest}" ]]; then
+        log_warn "${dest} exists and is not dottod's pass-run; leaving it alone"
+    else
+        ln -s "${src}" "${dest}"
+        log_ok "pass-run linked (${dest})"
+    fi
+}
+
 function _secrets_wire_registries() {
     local dropin want
     dropin="$(_secrets_dropin)"
@@ -170,9 +188,10 @@ function _secrets_ensure() {
         return 1
     fi
     log_ok "pass ready (store for ${store_id})"
+    _secrets_link_pass_run
 
     _install_packages pass_credential_helper
-    if ! _is_installed docker-credential-pass; then
+    if ! _is_installed "${_DOT_SECRETS_HELPER:-docker-credential-pass}"; then
         _os_detect 2>/dev/null || true
         if [[ "${DOTTOD_OS_FAMILY:-}" == gentoo ]]; then
             log_warn 'docker-credential-pass needs USE=pass. Add it, re-emerge, re-run:'
@@ -195,7 +214,7 @@ function _secrets_status() {
     local key store_id helper dropin redirect file names plaintext=''
     key="$(_secrets_key_id)"
     store_id="$(_secrets_store_id)"
-    helper="$(command -v docker-credential-pass || true)"
+    helper="$(command -v "${_DOT_SECRETS_HELPER:-docker-credential-pass}" || true)"
     dropin="$(_secrets_dropin)"
     redirect='n/a'
     local homedir
@@ -215,6 +234,7 @@ Secrets
 pass:       $(command -v pass >/dev/null 2>&1 && echo present || echo missing)
 GPG key:    ${key:-missing (gpg --full-generate-key)}
 Store:      $([[ -n "${store_id}" ]] && echo "$(_secrets_store) (for ${store_id})" || echo "missing (pass init <key>)")
+pass-run:   $([[ -L "$(_ensure_local_bin)/pass-run" ]] && echo "linked ($(_ensure_local_bin)/pass-run)" || echo 'not linked')
 Helper:     ${helper:-missing}
 Registries: $([[ -f "${dropin}" ]] && echo "through pass (${dropin})" || echo 'not wired')
 Redirect:   ${redirect}
