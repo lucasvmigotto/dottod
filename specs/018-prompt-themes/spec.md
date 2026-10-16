@@ -26,8 +26,8 @@ reach every theme at once.
 - US4: As a user, when containers belonging to this project are running,
   I see a container glyph and their count. A container belongs when its
   compose working-dir label (`com.docker.compose.project.working_dir`) or
-  devcontainer label (`devcontainer.local_folder`) is the project root or
-  inside it. `DOT_PROMPT_CONTAINERS=0` turns the segment off.
+  devcontainer label (`devcontainer.local_folder`) is the current
+  directory or one of its parents — never a directory below it. `DOT_PROMPT_CONTAINERS=0` turns the segment off.
 - US5: As a user, themes that start with an OS glyph show the real
   distribution's (Debian, Gentoo, Arch, Fedora, Alpine, else Linux) from
   dottod's own detection.
@@ -62,11 +62,31 @@ reach every theme at once.
   no wait; after the background refresh, the next prompt shows them.
 - A failing `podman`, a missing toolchain or an unwritable cache never
   breaks the prompt or prints anything.
-- The fetch demo cycles the new themes too.
+- A demo (docs/site/tapes/themes.tape) shows the four themes.
 
 ## Out of scope
 - Truecolor palettes, conda/mamba environments, right-side prompts for
   the new themes (the powerline style keeps its own).
 
 ## Status
-Planned.
+Implemented on `feat/prompt-themes` (2026-10-16).
+
+- `styles/segments.sh` renders every theme from its declared data;
+  `styles/prompt-{pastel,tokyonight,gruvbox,catppuccin}.sh` hold only that.
+- Duration: PS0 stamps each command's start (`${const:$((t0 = SECONDS)):0}`
+  — bash skips the offset of an unset variable, hence the constant).
+- Glyph codepoints checked against Nerd Fonts v3.4.0 `glyphnames.json`
+  (the version `bin/fonts.sh` installs).
+- Bash before 4.2 (no `\u` in printf) falls back to ASCII glyphs; the
+  renderer runs on bash 3.2 (checked in `bash:3.2`), without durations.
+
+Deviations: the fetch demo keeps the older styles; the themes got their
+own demo. Containers count when their label folder holds the current
+directory (not when it is below it): the first recording showed every
+compose project under `/tmp` claimed by `/tmp`.
+
+Evidence: `tests/test-prompt-themes.bats` (13 tests: rendering, exact
+folded bytes, ASCII folding, stacks, versions and containers through the
+background cache with stubs, silence on failures and an unwritable cache,
+PS0 duration, red prompt, hook switching, names never executed, OS glyph);
+the recorded demo.

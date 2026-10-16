@@ -739,13 +739,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Three styles in styles/ share one collector library (promptlib.sh: git state, project directory, language markers, disk and duration). robbyrussell is the default: an exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. Switch with DOT_PROMPT_STYLE=kali or powerline. No plugins, no frameworks; PROMPT_COMMAND does the work.",
+            text: "Seven styles in styles/ share one collector library (promptlib.sh: git state, project directory, language markers, disk and duration). robbyrussell is the default: an exit-aware arrow (green on success, red on failure), the current directory, and git branch with a dirty marker — per-repo opt-out with git config dottod.hide-dirty 1. Switch with DOT_PROMPT_STYLE=kali, powerline, or one of the segmented themes below. No plugins, no frameworks; PROMPT_COMMAND does the work.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Switch styles",
-            code: "DOT_PROMPT_STYLE=kali      # two-line kali terminal\nDOT_PROMPT_STYLE=powerline  # segmented blocks (needs a Nerd Font)",
+            code: "DOT_PROMPT_STYLE=kali        # two-line kali terminal\nDOT_PROMPT_STYLE=powerline   # segmented blocks (needs a Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # or pastel, tokyonight, gruvbox",
           },
           {
             kind: "code",
@@ -770,6 +770,33 @@ const pages: Record<PageId, DocPage> = {
             tone: "info",
             title: "Nerd Font",
             text: "The powerline separators render as angled blocks only with a Nerd Font installed; without one, set DOT_PROMPT_GLYPHS=ascii as above. The robbyrussell and kali styles work in any terminal.",
+          },
+        ],
+      },
+      {
+        id: "themes",
+        heading: "Segmented themes",
+        blocks: [
+          {
+            kind: "p",
+            text: "pastel, tokyonight, gruvbox and catppuccin follow Starship's presets of the same names, drawn in plain bash by one renderer (styles/segments.sh): OS or user, project directory, git, stack, containers and time, then ❯ on the next line — green or red by the last exit status, after the duration of any command that took 2 seconds or more. A segment with nothing to say folds to a single separator in its own color, so the color sequence stays the same everywhere.",
+          },
+          {
+            kind: "demo",
+            gif: "themes.gif",
+            alt: "Terminal recording: the pastel, tokyonight, gruvbox and catppuccin prompts in a small Node project with one running container — git, stack and container segments folded outside it, the Node version filled in after the background refresh, a 3-second command's duration and a red prompt after a failure.",
+            transcript:
+              "(pastel, in /tmp — git, stack and containers folded)\n❯ cd shop && sleep 3\n(pastel: root · shop · main ✗ · node v22.11.0 · container 1 · time)\ntook 3s ❯ (switch to tokyonight)\n❯ false\n(red ❯; then gruvbox in /tmp, folded again)\n❯ cd shop/src\n(catppuccin: the container still belongs here — its compose folder holds this directory)",
+          },
+          {
+            kind: "p",
+            text: "The stack segment shows every toolchain marked at the nearest directory with a marker: node (or bun with a bun lockfile), deno, rust, go, python, ruby, php, java and .NET. Versions are opt-in. They, and the containers that belong here — running containers whose compose working-dir or devcontainer folder label is this directory or one of its parents — come from a cache under ~/.cache/dottod/prompt that a detached background job refreshes. The prompt never waits for them: a new project shows the glyph first and the version on a later prompt.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Options",
+            code: "DOT_PROMPT_VERSIONS=1    # toolchain versions in the stack segment (default off)\nDOT_PROMPT_CONTAINERS=0  # no container segment (on when podman is installed)\nDOT_PROMPT_SLOW=5        # show durations from 5 s (default 2)\nDOT_PROMPT_GLYPHS=ascii  # no Nerd Font: a folded segment is one colored space",
           },
         ],
       },

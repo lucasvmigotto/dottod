@@ -740,13 +740,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Três estilos em styles/ compartilham uma biblioteca de coletores (promptlib.sh: estado git, diretório do projeto, marcadores de linguagem, disco e duração). robbyrussell é o padrão: uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Troque com DOT_PROMPT_STYLE=kali ou powerline. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
+            text: "Sete estilos em styles/ compartilham uma biblioteca de coletores (promptlib.sh: estado git, diretório do projeto, marcadores de linguagem, disco e duração). robbyrussell é o padrão: uma seta sensível a erro (verde no sucesso, vermelha na falha), o diretório atual e branch git com marcador dirty — opt-out por repo com git config dottod.hide-dirty 1. Troque com DOT_PROMPT_STYLE=kali, powerline ou um dos temas segmentados abaixo. Sem plugins, sem frameworks; PROMPT_COMMAND faz o trabalho.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Trocar de estilo",
-            code: "DOT_PROMPT_STYLE=kali      # terminal kali em duas linhas\nDOT_PROMPT_STYLE=powerline  # blocos segmentados (precisa de Nerd Font)",
+            code: "DOT_PROMPT_STYLE=kali        # terminal kali em duas linhas\nDOT_PROMPT_STYLE=powerline   # blocos segmentados (precisa de Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # ou pastel, tokyonight, gruvbox",
           },
           {
             kind: "code",
@@ -771,6 +771,33 @@ const pages: Record<PageId, DocPage> = {
             tone: "info",
             title: "Nerd Font",
             text: "Os separadores do powerline só viram blocos angulados com uma Nerd Font instalada; sem uma, use DOT_PROMPT_GLYPHS=ascii como acima. Os estilos robbyrussell e kali funcionam em qualquer terminal.",
+          },
+        ],
+      },
+      {
+        id: "themes",
+        heading: "Temas segmentados",
+        blocks: [
+          {
+            kind: "p",
+            text: "pastel, tokyonight, gruvbox e catppuccin seguem os presets homônimos do Starship, desenhados em bash puro por um só renderizador (styles/segments.sh): SO ou usuário, diretório do projeto, git, stack, contêineres e hora, e ❯ na linha de baixo — verde ou vermelho pelo último status de saída, depois da duração de qualquer comando que levou 2 segundos ou mais. Um segmento sem nada a dizer se dobra em um único separador na sua cor, então a sequência de cores é sempre a mesma.",
+          },
+          {
+            kind: "demo",
+            gif: "themes.gif",
+            alt: "Gravação de terminal: os prompts pastel, tokyonight, gruvbox e catppuccin em um pequeno projeto Node com um contêiner rodando — segmentos de git, stack e contêiner dobrados fora dele, a versão do Node preenchida depois da atualização em segundo plano, a duração de um comando de 3 segundos e o prompt vermelho depois de uma falha.",
+            transcript:
+              "(pastel, em /tmp — git, stack e contêineres dobrados)\n❯ cd shop && sleep 3\n(pastel: root · shop · main ✗ · node v22.11.0 · contêiner 1 · hora)\ntook 3s ❯ (troca para tokyonight)\n❯ false\n(❯ vermelho; depois gruvbox em /tmp, dobrado de novo)\n❯ cd shop/src\n(catppuccin: o contêiner continua pertencendo aqui — a pasta do compose contém este diretório)",
+          },
+          {
+            kind: "p",
+            text: "O segmento de stack mostra cada toolchain marcada no diretório mais próximo com um marcador: node (ou bun com um lockfile do bun), deno, rust, go, python, ruby, php, java e .NET. Versões são opt-in. Elas, e os contêineres que pertencem aqui — contêineres rodando cujo rótulo de diretório do compose ou da pasta do devcontainer é este diretório ou um dos seus pais — vêm de um cache em ~/.cache/dottod/prompt que um job em segundo plano atualiza. O prompt nunca espera por eles: um projeto novo mostra o glifo primeiro e a versão num prompt seguinte.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Opções",
+            code: "DOT_PROMPT_VERSIONS=1    # versões das toolchains no segmento de stack (padrão desligado)\nDOT_PROMPT_CONTAINERS=0  # sem segmento de contêineres (ligado quando o podman existe)\nDOT_PROMPT_SLOW=5        # durações a partir de 5 s (padrão 2)\nDOT_PROMPT_GLYPHS=ascii  # sem Nerd Font: um segmento dobrado é um espaço colorido",
           },
         ],
       },
