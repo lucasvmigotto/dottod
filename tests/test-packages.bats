@@ -249,6 +249,17 @@ install_as() {
     done
 }
 
+@test "fastfetch maps only on Debian and Ubuntu releases that package it" {
+    local row id like ver want
+    for row in "debian::13:fastfetch" "debian::12:-" "debian:::fastfetch" \
+        "ubuntu:debian:24.04:-" "ubuntu:debian:25.04:fastfetch" \
+        "linuxmint:ubuntu debian:22:-" "kali:debian:2025.3:fastfetch"; do
+        IFS=: read -r id like ver want <<<"$row"
+        assert_eq "fastfetch on $id $ver" "$want" \
+            "$(DOTTOD_OS_ID="$id" DOTTOD_OS_ID_LIKE="$like" DOTTOD_OS_VERSION_ID="$ver" _pkgmap_debian fastfetch)"
+    done
+}
+
 @test "every package a task requests is a known logical name" {
     local requested name
     requested="$(
