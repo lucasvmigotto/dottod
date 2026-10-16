@@ -228,7 +228,8 @@ printf '%s\n' "${PS1@P}"
 SH
     out="$(cd "$PROJ" && DOT_PROMPT_STYLE=pastel bash -i "$script" 2>/dev/null)"
     assert_eq 'PS0 silent and stamping' '0' "$(grep -c 'PS0' <<<"$out" || true)"
-    assert_eq 'duration shown once' '1' "$(grep -c 'took 7s' <<<"$out" || true)"
+    # 7s, or 8s when SECONDS ticks between the stamp and the render.
+    assert_eq 'duration shown once' '1' "$(grep -cE 'took [78]s' <<<"$out" || true)"
 }
 
 @test "a red prompt character after a failure" {
