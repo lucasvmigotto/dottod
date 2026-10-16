@@ -34,5 +34,7 @@ test("mobile project keeps nav reachable", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/dottod/#/tasks");
   await page.getByRole("button", { name: "Menu" }).click();
-  await expect(page.getByRole("link", { name: "Commands" })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Commands", exact: true }),
+  ).toBeVisible();
 });
