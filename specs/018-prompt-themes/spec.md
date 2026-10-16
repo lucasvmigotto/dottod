@@ -90,3 +90,10 @@ folded bytes, ASCII folding, stacks, versions and containers through the
 background cache with stubs, silence on failures and an unwritable cache,
 PS0 duration, red prompt, hook switching, names never executed, OS glyph);
 the recorded demo.
+
+### 2.5.0 addition: `prompt-style --preview [name...]`
+Renders every style (or the named ones) as it would look in the current
+directory: each in a subshell — its hook runs once, `${PS1@P}` is printed
+without readline markers — so nothing of the shell or `~/.prompt-style`
+changes. Needs bash 4.4; refuses `--dry-run`. Tested in
+`test-prompt.bats`.

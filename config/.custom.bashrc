@@ -323,7 +323,9 @@ reload() { source ~/.bashrc && echo "reloaded ~/.bashrc"; }
 # prompt-style [--dry-run] [name]: switch the prompt style. <name> is
 # saved in ~/.prompt-style, so new shells use it too; --dry-run changes
 # only this shell (DOT_PROMPT_STYLE). No name lists the styles, * marking
-# the current one and where it comes from. Styles: styles/prompt-*.sh.
+# the current one and where it comes from. --preview [name...] renders
+# them here, in this directory, changing nothing. Styles:
+# styles/prompt-*.sh.
 __dottod_prompt_styles() {
     local root f name
     root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
@@ -333,27 +335,80 @@ __dottod_prompt_styles() {
         printf '%s\n' "${name%.sh}"
     done
 }
+# __dottod_prompt_preview <root> <name>: prints <name>'s prompt as it
+# would render here — in a subshell: the style's hook runs once, PS1 is
+# expanded (${PS1@P}, bash 4.4+) and nothing of this shell changes.
+__dottod_prompt_preview() {
+    (
+        PROMPT_COMMAND=''
+        # shellcheck disable=SC1090 # a validated styles/prompt-<name>.sh
+        source "${1}/styles/prompt-${2}.sh" >/dev/null 2>&1 || exit 1
+        true
+        ${PROMPT_COMMAND%%;*} 2>/dev/null
+        local out="${PS1@P}"
+        out="${out//$'\001'/}"
+        printf '%s\e[0m\n' "${out//$'\002'/}"
+    )
+}
 prompt-style() {
-    local dry=0 name='' root file tmp current from
+    local dry=0 preview=0 name='' root file tmp current from
+    local -a names=()
     while (($# > 0)); do
         case "${1}" in
             --dry-run) dry=1 ;;
+            --preview) preview=1 ;;
             -h | --help)
                 printf 'usage: prompt-style [--dry-run] [name]\n'
+                printf '       prompt-style --preview [name...]\n'
                 printf '  (no name)  list the styles; * marks the current one\n'
                 printf '  name       use it here and in new shells (saved in %s)\n' "$(__dottod_prompt_style_file)"
                 printf '  --dry-run  use it in this shell only; the saved style stays\n'
+                printf '  --preview  show how each style (or the named ones) renders here\n'
                 return 0
                 ;;
             -*)
                 printf 'prompt-style: unknown option %s\n' "${1}" >&2
                 return 2
                 ;;
-            *) name="${1}" ;;
+            *)
+                name="${1}"
+                names+=("${1}")
+                ;;
         esac
         shift
     done
     root="$(dirname "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")")"
+
+    if ((preview)); then
+        if ((dry)); then
+            printf 'prompt-style: --preview changes nothing; drop --dry-run\n' >&2
+            return 2
+        fi
+        if ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4))); then
+            printf 'prompt-style: --preview needs bash 4.4 or newer\n' >&2
+            return 1
+        fi
+        if ((${#names[@]} == 0)); then
+            while IFS= read -r name; do names+=("${name}"); done < <(__dottod_prompt_styles)
+        fi
+        IFS=$'\t' read -r current from < <(__dottod_prompt_style_resolve)
+        local first=1
+        for name in "${names[@]}"; do
+            if ! __dottod_prompt_style_valid "${name}" "${root}"; then
+                printf 'prompt-style: unknown style %s (want: %s)\n' "${name}" "$(__dottod_prompt_styles | paste -sd' ' -)" >&2
+                return 1
+            fi
+            ((first)) || printf '\n'
+            first=0
+            if [[ "${name}" == "${current}" ]]; then
+                printf '\e[1m* %s\e[0m  (current, %s)\n' "${name}" "${from}"
+            else
+                printf '\e[1m  %s\e[0m\n' "${name}"
+            fi
+            __dottod_prompt_preview "${root}" "${name}"
+        done
+        return 0
+    fi
 
     if [[ -z "${name}" ]]; then
         IFS=$'\t' read -r current from < <(__dottod_prompt_style_resolve)
@@ -395,6 +450,6 @@ prompt-style() {
 _prompt_style() {
     local cur="${COMP_WORDS[COMP_CWORD]}" name
     COMPREPLY=()
-    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "--dry-run $(__dottod_prompt_styles)" -- "${cur}")
+    while IFS= read -r name; do COMPREPLY+=("${name}"); done < <(compgen -W "--dry-run --preview $(__dottod_prompt_styles)" -- "${cur}")
 }
 complete -F _prompt_style prompt-style
