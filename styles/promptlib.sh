@@ -8,10 +8,13 @@
 # associative arrays (macOS ships bash 3.2), no external deps beyond git.
 
 # __dottod_glyph <name>: prints the Nerd Font glyph for <name>, or an ASCII
-# fallback when DOT_PROMPT_GLYPHS=ascii. Keeps variant files readable.
+# fallback when DOT_PROMPT_GLYPHS=ascii — or on bash before 4.2, whose
+# printf has no \u escapes (the literal \u… would reach PS1, where \u is
+# the user name). Keeps variant files readable.
 __dottod_glyph() {
     local name="${1:?glyph name required}"
-    if [[ "${DOT_PROMPT_GLYPHS:-nerd}" == "ascii" ]]; then
+    if [[ "${DOT_PROMPT_GLYPHS:-nerd}" == "ascii" ]] ||
+        ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 2))); then
         case "${name}" in
             sep_left) printf '>' ;;
             sep_right | sep_left_thin | sep_right_thin) printf '<' ;;
@@ -21,6 +24,9 @@ __dottod_glyph() {
             clock) printf '' ;;
             disk) printf '' ;;
             lang_*) printf '%s' "${name#lang_}" ;;
+            os_*) printf '%s' "${name#os_}" ;;
+            container) printf 'ctr' ;;
+            prompt_char) printf '>' ;;
             *) printf '' ;;
         esac
         return 0
@@ -42,6 +48,21 @@ __dottod_glyph() {
         lang_ruby) printf '\ue791' ;;
         lang_php) printf '\ue73d' ;;
         lang_java) printf '\ue738' ;;
+        lang_bun) printf '\ue76f' ;;
+        lang_deno) printf '\ue7c0' ;;
+        lang_dotnet) printf '\ue77f' ;;
+        cap_left) printf '\ue0b6' ;;
+        cap_right) printf '\ue0b4' ;;
+        fade) printf '░▒▓' ;;
+        container) printf '\uf4b7' ;;
+        prompt_char) printf '❯' ;;
+        os_debian) printf '\uf306' ;;
+        os_ubuntu) printf '\uf31b' ;;
+        os_gentoo) printf '\uf30d' ;;
+        os_arch) printf '\uf303' ;;
+        os_fedora) printf '\uf30a' ;;
+        os_alpine) printf '\uf300' ;;
+        os_*) printf '\uf31a' ;;
         *) printf '' ;;
     esac
 }
