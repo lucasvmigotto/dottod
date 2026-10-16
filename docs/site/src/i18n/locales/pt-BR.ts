@@ -1079,31 +1079,6 @@ const pages: Record<PageId, DocPage> = {
                 ],
               },
               {
-                label: "extra fastfetch",
-                cells: [
-                  {
-                    state: "partial",
-                    note: "pacote resolve no Debian 13; não empacotado no Ubuntu antes do 25.04",
-                  },
-                  {
-                    state: "partial",
-                    note: "nome do pacote resolve; não rodou",
-                  },
-                  {
-                    state: "partial",
-                    note: "nome do pacote resolve; não rodou",
-                  },
-                  {
-                    state: "partial",
-                    note: "nome do pacote resolve; não rodou",
-                  },
-                  {
-                    state: "partial",
-                    note: "nome do pacote resolve; não rodou",
-                  },
-                ],
-              },
-              {
                 label: "Podman rootless",
                 cells: [
                   { state: "ok", note: "neste host Debian" },

@@ -1075,19 +1075,6 @@ const pages: Record<PageId, DocPage> = {
                 ],
               },
               {
-                label: "fastfetch extra",
-                cells: [
-                  {
-                    state: "partial",
-                    note: "package resolves on Debian 13; not packaged on Ubuntu before 25.04",
-                  },
-                  { state: "partial", note: "package name resolves; not run" },
-                  { state: "partial", note: "package name resolves; not run" },
-                  { state: "partial", note: "package name resolves; not run" },
-                  { state: "partial", note: "package name resolves; not run" },
-                ],
-              },
-              {
                 label: "rootless Podman",
                 cells: [
                   { state: "ok", note: "on this Debian host" },

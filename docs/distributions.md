@@ -24,7 +24,6 @@ second run changes nothing; "host" means a real installed system.
 | cargo (rustup) | ✅ | — | ✅ | ✅ | ✅ | ✅ musl toolchain |
 | bun + devcontainer CLI (no Node.js) | ✅ verified | — | ✅ bun² | ✅ bun, verified² | ✅ bun, verified² | ✅ musl build, verified |
 | tools + `gh` extra | ✅ gh from GitHub's apt repo | — | names only | ✅ | ✅ | ✅ |
-| `fastfetch` extra | names only | ⛔ not packaged before 25.04 | names only | names only | names only | names only |
 | container (rootless Podman) | ✅ host (status) | — | ⏳ laptop³ | — | rootful only⁴ | helpers + subids only⁴ |
 | zed (`--ui`) | not run | — | not run | not run | not run | ⛔ unsupported (glibc builds only) |
 
