@@ -197,6 +197,14 @@ jobs:
             --content-type "text/markdown; charset=utf-8" \
             --cache-control "no-cache"
 
+      - name: Sync demos (terminal GIFs, unhashed names)
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          aws s3 sync docs/site/dist/demos "s3://$R2_BUCKET${R2_PREFIX}demos" \
+            --endpoint-url "$R2_ENDPOINT" --delete \
+            --content-type "image/gif" \
+            --cache-control "public, max-age=3600"
+
       - name: Sync entry files and llms (no-cache)
         if: steps.creds.outputs.present == 'true'
         run: |
