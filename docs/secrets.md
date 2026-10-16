@@ -86,8 +86,10 @@ never your account password: a token can be revoked on its own.
   ```
 
 - `podman logout <registry>` deletes that token from the store.
-- Other secrets: `pass insert <name>` / `pass show <name>` /
-  `pass ls`. Registry logins live under `docker-credential-helpers/`.
+- Other secrets (PATs, API keys): store them with `pass insert <name>` and
+  hand them to commands with `pass-run` or `loadenv` — see
+  [Secrets in commands](secret-commands.md). Registry logins live under
+  `docker-credential-helpers/`.
 - `./bin/secrets.sh status` and `dottod-doctor` report the setup and warn
   about any registry credential left in a plain file (names only).
 
@@ -185,12 +187,13 @@ it, anyone can revoke your key (but cannot read your secrets).
 3. Adds `~/.config/containers/registries.conf.d/50-dottod-pass.conf`
    (`credential-helpers = ["pass"]`): every `podman login` stores its token
    in pass. Delete the file to undo it.
-4. Writes a GnuPG socket redirect (`~/.gnupg/S.gpg-agent` → your agent's
+4. Links `~/.local/bin/pass-run` ([Secrets in commands](secret-commands.md)).
+5. Writes a GnuPG socket redirect (`~/.gnupg/S.gpg-agent` → your agent's
    socket under `/run/user/<uid>`): rootless Podman runs the credential
    helper inside its user namespace, where gpg can't otherwise find your
    agent. Written only when the agent socket lives under `/run/user`, and
    never over a live socket or a file that isn't dottod's.
-5. Removes plaintext registry credentials (`auths` entries) from
+6. Removes plaintext registry credentials (`auths` entries) from
    `~/.docker/config.json` and the containers `auth.json` files, logging
    registry names only. Other settings in those files are kept.
 

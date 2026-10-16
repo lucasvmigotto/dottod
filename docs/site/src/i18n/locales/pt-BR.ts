@@ -1109,6 +1109,65 @@ const pages: Record<PageId, DocPage> = {
       },
     ],
   },
+  "guide-secret-commands": {
+    id: "guide-secret-commands",
+    title: "Segredos em comandos",
+    summary:
+      "pass-run e loadenv: PATs e chaves de API do pass, só onde são necessários.",
+    sections: [
+      {
+        id: "pass-run",
+        heading: "pass-run",
+        blocks: [
+          {
+            kind: "p",
+            text: "pass-run VAR=caminho … -- comando dá a cada VAR a primeira linha da entrada, só no ambiente desse comando: nunca no seu shell, na linha de comando ou no histórico, nunca impressa. Um programa de verdade (~/.local/bin/pass-run), então scripts e agentes de IA também podem usar.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            code: "pass insert github/pat\npass-run GH_TOKEN=github/pat -- gh pr list",
+          },
+        ],
+      },
+      {
+        id: "loadenv",
+        heading: "loadenv com valores pass:",
+        blocks: [
+          {
+            kind: "p",
+            text: "loadenv [arquivo] exporta linhas CHAVE=valor para o seu shell. Um valor pass:caminho é lido do store, então o .env só nomeia segredos, nunca os guarda. O arquivo é dado, nunca código (sem $(…), sem expansão), e o carregamento é tudo-ou-nada: uma linha ruim ou uma entrada faltando não exporta nada.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: ".env",
+            code: "API_URL=https://api.example.com\nGH_TOKEN=pass:github/pat",
+          },
+        ],
+      },
+      {
+        id: "azure-devops",
+        heading: "Exemplo: a CLI do Azure DevOps",
+        blocks: [
+          {
+            kind: "p",
+            text: "Guarde um PAT restrito (escopos só-leitura como Work Items, Code, Build: Read; a validade mais curta) no pass e rode o az via pass-run: o comando recebe o token, mais nada recebe. Não use az devops login (ele guarda o PAT fora do pass); a extensão lê AZURE_DEVOPS_EXT_PAT do ambiente. Guia completo: docs/secret-commands.md.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            code: "pass insert azure-devops/pat\naz extension add --name azure-devops\naz devops configure --defaults organization=https://dev.azure.com/<org> project=<project>\npass-run AZURE_DEVOPS_EXT_PAT=azure-devops/pat -- az repos pr list --status active",
+          },
+          {
+            kind: "callout",
+            tone: "warning",
+            text: "O pass-run entrega o segredo a qualquer coisa depois de -- (pass-run X=… -- env o imprimiria). Quando um script ou agente de IA puder rodá-lo, fixe os comandos que ele pode pôr depois de --, mantenha o pass show fechado para ele e conte com os escopos restritos e a validade curta do token. Os guardrails do Claude Code ficam no repositório ai-gent.",
+          },
+        ],
+      },
+    ],
+  },
   "guide-fonts": {
     id: "guide-fonts",
     title: "Fontes",

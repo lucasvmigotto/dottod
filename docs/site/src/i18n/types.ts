@@ -33,6 +33,7 @@ export const GUIDE_IDS = [
   "neovim",
   "ssh",
   "containers",
+  "secret-commands",
   "fonts",
 ] as const;
 
@@ -196,6 +197,7 @@ export const NAV_GROUPS: NavGroup[] = [
       "guide-neovim",
       "guide-ssh",
       "guide-containers",
+      "guide-secret-commands",
       "guide-fonts",
     ],
   },
