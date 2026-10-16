@@ -168,14 +168,40 @@ Identity for `gitconfig` can be supplied non-interactively:
 GIT_NAME="Your Name" GIT_EMAIL="you@example.com" ./bin/gitconfig.sh
 ```
 
-Add a distinct work identity for repositories under `~/codes/` (optional —
-falls back to personal) via `[includeIf]`:
+The global identity is the default everywhere. A machine where every
+repository sets its own (a company laptop, say) can skip it:
 
 ```bash
-GIT_NAME="You" GIT_EMAIL="you@example.com" \
+GIT_GLOBAL_IDENTITY=0 ./bin/gitconfig.sh   # the rest of ~/.gitconfig, no user.*
+```
+
+#### Work repositories (`gwork`)
+
+Store a work identity once (in `~/.gitconfig-work`, which nothing
+includes) and give it to the repositories you choose — in their local
+config, wherever they live:
+
+```bash
 GIT_WORK_NAME="You At Work" GIT_WORK_EMAIL="you@work.example.com" \
   ./bin/gitconfig.sh
+
+gwork clone git@ssh.dev.azure.com:v3/org/project/repo   # clone as work, cd in
+gwork clone https://gitlab.com/group/sub/repo.git api --depth 1
+gwork set [dir]      # mark an existing checkout as work
+gwork unset [dir]    # back to the global identity
+gwork                # which identity this repo resolves, and from where
 ```
+
+`gwork clone` hands the URL to `git clone` untouched, so any form git
+accepts works — SSH (`git@host:path`, `ssh://`) or HTTPS, on Azure DevOps,
+Bitbucket, GitLab, GitHub or your own host — and the clone lands where
+`git clone` would put it. A failed clone configures nothing.
+`GIT_WORK_NAME`/`GIT_WORK_EMAIL` in the environment take precedence over
+the file.
+
+`codes` shows each repository's context — **work** when the email git
+resolves there is the work email, **personal** otherwise — and filters by
+it: `codes --work`, `codes --personal`, `codes --by-context` (work first).
 
 Scripts are configurable via `_DOT_*` environment variables:
 
