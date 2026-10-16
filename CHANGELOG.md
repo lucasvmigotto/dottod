@@ -5,6 +5,17 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.3.0 — 2026-10-16
+
+### Added
+
+- **shell:** prompt-style saves the style in ~/.prompt-style; --dry-run
+- **shell:** prompt-style lists and switches the prompt style
+
+### Fixed
+
+- **doctor:** know every prompt style, and the saved one
+
 ## 2.2.0 — 2026-10-16
 
 ### Added
