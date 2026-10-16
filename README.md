@@ -33,7 +33,7 @@ tests/     BATS test suites (run with ./tests/run.sh)
 | `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
-| `secrets`   | `bin/secrets.sh`  | Opt-in (`--only secrets`): `pass` as the secret store, container registry logins through it (see [docs/secrets.md](docs/secrets.md)) |
+| `secrets`   | `bin/secrets.sh`  | Opt-in (`--only secrets`): `pass` as the secret store, container registry logins through it, `pass-run`/`loadenv` for other secrets (see [docs/secrets.md](docs/secrets.md), [docs/secret-commands.md](docs/secret-commands.md)) |
 
 ## Installation
 

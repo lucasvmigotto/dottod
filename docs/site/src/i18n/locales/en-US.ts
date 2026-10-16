@@ -1102,6 +1102,65 @@ const pages: Record<PageId, DocPage> = {
       },
     ],
   },
+  "guide-secret-commands": {
+    id: "guide-secret-commands",
+    title: "Secrets in commands",
+    summary:
+      "pass-run and loadenv: PATs and API keys from pass, only where they're needed.",
+    sections: [
+      {
+        id: "pass-run",
+        heading: "pass-run",
+        blocks: [
+          {
+            kind: "p",
+            text: "pass-run VAR=store/path … -- command gives each VAR the entry's first line, only in that command's environment: never in your shell, on the command line or in history, never printed. A real program (~/.local/bin/pass-run), so scripts and AI agents can use it too.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            code: "pass insert github/pat\npass-run GH_TOKEN=github/pat -- gh pr list",
+          },
+        ],
+      },
+      {
+        id: "loadenv",
+        heading: "loadenv with pass: values",
+        blocks: [
+          {
+            kind: "p",
+            text: "loadenv [file] exports KEY=value lines into your shell. A value pass:store/path is read from the store, so the .env names secrets and never holds them. The file is data, never code (no $(…), no expansion), and loading is all-or-nothing: a bad line or a missing entry exports nothing.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: ".env",
+            code: "API_URL=https://api.example.com\nGH_TOKEN=pass:github/pat",
+          },
+        ],
+      },
+      {
+        id: "github",
+        heading: "Example: the GitHub CLI",
+        blocks: [
+          {
+            kind: "p",
+            text: "Store a fine-grained token (only the repositories it needs, read-only permissions, the shortest expiry) in pass, and run gh through pass-run: gh reads GH_TOKEN, which takes precedence over anything gh auth login stored, so gh never needs a login of its own. Full guide: docs/secret-commands.md.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            code: "pass insert github/pat\npass-run GH_TOKEN=github/pat -- gh pr list\npass-run GH_TOKEN=github/pat -- gh run list --limit 5",
+          },
+          {
+            kind: "callout",
+            tone: "warning",
+            text: "pass-run hands the secret to whatever follows -- (pass-run X=… -- env would print it). When a script or an AI agent may run it, pin the commands it can put after --, keep pass show closed to it, and rely on the token's narrow scope and short expiry. Guardrails for Claude Code live in the ai-gent repository.",
+          },
+        ],
+      },
+    ],
+  },
   "guide-fonts": {
     id: "guide-fonts",
     title: "Fonts",
