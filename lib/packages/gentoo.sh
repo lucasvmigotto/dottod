@@ -34,6 +34,7 @@ function _pkgmap_gentoo() {
         pass_credential_helper) printf 'app-containers/docker-credential-helpers' ;;
         podman) printf 'app-containers/podman' ;;
         podman_rootless) printf 'sys-apps/shadow' ;;
+        pv) printf 'sys-apps/pv' ;;
         python3) printf 'dev-lang/python' ;;
         # ShellCheck is Haskell: the -bin package avoids a GHC toolchain build.
         shellcheck) printf 'dev-util/shellcheck-bin' ;;

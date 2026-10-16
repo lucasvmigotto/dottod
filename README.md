@@ -30,7 +30,7 @@ tests/     BATS test suites (run with ./tests/run.sh)
 | `zed`       | `bin/zed.sh`      | Installs the Zed editor (user-level, verified download; opt-in via `--ui`) |
 | `gitconfig` | `bin/gitconfig.sh`| Prompts for name/email and writes `~/.gitconfig`                    |
 | `ssh`       | `bin/ssh.sh`      | Merges GitHub host config into `~/.ssh/config` (never overwrites)   |
-| `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
+| `tools`     | `bin/tools.sh`    | btop, bat, xclip, jq, fzf, pv, shellcheck, bats, shfmt, just; opt-in extras via `--extras` |
 | `cargo`     | `bin/cargo.sh`    | Rust toolchain via rustup (stable, minimal profile) |
 | `bun`       | `bin/bun.sh`      | Bun JS runtime (direct-zip install, verified) |
 | `secrets`   | `bin/secrets.sh`  | Opt-in (`--only secrets`): `pass` as the secret store, container registry logins through it, `pass-run`/`loadenv` for other secrets (see [docs/secrets.md](docs/secrets.md), [docs/secret-commands.md](docs/secret-commands.md)) |
@@ -203,6 +203,25 @@ the file.
 `codes` shows each repository's context — **work** when the email git
 resolves there is the work email, **personal** otherwise — and filters by
 it: `codes --work`, `codes --personal`, `codes --by-context` (work first).
+
+#### Progress bars (`pv`)
+
+`pv` is a core tool, and the shell loads shortcuts that put a bar with a
+percentage and an ETA on long jobs:
+
+```bash
+pcp big.iso /media/usb/            # copy a file or a directory tree
+ptar project                       # project.tar.zst (.tar.gz without zstd)
+puntar backup.tar.gz restore/      # extract .tar.zst/.tar.gz/.tar.xz/.tar
+psum debian.iso                    # sha256sum-style line (md5, sha512, b2…)
+pdd debian.iso /dev/sdb            # write an image (.xz/.gz/.zst decompressed)
+pchain dump.sql -- psql mydb       # feed a file into any command
+find / -name '*.log' | pvl | wc -l # pvl = pv -l: count lines through a pipe
+```
+
+They never overwrite an existing target and remove a partial one when a
+step fails. `pdd` refuses a device with anything mounted (or used as
+swap) and writes only after you type the device name back.
 
 Scripts are configurable via `_DOT_*` environment variables:
 

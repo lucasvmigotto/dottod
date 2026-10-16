@@ -49,7 +49,7 @@ Tasks:
   zed       Zed editor (user-level install)
   gitconfig Git identity and config
   ssh       SSH config (GitHub host, merged safely) + ed25519 key
-  tools     btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just (+ --extras)
+  tools     btop, bat, xclip, jq, fzf, pv, shellcheck, bats, shfmt, just (+ --extras)
   cargo     Rust toolchain via rustup (stable, minimal profile)
   bun       Bun JS runtime (direct-zip install, verified) + devcontainer CLI
   secrets   pass + container registry logins through it (opt-in: --only secrets)

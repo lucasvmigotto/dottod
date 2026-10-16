@@ -4,7 +4,7 @@ script: bin/tools.sh
 flags: []
 env:
   DOT_TOOLS_EXTRA: {default: "", note: "comma list of extras, or all; bootstrap --extras sets it"}
-core_packages: [btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt, just]
+core_packages: [btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, pv, shellcheck, bats, shfmt, just]
 extras:
   native: [httpie, chafa, gh]
   apt_repo_debian_only: {gh: 'https://cli.github.com/packages stable main (signed keyring)'}

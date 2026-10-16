@@ -67,7 +67,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "GitHub host merge + ed25519 key"],
               [
                 "tools",
-                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; opt-in extras: gh, httpie, chafa, fastfetch",
+                "btop, bat, xclip, jq, fzf, pv, shellcheck, bats, shfmt, just; opt-in extras: gh, httpie, chafa, fastfetch",
               ],
               ["cargo", "Rust toolchain via rustup"],
               ["bun", "Bun runtime + devcontainer CLI"],
@@ -523,7 +523,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt and just from the distro's packages (skipped when all present), and links bat/batcat and fd/fdfind so both spellings work. Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie, chafa, fastfetch and gh from the distro's packages — gh from its official apt repository (signed keyring) on Debian/Ubuntu.",
+            text: "Installs btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, pv, shellcheck, bats, shfmt and just from the distro's packages (skipped when all present), and links bat/batcat and fd/fdfind so both spellings work. Extras are opt-in via --extras or DOT_TOOLS_EXTRA (all off by default): httpie, chafa, fastfetch and gh from the distro's packages — gh from its official apt repository (signed keyring) on Debian/Ubuntu.",
           },
           {
             kind: "code",
@@ -817,6 +817,22 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "scripts/.*.sh libraries load aliases (lll, git shortcuts, clip, pclip, cclip), functions (mkcd, extract, ff, gr, psg, port, serve, gcl) and the ctr container dispatcher. Only the hidden library files load — scripts/*.sh are programs and are never sourced.",
+          },
+        ],
+      },
+      {
+        id: "progress",
+        heading: "Progress bars",
+        blocks: [
+          {
+            kind: "p",
+            text: "Shortcuts on pv (a core tool) put a bar with a percentage and an ETA on long jobs. They never overwrite an existing target and remove a partial one when a step fails. pdd refuses a device with anything mounted, shows it, and writes only after you type its name back. pchain feeds a file into any command; pvl counts lines through a pipe.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Progress shortcuts",
+            code: "pcp big.iso /media/usb/           # copy a file or a directory tree\nptar project                      # project.tar.zst (.tar.gz without zstd)\npuntar backup.tar.gz restore/       # extract\npsum debian.iso                   # sha256sum-style line; md5, sha512, b2…\npdd debian.iso /dev/sdb           # write an image (.xz/.gz/.zst too)\npchain dump.sql -- psql mydb      # any command\nfind / -name '*.log' | pvl | wc -l",
           },
         ],
       },

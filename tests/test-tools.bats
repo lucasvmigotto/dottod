@@ -98,3 +98,9 @@ probe() {
     assert_eq 'dropped tool rc 1' '1' "$status"
     assert_contains 'lists the valid ones' 'want: gh,httpie,chafa,fastfetch' "$output"
 }
+
+@test "the core install includes pv (the progress shortcuts need it)" {
+    probe '_main'
+    assert_eq 'rc' '0' "$status"
+    assert_match 'pv in the core packages' '^PKGS:.* fzf pv shellcheck ' "$(head -n1 "$CALLS")"
+}

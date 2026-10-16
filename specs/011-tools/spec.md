@@ -3,7 +3,7 @@
 ## Stories
 - US1: As a user I run the tools task so that the terminal baseline
   installs from apt: btop, bat, xclip, jq, curl, tar, ca-certificates,
-  lsof, fzf, shellcheck, bats, shfmt, just.
+  lsof, fzf, pv (spec 019), shellcheck, bats, shfmt, just.
 - US2: As a user I opt in to extras with `--extras <list>` (or
   `DOT_TOOLS_EXTRA`, `all` for every one): gh, httpie, chafa (native
   packages; gh from the official GitHub CLI apt repo on Debian/Ubuntu).

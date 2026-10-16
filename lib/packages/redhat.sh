@@ -15,7 +15,7 @@ function _pkgmap_redhat() {
         vim) printf 'vim-enhanced' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fastfetch | fontconfig | \
             fzf | gh | git | httpie | jq | just | lsof | neovim | pass | podman | \
-            python3 | shfmt | tar | unzip | xclip)
+            pv | python3 | shfmt | tar | unzip | xclip)
             printf '%s' "${1//_/-}"
             ;;
         *) return 1 ;;

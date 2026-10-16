@@ -15,7 +15,7 @@ function _pkgmap_alpine() {
         podman_rootless) printf 'shadow shadow-subids' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fastfetch | fontconfig | \
             fzf | git | gnupg | httpie | jq | just | lsof | neovim | pass | \
-            podman | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
+            podman | pv | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;
         *) return 1 ;;

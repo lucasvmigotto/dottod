@@ -67,7 +67,7 @@ const pages: Record<PageId, DocPage> = {
               ["ssh", "merge do host GitHub + chave ed25519"],
               [
                 "tools",
-                "btop, bat, xclip, jq, fzf, shellcheck, bats, shfmt, just; extras opt-in: gh, httpie, chafa, fastfetch",
+                "btop, bat, xclip, jq, fzf, pv, shellcheck, bats, shfmt, just; extras opt-in: gh, httpie, chafa, fastfetch",
               ],
               ["cargo", "toolchain Rust via rustup"],
               ["bun", "runtime Bun + CLI devcontainer"],
@@ -524,7 +524,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Instala btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, shellcheck, bats, shfmt e just dos pacotes da distro (pulado quando tudo presente), e liga bat/batcat e fd/fdfind para os dois nomes funcionarem. Extras são opt-in via --extras ou DOT_TOOLS_EXTRA (todos desligados por padrão): httpie, chafa, fastfetch e gh dos pacotes da distro — gh do repositório apt oficial (keyring assinado) no Debian/Ubuntu.",
+            text: "Instala btop, xclip, bat, jq, curl, tar, ca-certificates, lsof, fzf, pv, shellcheck, bats, shfmt e just dos pacotes da distro (pulado quando tudo presente), e liga bat/batcat e fd/fdfind para os dois nomes funcionarem. Extras são opt-in via --extras ou DOT_TOOLS_EXTRA (todos desligados por padrão): httpie, chafa, fastfetch e gh dos pacotes da distro — gh do repositório apt oficial (keyring assinado) no Debian/Ubuntu.",
           },
           {
             kind: "code",
@@ -818,6 +818,22 @@ const pages: Record<PageId, DocPage> = {
           {
             kind: "p",
             text: "Bibliotecas scripts/.*.sh carregam aliases (lll, atalhos git, clip, pclip, cclip), funções (mkcd, extract, ff, gr, psg, port, serve, gcl) e o despachante ctr. Só os arquivos ocultos de biblioteca carregam — scripts/*.sh são programas e nunca têm source.",
+          },
+        ],
+      },
+      {
+        id: "progress",
+        heading: "Barras de progresso",
+        blocks: [
+          {
+            kind: "p",
+            text: "Atalhos sobre o pv (uma ferramenta core) mostram uma barra com porcentagem e ETA em tarefas longas. Nunca sobrescrevem um destino existente e removem o parcial quando uma etapa falha. O pdd recusa um dispositivo com algo montado, mostra-o e só grava depois que você digita o nome dele. O pchain alimenta qualquer comando com um arquivo; o pvl conta linhas num pipe.",
+          },
+          {
+            kind: "code",
+            lang: "bash",
+            caption: "Atalhos de progresso",
+            code: "pcp big.iso /media/usb/           # copia um arquivo ou uma árvore\nptar project                      # project.tar.zst (.tar.gz sem zstd)\npuntar backup.tar.gz restore/       # extrai\npsum debian.iso                   # linha no estilo sha256sum; md5, sha512, b2…\npdd debian.iso /dev/sdb           # grava uma imagem (.xz/.gz/.zst também)\npchain dump.sql -- psql mydb      # qualquer comando\nfind / -name '*.log' | pvl | wc -l",
           },
         ],
       },

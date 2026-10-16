@@ -23,8 +23,10 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 | 013 | cargo (rustup toolchain) | P1 | — | Implemented |
 | 014 | bun (JS runtime + devcontainer CLI) | P1 | — | Implemented |
 | 015 | multi-distro (Debian, Gentoo, Arch, Fedora, Alpine) | P0 | — | Implemented (containers; real Gentoo host pending) |
-| 016 | work git identity (`gwork`) + `codes` contexts | P1 | 015 | Planned |
+| 016 | work git identity (`gwork`) + `codes` contexts | P1 | 015 | Implemented |
 | 017 | secrets (`pass`, opt-in) + container registry logins | P1 | 015 | Implemented, verified on Debian (S1) |
+| 018 | segmented prompt themes + `prompt-style` | P2 | 001 | Implemented |
+| 019 | progress bars (`pv` + shortcuts) | P2 | 011 | Implemented |
 
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
