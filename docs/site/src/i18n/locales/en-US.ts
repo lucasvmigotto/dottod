@@ -745,7 +745,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Switch styles",
-            code: "prompt-style                    # list styles; * marks the current one and its source\nprompt-style catppuccin         # switch, saved in ~/.prompt-style for new shells too\nprompt-style --dry-run gruvbox  # this shell only; the saved style stays\n\n# DOT_PROMPT_STYLE in the environment wins over the saved style:\nDOT_PROMPT_STYLE=kali        # two-line kali terminal\nDOT_PROMPT_STYLE=powerline   # segmented blocks (needs a Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # or pastel, tokyonight, gruvbox",
+            code: "prompt-style                    # list styles; * marks the current one and its source\nprompt-style catppuccin         # switch, saved in ~/.prompt-style for new shells too\nprompt-style --dry-run gruvbox  # this shell only; the saved style stays\nprompt-style --preview          # how every style renders here; changes nothing\n\n# DOT_PROMPT_STYLE in the environment wins over the saved style:\nDOT_PROMPT_STYLE=kali        # two-line kali terminal\nDOT_PROMPT_STYLE=powerline   # segmented blocks (needs a Nerd Font)\nDOT_PROMPT_STYLE=catppuccin  # or pastel, tokyonight, gruvbox",
           },
           {
             kind: "code",
@@ -826,7 +826,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "Shortcuts on pv (a core tool) put a bar with a percentage and an ETA on long jobs. They never overwrite an existing target and remove a partial one when a step fails. pdd refuses a device with anything mounted, shows it, and writes only after you type its name back. pchain feeds a file into any command; pvl counts lines through a pipe.",
+            text: "Shortcuts on pv (a core tool) put a bar with a percentage and an ETA on long jobs. They never overwrite an existing target and remove a partial one when a step fails. pdd refuses a device with anything mounted, shows it, and writes only after you type its name back. pchain feeds a file into any command; pvl counts lines through a pipe. extract streams tar archives and single .gz/.bz2/.xz/.zst files through pv as well.",
           },
           {
             kind: "code",
@@ -846,7 +846,7 @@ const pages: Record<PageId, DocPage> = {
           },
           {
             kind: "p",
-            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before. Once a work identity exists (see gitconfig), a context column marks work and personal repositories; --work, --personal and --by-context filter or group by it.",
+            text: "Sibling repos under one directory show as parent/name, and submodule checkouts nest under their superproject — every row is still a real path. Query by parent (codes coparticipacao) or qualified name (codes coparticipacao/front). CODES_GROUP=0 restores the flat list, CODES_SUBMODULES=0 drops nested checkouts like before. Once a work identity exists (see gitconfig), a context column marks work and personal repositories; --work, --personal and --by-context filter or group by it. A sparkle (nf-cod-sparkle, Claude orange) marks repositories with a saved Claude Code conversation; codes -c <name> jumps there and runs claude -c. CODES_CLAUDE=0 hides the mark, CODES_CLAUDE_GLYPH replaces it.",
           },
           {
             kind: "code",
@@ -878,7 +878,7 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. The picker side panel shows each profile's account, plan and 5h/7d usage with reset times. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles.",
+            text: "The shell offers named Claude Code profiles (work, personal, …) over one shared store: memory, skills, plugins and projects live in ~/.claude, while each ~/.claude-<name> overlay keeps its own login, settings and identity dirs. claude picks a profile (fzf), claude -P selects one for the run, claude-profile manages overlays. The picker side panel shows each profile's account, plan and 5h/7d usage with reset times. First run builds the overlay; a fresh profile asks for /login. Always launch through the wrapper — a bare claude /login writes outside the profiles. claude -c (--continue) or a bare claude -r (--resume) where nothing was saved asks “Start a new one? [y/N]” instead of stopping at “No conversation found to continue”; y launches without the flag, other arguments kept.",
           },
           {
             kind: "code",

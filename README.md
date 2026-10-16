@@ -204,6 +204,11 @@ the file.
 resolves there is the work email, **personal** otherwise — and filters by
 it: `codes --work`, `codes --personal`, `codes --by-context` (work first).
 
+Repositories with a saved Claude Code conversation carry a sparkle
+(nf-cod-sparkle, in Claude orange); `codes -c <name>` jumps there and runs
+`claude -c`. `CODES_CLAUDE=0` hides the mark, `CODES_CLAUDE_GLYPH='*'`
+replaces it (no Nerd Font).
+
 #### Progress bars (`pv`)
 
 `pv` is a core tool, and the shell loads shortcuts that put a bar with a
@@ -220,7 +225,8 @@ find / -name '*.log' | pvl | wc -l # pvl = pv -l: count lines through a pipe
 ```
 
 They never overwrite an existing target and remove a partial one when a
-step fails. `pdd` refuses a device with anything mounted (or used as
+step fails. `extract` streams tar archives and single `.gz`/`.bz2`/`.xz`/
+`.zst` files through `pv` too. `pdd` refuses a device with anything mounted (or used as
 swap) and writes only after you type the device name back.
 
 Scripts are configurable via `_DOT_*` environment variables:
@@ -247,6 +253,12 @@ claude-profile consolidate # fold profiles' private history/projects into ~/.cla
 
 First run builds the overlay; a fresh profile asks for `/login`. Configure
 with `CLAUDE_PROFILE=<name>`, `CLAUDE_NO_PICKER=1`.
+
+`claude -c` (`--continue`) or a bare `claude -r` (`--resume`) in a
+directory with no saved conversation asks `Start a new one? [y/N]` instead
+of stopping at Claude Code's "No conversation found": `y` launches without
+the flag, the rest of the arguments kept; `-r <id>` is left to Claude Code. Without a terminal (scripts, pipes) the
+arguments go through untouched.
 
 ### Tests
 
