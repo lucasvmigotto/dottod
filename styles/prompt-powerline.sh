@@ -22,6 +22,18 @@ __dottod_pw_sep() {
     printf '\[\\e[48;5;%sm\\e[38;5;%sm\]%s' "${2}" "${1}" "$(__dottod_glyph sep_left)"
 }
 
+# __dottod_pw_rblock <prev bg|""> <bg> <fg> <text>: one right-side block,
+# opened by a filled left-pointing arrow (bg-on-prev, or on the default
+# background for the first block) — the mirror of the left side.
+__dottod_pw_rblock() {
+    if [[ -n "${1}" ]]; then
+        printf '\[\\e[48;5;%sm\\e[38;5;%sm\]%s' "${1}" "${2}" "$(__dottod_glyph sep_right)"
+    else
+        printf '\[\\e[0m\\e[38;5;%sm\]%s' "${2}" "$(__dottod_glyph sep_right)"
+    fi
+    printf '\[\\e[48;5;%sm\\e[38;5;%sm\] %s ' "${2}" "${3}" "${4}"
+}
+
 # __dottod_pw_end <bg>: closing separator on the default background.
 __dottod_pw_end() {
     printf '\[\\e[38;5;%sm\]%s\[\\e[0m\]' "${1}" "$(__dottod_glyph sep_left)"
@@ -93,20 +105,21 @@ __dottod_prompt_powerline() {
     done
     # Host stays out of the blocks (shown on demand via \h elsewhere).
 
-    # Right cluster: duration, status, time, free disk.
-    local right status_glyph time disk avail
+    # Right cluster, filled blocks like the left: duration + status, time,
+    # free disk.
+    local right status_glyph time avail
     if ((last_status == 0)); then
-        status_glyph='\[\e[1;32m\]✓'
+        status_glyph='\[\e[1;32m\]✓\[\e[22m\]'
     else
-        status_glyph='\[\e[1;31m\]✗'
+        status_glyph='\[\e[1;31m\]✗\[\e[22m\]'
     fi
     time="$(date +%H:%M 2>/dev/null)"
-    right="\[\e[38;5;14m\]$(__dottod_duration "${dur}") ${status_glyph}"
-    right+=" \[\e[38;5;244m\]$(__dottod_glyph sep_right_thin) \[\e[38;5;15m\]${time} $(__dottod_glyph clock)"
+    right="$(__dottod_pw_rblock '' 236 14 "$(__dottod_duration "${dur}") ${status_glyph}")"
+    right+="$(__dottod_pw_rblock 236 31 15 "${time} $(__dottod_glyph clock)")"
     if [[ "${DOT_PROMPT_RESOURCES:-1}" == "1" ]] && avail="$(__dottod_disk_avail 2>/dev/null)"; then
-        disk=" \[\e[38;5;244m\]$(__dottod_glyph sep_right_thin) \[\e[38;5;214m\]${avail} $(__dottod_glyph disk)"
-        right+="${disk}"
+        right+="$(__dottod_pw_rblock 31 214 0 "${avail} $(__dottod_glyph disk)")"
     fi
+    right+='\[\e[0m\]'
 
     local cols pad gap
     cols="${COLUMNS:-80}"
