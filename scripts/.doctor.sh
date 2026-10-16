@@ -102,11 +102,21 @@ dottod-doctor() {
         fi
     done
 
-    # Prompt: a style is selected and its hook is registered.
-    if [[ -n "${DOT_PROMPT_STYLE:-}" ]] && [[ "${DOT_PROMPT_STYLE}" != "robbyrussell" && "${DOT_PROMPT_STYLE}" != "kali" && "${DOT_PROMPT_STYLE}" != "powerline" ]]; then
-        __dottod_doc_warn "unknown DOT_PROMPT_STYLE=${DOT_PROMPT_STYLE}"
+    # Prompt: the style that applies (DOT_PROMPT_STYLE, else the one saved
+    # in ~/.prompt-style, else robbyrussell) exists, and a hook is set.
+    local style="${DOT_PROMPT_STYLE:-}" from='DOT_PROMPT_STYLE' sfile root
+    sfile="${DOT_PROMPT_STYLE_FILE:-${HOME}/.prompt-style}"
+    if [[ -z "${style}" && -r "${sfile}" ]]; then
+        IFS= read -r style <"${sfile}" || true
+        style="${style//[[:space:]]/}"
+        from="${sfile/#"${HOME}"/\~}"
+    fi
+    [[ -n "${style}" ]] || style=robbyrussell
+    root="$(_dottod_doctor_root)" || root=''
+    if [[ -n "${root}" ]] && ! [[ "${style}" =~ ^[a-z0-9][a-z0-9_-]*$ && -f "${root}/styles/prompt-${style}.sh" ]]; then
+        __dottod_doc_warn "unknown prompt style ${style} (from ${from})"
     elif [[ "${PROMPT_COMMAND:-}" == *"__dottod_prompt"* ]]; then
-        __dottod_doc_ok "prompt ${DOT_PROMPT_STYLE:-robbyrussell} installed"
+        __dottod_doc_ok "prompt ${style} installed"
     else
         __dottod_doc_warn "no dottod prompt in PROMPT_COMMAND"
     fi

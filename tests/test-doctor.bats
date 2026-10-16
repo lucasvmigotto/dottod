@@ -96,7 +96,20 @@ seed_update_state() {
     export DOT_PROMPT_STYLE="bogus"
     run doctor_run
     assert_eq 'doctor rc 0' '0' "$status"
-    assert_contains 'style warns' 'unknown DOT_PROMPT_STYLE=bogus' "$output"
+    assert_contains 'style warns' 'unknown prompt style bogus (from DOT_PROMPT_STYLE)' "$output"
+}
+
+@test "the new themes and the saved style are known to the doctor" {
+    export DOT_PROMPT_STYLE="catppuccin"
+    run doctor_run
+    assert_contains 'theme ok' 'prompt catppuccin installed' "$output"
+    unset DOT_PROMPT_STYLE
+    printf 'gruvbox\n' >"$HOME/.prompt-style"
+    run doctor_run
+    assert_contains 'saved style ok' 'prompt gruvbox installed' "$output"
+    printf '../../etc/x\n' >"$HOME/.prompt-style"
+    run doctor_run
+    assert_contains 'bad saved style warns' 'unknown prompt style ../../etc/x (from ~/.prompt-style)' "$output"
 }
 
 @test "pending update warns with both versions" {
