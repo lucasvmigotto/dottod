@@ -126,3 +126,44 @@ setup() {
         printf '%s' \"\$PROMPT_COMMAND\"" 2>/dev/null
     assert_eq 'only the last style, user entry kept' '__dottod_prompt;history -a' "${output##*$'\n'}"
 }
+
+# Renders a style's prompt in <dir> and expands it the way bash does at the
+# prompt (${PS1@P}), printing the result.
+render_prompt() {
+    local style="$1" dir="$2" script="$BATS_TEST_TMPDIR/render.sh"
+    cat >"$script" <<'SH'
+source "$REPO_ROOT/config/.custom.bashrc" >/dev/null 2>&1
+${PROMPT_COMMAND%%;*}
+printf '%s' "${PS1@P}"
+SH
+    (cd "$dir" && DOT_PROMPT_STYLE="$style" COLUMNS=200 bash -i "$script" 2>/dev/null)
+}
+
+@test "branch and directory names never run as commands in any style" {
+    local repo="$BATS_TEST_TMPDIR/evil" style name out
+    mkdir -p "$repo"
+    git -C "$repo" init -q
+    git -C "$repo" config user.email t@t
+    git -C "$repo" config user.name t
+    git -C "$repo" commit -q --allow-empty -m init
+    # A directory inside the repo with the same payloads, plus a backslash
+    # (git refuses those in branch names; powerline and kali show the path
+    # below the repo root).
+    local sub="$repo/"'d$(touch${IFS}PWNED)`touch${IFS}PWNED`\$(touch${IFS}PWNED)'
+    mkdir -p "$sub"
+    for name in 'x$(touch${IFS}PWNED)' 'y`touch${IFS}PWNED`' 'w${HOME}'; do
+        git -C "$repo" checkout -q -b "$name"
+        for style in robbyrussell kali powerline; do
+            out="$(render_prompt "$style" "$sub")"
+            if [[ -e "$repo/PWNED" || -e "$sub/PWNED" ]]; then
+                printf 'FAIL: %s ran a command from branch %s\n' "$style" "$name" >&2
+                return 1
+            fi
+            assert_contains "$style shows branch $name literally" "$name" "$out"
+        done
+    done
+    for style in kali powerline; do
+        assert_contains "$style shows the directory literally" \
+            'd$(touch${IFS}PWNED)`touch${IFS}PWNED`\$(touch${IFS}PWNED)' "$(render_prompt "$style" "$sub")"
+    done
+}

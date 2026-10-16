@@ -13,8 +13,9 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]:-.}")" && pwd)/promptlib.sh"
 __DOTTD_PW_PREV_SECONDS=0
 
 # __dottod_pw_text <bg> <fg> <text>: one block's content (no separator yet).
+# <text> is escaped: it carries directory and branch names.
 __dottod_pw_text() {
-    printf '\[\\e[48;5;%sm\\e[38;5;%sm\] %s ' "${1}" "${2}" "${3}"
+    printf '\[\\e[48;5;%sm\\e[38;5;%sm\] %s ' "${1}" "${2}" "$(__dottod_ps_esc "${3}")"
 }
 
 # __dottod_pw_sep <bg> <next>: block separator, colored bg-on-next.

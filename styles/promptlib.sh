@@ -46,6 +46,26 @@ __dottod_glyph() {
     esac
 }
 
+# __dottod_ps_esc <text>: <text> made inert inside PS1. Bash decodes PS1's
+# backslash escapes, then expands the result like a double-quoted string,
+# so a `$`, backtick or backslash in untrusted text — a branch name chosen
+# by whoever controls a remote, a directory inside a cloned repo — would
+# run commands at every prompt. Each gets a backslash that survives the
+# decoding. A character loop: ${t//…/…} replacements quote differently
+# across bash 3.2 to 5.2 (patsub_replacement).
+__dottod_ps_esc() {
+    local t="${1}" out="" c i
+    for ((i = 0; i < ${#t}; i++)); do
+        c="${t:i:1}"
+        case "${c}" in
+            '\') out+='\\\\' ;;
+            '$' | '`') out+="\\\\${c}" ;;
+            *) out+="${c}" ;;
+        esac
+    done
+    printf '%s' "${out}"
+}
+
 # __dottod_git_info: short git fragment for inline prompts.
 # ` git:(branch) ✗` — empty (and false) outside a repo. Kept byte-identical
 # to the original .custom.bashrc rendering for the default style.
@@ -63,7 +83,7 @@ __dottod_git_info() {
         fi
     fi
 
-    printf '%s' ' \[\e[1;34m\]git:(\[\e[0;31m\]'"$ref"'\[\e[34m\])'"$dirty"'\[\e[0m\]'
+    printf '%s' ' \[\e[1;34m\]git:(\[\e[0;31m\]'"$(__dottod_ps_esc "$ref")"'\[\e[34m\])'"$dirty"'\[\e[0m\]'
 }
 
 # __dottod_git_segments: machine-friendly git state for segmented prompts.

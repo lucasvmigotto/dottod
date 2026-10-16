@@ -14,7 +14,7 @@ __dottod_prompt_kali() {
     local user host dir git
     user="${USER:-$(id -un 2>/dev/null || printf 'user')}"
     host="${HOSTNAME:-$(hostname -s 2>/dev/null || printf 'host')}"
-    dir="$(__dottod_project_dir)"
+    dir="$(__dottod_ps_esc "$(__dottod_project_dir)")"
     git="$(__dottod_git_info)"
 
     local blue='\[\e[1;34m\]'
