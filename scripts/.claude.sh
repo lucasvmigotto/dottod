@@ -11,7 +11,8 @@
 #
 # Usage: `claude` picks a profile (fzf when interactive), `claude -P <name>`
 # (or --profile) and CLAUDE_PROFILE=<name> jump straight in. Manage with
-# `claude-profile add|ls|rm`.
+# `claude-profile add|ls|rm`. `claude -c` or a bare `claude -r` where nothing
+# was saved asks whether to start a new conversation instead.
 #
 # Config (environment variables):
 #   CLAUDE_PROFILE         profile name (bypasses the picker)
@@ -559,6 +560,61 @@ claude-profiles-init() {
     printf 'claude profiles ready (shared store %s/.claude)\n' "${HOME}"
 }
 
+# __dottod_claude_session_flag <args...>: prints "continue" for
+# -c/--continue, "resume" for a bare -r/--resume (no session id or search
+# term after it: that one Claude Code resolves itself); rc 1 for neither.
+# Options only: anything after `--` is left alone.
+__dottod_claude_session_flag() {
+    while (($# > 0)); do
+        case "${1}" in
+            --) return 1 ;;
+            -c | --continue)
+                printf 'continue'
+                return 0
+                ;;
+            -r | --resume)
+                if (($# == 1)) || [[ "${2}" == -* ]]; then
+                    printf 'resume'
+                    return 0
+                fi
+                ;;
+        esac
+        shift
+    done
+    return 1
+}
+
+# __dottod_claude_has_conversation <config_dir> [cwd]: 0 when Claude Code
+# has a saved conversation for cwd (default: the physical working dir) —
+# a <session>.jsonl under projects/<cwd, non-alphanumerics as '-'>. Paths
+# past 200 characters are keyed with a hash dottod cannot rebuild, so they
+# count as having one (Claude Code decides).
+__dottod_claude_has_conversation() {
+    local dir="${1:?dir required}" cwd="${2:-}" key f
+    [[ -n "${cwd}" ]] || cwd="$(pwd -P)"
+    key="${cwd//[^A-Za-z0-9]/-}"
+    ((${#key} <= 200)) || return 0
+    for f in "${dir}/projects/${key}"/*.jsonl; do
+        [[ -f "${f}" ]] && return 0
+    done
+    return 1
+}
+
+# __dottod_claude_can_ask: 0 when a y/N question can be asked (an
+# interactive shell on a terminal); a seam for tests.
+__dottod_claude_can_ask() {
+    [[ $- == *i* ]] && [[ -t 0 ]]
+}
+
+# __dottod_claude_offer_new <continue|resume>: asks whether to start a
+# new conversation where there is none to continue or resume; 0 on y/Y.
+__dottod_claude_offer_new() {
+    local answer
+    printf 'claude: no conversation to %s in %s. Start a new one? [y/N] ' "${1:-continue}" "${PWD}" >&2
+    read -r answer || return 1
+    [[ "${answer}" == y || "${answer}" == Y ]]
+}
+
 # claude: launch Claude Code under a profile. -P/--profile <name> selects
 # one for this invocation only (stripped before forwarding the rest).
 claude() {
@@ -598,5 +654,32 @@ claude() {
     done
     profile="$(__dottod_claude_pick_profile)" || return $?
     dir="$(__dottod_claude_ensure_profile "${profile}" quiet)" || return $?
+    # --continue / a bare --resume with nothing saved here: offer a new
+    # conversation rather than Claude Code's bare "No conversation found".
+    # Without a terminal to ask on, the arguments go through untouched.
+    local session
+    if session="$(__dottod_claude_session_flag "${args[@]}")" &&
+        ! __dottod_claude_has_conversation "${dir}" &&
+        __dottod_claude_can_ask; then
+        __dottod_claude_offer_new "${session}" || return 1
+        local -a kept=()
+        local i n=${#args[@]} dashdash=0
+        for ((i = 0; i < n; i++)); do
+            if ((dashdash == 0)); then
+                case "${args[i]}" in
+                    --) dashdash=1 ;;
+                    -c | --continue) continue ;;
+                    -r | --resume)
+                        # Only a bare one: -r <id> stays as typed.
+                        if ((i + 1 == n)) || [[ "${args[i + 1]}" == -* ]]; then
+                            continue
+                        fi
+                        ;;
+                esac
+            fi
+            kept+=("${args[i]}")
+        done
+        args=("${kept[@]}")
+    fi
     CLAUDE_CONFIG_DIR="${dir}" command claude "${args[@]}"
 }
