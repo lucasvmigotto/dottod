@@ -98,3 +98,17 @@ setup() {
     assert_contains 'fallback warns' 'unknown DOT_PROMPT_STYLE' "$output"
     assert_contains 'fallback renders default' '➜' "$output"
 }
+
+@test "reloading with another DOT_PROMPT_STYLE switches styles, never stacks them" {
+    # Regression: each style prepended its hook and nothing removed the old
+    # one, so `reload` after changing the style kept the previous prompt.
+    local ihome="$BATS_TEST_TMPDIR/ihome-switch"
+    mkdir -p "$ihome"
+    run env HOME="$ihome" DOT_NO_UPDATE_CHECK=1 bash -i -c "
+        PROMPT_COMMAND='history -a'
+        for s in powerline kali robbyrussell; do
+            DOT_PROMPT_STYLE=\$s; source '$REPO_ROOT/config/.custom.bashrc' >/dev/null 2>&1
+        done
+        printf '%s' \"\$PROMPT_COMMAND\"" 2>/dev/null
+    assert_eq 'only the last style, user entry kept' '__dottod_prompt;history -a' "${output##*$'\n'}"
+}

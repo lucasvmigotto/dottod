@@ -33,6 +33,16 @@ if [[ -n "${BASH_SOURCE[0]:-}" ]] && command -v readlink >/dev/null 2>&1; then
             _dottod_style="robbyrussell"
             ;;
     esac
+    # Drop any dottod prompt hook a previous load registered, so `reload`
+    # with a new DOT_PROMPT_STYLE switches styles instead of stacking them
+    # (the last hook to run would otherwise keep owning PS1).
+    _dottod_pc=";${PROMPT_COMMAND:-};"
+    for _dottod_hook in __dottod_prompt_powerline __dottod_prompt_kali __dottod_prompt; do
+        _dottod_pc="${_dottod_pc//;${_dottod_hook};/;}"
+    done
+    _dottod_pc="${_dottod_pc#;}"
+    PROMPT_COMMAND="${_dottod_pc%;}"
+    unset _dottod_pc _dottod_hook
     # shellcheck disable=SC1090 # resolved relative to this file
     [[ -f "${_dottod_root}/styles/prompt-${_dottod_style}.sh" ]] && source "${_dottod_root}/styles/prompt-${_dottod_style}.sh"
     unset _dottod_style _dottod_root
