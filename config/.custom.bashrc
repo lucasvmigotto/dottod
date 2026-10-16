@@ -167,35 +167,85 @@ up() {
     cd "${path:-.}" || return
 }
 
-# extract: unpack almost any archive
+# extract: unpack almost any archive. With pv installed, tar archives and
+# single-file .gz/.bz2/.xz/.zst stream through it for a progress bar
+# (same results: the single-file ones still replace the compressed file);
+# zip, rar and 7z read their archive directly and print their own output.
 extract() {
     if [[ $# -eq 0 ]]; then
         echo "usage: extract <file>..." >&2
         return 1
     fi
-    local f
+    local f rc=0 bar=0
+    command -v pv >/dev/null 2>&1 && bar=1
     for f in "$@"; do
         if [[ ! -f $f ]]; then
             echo "extract: '$f' is not a file" >&2
+            rc=1
             continue
         fi
+        if ((bar)); then
+            case "${f,,}" in
+                *.tar.bz2 | *.tbz2) __dottod_extract_pv "$f" '' bzip2 -dc || rc=1 ;;
+                *.tar.gz | *.tgz) __dottod_extract_pv "$f" '' gzip -dc || rc=1 ;;
+                *.tar.xz | *.txz) __dottod_extract_pv "$f" '' xz -dc || rc=1 ;;
+                *.tar.zst | *.tzst) __dottod_extract_pv "$f" '' zstd -qdc || rc=1 ;;
+                *.tar) __dottod_extract_pv "$f" '' cat || rc=1 ;;
+                *.bz2) __dottod_extract_pv "$f" "${f%.*}" bzip2 -dc || rc=1 ;;
+                *.gz) __dottod_extract_pv "$f" "${f%.*}" gzip -dc || rc=1 ;;
+                *.xz) __dottod_extract_pv "$f" "${f%.*}" xz -dc || rc=1 ;;
+                *.zst) __dottod_extract_pv "$f" "${f%.*}" zstd -qdc || rc=1 ;;
+                *) bar=2 ;;
+            esac
+            ((bar == 2)) || continue
+            bar=1
+        fi
         case "${f,,}" in
-            *.tar.bz2 | *.tbz2) tar xjf "$f" ;;
-            *.tar.gz | *.tgz) tar xzf "$f" ;;
-            *.tar.xz | *.txz) tar xJf "$f" ;;
-            *.tar.zst) tar --zstd -xf "$f" ;;
-            *.tar) tar xf "$f" ;;
-            *.bz2) bunzip2 "$f" ;;
-            *.gz) gunzip "$f" ;;
-            *.xz) unxz "$f" ;;
-            *.zip | *.jar) unzip "$f" ;;
-            *.rar) unrar x "$f" ;;
-            *.7z) 7z x "$f" ;;
-            *.zst) unzstd "$f" ;;
-            *.z) uncompress "$f" ;;
-            *) echo "extract: unknown archive type '$f'" >&2 ;;
+            *.tar.bz2 | *.tbz2) tar xjf "$f" || rc=1 ;;
+            *.tar.gz | *.tgz) tar xzf "$f" || rc=1 ;;
+            *.tar.xz | *.txz) tar xJf "$f" || rc=1 ;;
+            *.tar.zst | *.tzst) tar --zstd -xf "$f" || rc=1 ;;
+            *.tar) tar xf "$f" || rc=1 ;;
+            *.bz2) bunzip2 "$f" || rc=1 ;;
+            *.gz) gunzip "$f" || rc=1 ;;
+            *.xz) unxz "$f" || rc=1 ;;
+            *.zip | *.jar) unzip "$f" || rc=1 ;;
+            *.rar) unrar x "$f" || rc=1 ;;
+            *.7z) 7z x "$f" || rc=1 ;;
+            *.zst) unzstd "$f" || rc=1 ;;
+            *.z) uncompress "$f" || rc=1 ;;
+            *)
+                echo "extract: unknown archive type '$f'" >&2
+                rc=1
+                ;;
         esac
     done
+    return "${rc}"
+}
+
+# __dottod_extract_pv <file> <out|''> <decompressor...>: <file> through pv
+# and the decompressor, into tar (no <out>) or into <out>, which must not
+# exist yet; the compressed file goes only once <out> is complete.
+__dottod_extract_pv() {
+    local f=$1 out=$2
+    shift 2
+    if [[ -n $out && -e $out ]]; then
+        echo "extract: '$out' already exists" >&2
+        return 1
+    fi
+    if [[ -z $out ]]; then
+        pv -N "${f##*/}" -- "$f" | "$@" | tar xf -
+    else
+        pv -N "${f##*/}" -- "$f" | "$@" >"$out"
+    fi
+    local st=("${PIPESTATUS[@]}") s
+    for s in "${st[@]}"; do
+        ((s == 0)) && continue
+        echo "extract: '$f' failed" >&2
+        [[ -n $out ]] && rm -f -- "$out"
+        return 1
+    done
+    [[ -z $out ]] || rm -f -- "$f"
 }
 
 # bak: quick timestamped backup of a file/dir
