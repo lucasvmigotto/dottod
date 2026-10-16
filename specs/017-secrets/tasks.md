@@ -34,3 +34,13 @@ ShellCheck/shfmt clean, each commit passing on its own).
 **Milestone S1 — this machine:** ✅ 2026-10-15. you create the key and run `pass init`,
 `./bin/bootstrap.sh --only secrets`, then `podman login docker.io` and
 `podman login dhi.io` (tokens typed by you); a `dhi.io` pull works.
+
+## Phase 5 — secrets in commands (`feat/pass-env`)
+- [x] T177 `scripts/pass-run.sh` (linked as `~/.local/bin/pass-run`):
+  `VAR=store/path … -- command`, values only in the command's environment,
+  first line, path/name validation, never printed.
+- [x] T178 `loadenv` reads `.env` as data (no eval), resolves `pass:`
+  values, all-or-nothing, reports names only.
+- [x] T179 Guide `docs/secret-commands.md` + site page (both locales),
+  with the Azure DevOps CLI example. Claude Code guardrails are out of
+  scope here: they belong in the ai-gent repository.
