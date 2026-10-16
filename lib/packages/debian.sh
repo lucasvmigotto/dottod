@@ -14,7 +14,7 @@ function _pkgmap_debian() {
         fastfetch) _pkgmap_debian_fastfetch ;;
         bash | bat | bats | btop | chafa | curl | fontconfig | fzf | gh | git | \
             gnupg | httpie | jq | just | lsof | neovim | pass | podman | \
-            python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
+            pv | python3 | shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1}"
             ;;
         *) return 1 ;;

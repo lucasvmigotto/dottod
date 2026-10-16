@@ -37,7 +37,7 @@
 readonly DOT_PKG_LOGICAL=(
     bash bat bats btop ca_certificates chafa curl cxx_runtime fastfetch fontconfig fzf gh
     git gnupg httpie jq just lsof neovim openssh_client pass pass_credential_helper
-    podman podman_rootless python3 shellcheck shfmt tar unzip vim xclip
+    podman podman_rootless pv python3 shellcheck shfmt tar unzip vim xclip
 )
 
 # _pkg_ready: detect once per process and require the manager.

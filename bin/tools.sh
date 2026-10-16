@@ -98,7 +98,7 @@ function _tools_alias() {
 }
 
 # The core tools by command name (bat may be batcat on Debian).
-readonly DOT_TOOLS_CORE=(btop xclip bat jq curl tar lsof fzf shellcheck bats shfmt just)
+readonly DOT_TOOLS_CORE=(btop xclip bat jq curl tar lsof fzf pv shellcheck bats shfmt just)
 
 function _tools_status() {
     local tool missing=() present=0
@@ -161,7 +161,7 @@ function _main() {
     _extras_validate
 
     log_step 'Installing CLI tools (native packages)'
-    _install_packages btop xclip bat jq curl tar ca_certificates lsof fzf shellcheck bats shfmt just
+    _install_packages btop xclip bat jq curl tar ca_certificates lsof fzf pv shellcheck bats shfmt just
 
     # Debian renames bat and fd (batcat, fdfind); other distros don't.
     # Link the missing spelling so both names work everywhere.

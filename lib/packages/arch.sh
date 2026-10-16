@@ -14,7 +14,7 @@ function _pkgmap_arch() {
         pass_credential_helper) printf -- '-' ;;
         cxx_runtime) printf 'gcc-libs' ;;
         bash | bat | bats | btop | ca_certificates | chafa | curl | fastfetch | fontconfig | fzf | \
-            git | gnupg | httpie | jq | just | lsof | neovim | pass | podman | \
+            git | gnupg | httpie | jq | just | lsof | neovim | pass | podman | pv | \
             shellcheck | shfmt | tar | unzip | vim | xclip)
             printf '%s' "${1//_/-}"
             ;;

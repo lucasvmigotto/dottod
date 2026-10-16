@@ -8,10 +8,10 @@
 # failures (warnings still exit 0).
 #
 # Config (environment variables):
-#   DOT_DOCTOR_TOOLS   space-separated tool list (default: git curl fzf rg
+#   DOT_DOCTOR_TOOLS   space-separated tool list (default: git curl fzf pv rg
 #                      jq python3 shellcheck bats shfmt just)
 
-_DOTTOD_DOCTOR_TOOLS_DEFAULT="git curl fzf rg jq python3 shellcheck bats shfmt just"
+_DOTTOD_DOCTOR_TOOLS_DEFAULT="git curl fzf pv rg jq python3 shellcheck bats shfmt just"
 
 __dottod_doc_tally_ok=0
 __dottod_doc_tally_warn=0
