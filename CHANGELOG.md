@@ -5,6 +5,32 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.1.0 — 2026-10-16
+
+### Added
+
+- **fetch:** draw the card with fastfetch; fastfetch as a tools extra
+- **codes:** work/personal context column and filters
+- **shell:** gwork clone/set/unset for the work identity
+- **gitconfig:** work identity as data, GIT_GLOBAL_IDENTITY=0 opt-out
+- **scripts:** dottod-fetch card of what dottod sees on a system
+- **secrets:** link pass-run onto PATH
+- **scripts:** pass-run gives one command secrets from pass
+- **dev:** loadenv reads .env as data and resolves pass: values
+- **doctor:** report the pass store and plaintext registry credentials
+- **secrets:** opt-in pass task with container registry logins through it
+- **bootstrap:** opt-in tasks run only when --only names them
+- **lib:** map pass and the docker credential helper per distro
+- **site:** icon support matrix with tooltips on the Distributions page
+
+### Fixed
+
+- **packages:** fastfetch only where Debian and Ubuntu package it
+- **prompt:** lighter powerline status block
+- **prompt:** powerline closing arrow visible on the left
+- **prompt:** powerline right side as filled blocks
+- **shell:** switching DOT_PROMPT_STYLE on reload replaces the prompt instead of stacking
+
 ## 2.0.0 — 2026-10-15
 
 ### Added
