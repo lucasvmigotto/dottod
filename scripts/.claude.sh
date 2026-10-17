@@ -100,7 +100,9 @@ __dottod_claude_ensure_profile() {
                 ln -s -- "${src}" "${dir}/${entry}" || printf 'claude: cannot link %s\n' "${entry}" >&2
                 continue
             fi
-            [[ -n "${quiet}" ]] || printf 'claude: keeping existing %s (run claude-profile consolidate to share it)\n' "${dir}/${entry}" >&2
+            # Never quiet: a private copy splits the history between profiles
+            # (Claude Code recreates a real dir whenever the link goes missing).
+            printf 'claude: %s is a private copy, not shared (run claude-profile init)\n' "${dir}/${entry}" >&2
             continue
         fi
         # Create the store entry up front: Claude Code would otherwise write

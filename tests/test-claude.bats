@@ -566,6 +566,15 @@ STUBEOF
     [[ ! -e "$h/.claude/projects/p/s.jsonl.from-a" ]]
 }
 
+@test "launch warns about a private copy even when quiet" {
+    seed_store
+    mkdir -p "$FAKE_HOME/.claude-work/projects"
+    printf 'work\n' >"$FAKE_HOME/.claude-work/.dottod-profile"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1; CLAUDE_PROFILE=work claude -c 2>&1"
+    assert_eq 'launch rc 0' '0' "$status"
+    assert_contains 'split reported' 'private copy, not shared (run claude-profile init)' "$output"
+}
+
 # continue_probe <answer> <args...>: claude in a project dir, as if on a
 # terminal (the can_ask seam), answering the y/N question with <answer>.
 continue_probe() {
