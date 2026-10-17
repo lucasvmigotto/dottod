@@ -575,6 +575,47 @@ STUBEOF
     assert_contains 'split reported' 'private copy, not shared (run claude-profile init)' "$output"
 }
 
+@test "init repairs split profiles, links them and seeds the memory once" {
+    local h="$FAKE_HOME" mem
+    mkdir -p "$h/.claude/projects/p" "$h/.claude-a/projects/p" "$h/.claude-b"
+    printf 'a\n' >"$h/.claude-a/.dottod-profile"
+    printf 'b\n' >"$h/.claude-b/.dottod-profile"
+    printf 'one' >"$h/.claude-a/projects/p/s1.jsonl"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile init; claude-profile init"
+    assert_eq 'init rc 0' '0' "$status"
+    assert_eq 'a merged' 'one' "$(cat "$h/.claude/projects/p/s1.jsonl")"
+    assert_eq 'a linked' "$h/.claude/projects" "$(readlink "$h/.claude-a/projects")"
+    assert_eq 'b linked' "$h/.claude/projects" "$(readlink "$h/.claude-b/projects")"
+    mem="$h/.claude/projects/${h//[^A-Za-z0-9]/-}/memory"
+    assert_contains 'note written' 'claude-profile init' "$(cat "$mem/claude-profiles.md")"
+    assert_eq 'indexed once' '1' "$(grep -c 'claude-profiles.md' "$mem/MEMORY.md")"
+}
+
+@test "init keeps an edited memory note" {
+    local mem="$FAKE_HOME/.claude/projects/${FAKE_HOME//[^A-Za-z0-9]/-}/memory"
+    mkdir -p "$mem"
+    printf 'mine' >"$mem/claude-profiles.md"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile init"
+    assert_eq 'init rc 0' '0' "$status"
+    assert_eq 'note untouched' 'mine' "$(cat "$mem/claude-profiles.md")"
+}
+
+@test "init refuses a split profile in use and leaves it alone" {
+    mkdir -p "$FAKE_HOME/.claude-a/projects"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid() { printf 42; }; claude-profile init"
+    assert_eq 'refused' '1' "$status"
+    assert_contains 'says why' 'split but in use by claude (pid 42)' "$output"
+    [[ -d "$FAKE_HOME/.claude-a/projects" && ! -L "$FAKE_HOME/.claude-a/projects" ]]
+}
+
+@test "init leaves a healthy profile in use alone" {
+    mkdir -p "$FAKE_HOME/.claude-a"
+    printf 'a\n' >"$FAKE_HOME/.claude-a/.dottod-profile"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_live_pid() { printf 42; }; claude-profile init"
+    assert_eq 'init rc 0' '0' "$status"
+}
+
 # continue_probe <answer> <args...>: claude in a project dir, as if on a
 # terminal (the can_ask seam), answering the y/N question with <answer>.
 continue_probe() {

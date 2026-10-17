@@ -524,6 +524,9 @@ claude-profile() {
             }
             printf 'claude profile renamed: %s -> %s\n' "${old}" "${new}"
             ;;
+        init)
+            __dottod_claude_init
+            ;;
         consolidate | sync)
             local force="" n rc=0
             local -a names=()
@@ -545,7 +548,8 @@ claude-profile() {
             return "${rc}"
             ;;
         -h | --help | help)
-            printf '%s\n' "usage: claude-profile add <name> | ls | consolidate [--force] [name...] | rename <old> <new> | rm [--force] <name>"
+            printf '%s\n' "usage: claude-profile add <name> | ls | init | consolidate [--force] [name...] | rename <old> <new> | rm [--force] <name>"
+            printf '%s\n' "init builds every profile, repairs split ones not in use and seeds the profiles memory note."
             printf '%s\n' "consolidate folds a profile's private history/projects/plugins into the shared store."
             printf '%s\n' "consolidate/rename/rm refuse while a claude session is using the profile."
             ;;
@@ -556,18 +560,91 @@ claude-profile() {
     esac
 }
 
-# claude-profiles-init: builds every discovered profile (plus the default
-# when none exists yet).
-claude-profiles-init() {
-    local n found=0
-    while IFS= read -r n; do
-        found=1
-        __dottod_claude_ensure_profile "${n}" >/dev/null || return 1
-    done < <(__dottod_claude_profiles)
-    if ((found == 0)); then
-        __dottod_claude_ensure_profile "${CLAUDE_DEFAULT_PROFILE:-personal}" >/dev/null || return 1
+# __dottod_claude_seed_memory: writes the profile-layout note into the
+# home directory's memory in the store (Claude Code's projects/<$HOME,
+# non-alphanumerics as '-'>/memory), so a session started in ~ knows how
+# profiles share history and how to repair a split. Never overwrites the
+# note; indexes it in MEMORY.md once.
+__dottod_claude_seed_memory() {
+    local mem note index
+    mem="${HOME}/.claude/projects/${HOME//[^A-Za-z0-9]/-}/memory"
+    note="${mem}/claude-profiles.md"
+    index="${mem}/MEMORY.md"
+    mkdir -p -- "${mem}" || return 1
+    if [[ ! -e "${note}" ]]; then
+        cat >"${note}" <<'EOF' || return 1
+---
+name: claude-profiles
+description: dottod Claude profiles — ~/.claude-<name> overlays share history through symlinks into ~/.claude; how to repair a split
+metadata:
+  type: reference
+---
+
+dottod runs Claude Code under named profiles: each `~/.claude-<name>` overlay (marked by `.dottod-profile`, picked through `CLAUDE_CONFIG_DIR`) keeps its own login, settings, `.claude.json`, `backups/`, `sessions/` and `session-env/`, and symlinks everything else — `projects`, `history.jsonl`, `file-history`, `plans`, `plugins`, `skills`, `shell-snapshots`, `paste-cache`, `cache`, `downloads` — to the shared store `~/.claude/`.
+
+A split happens when one of those links goes missing while a session runs: Claude Code then recreates a real directory in the overlay and that profile's transcripts and memory stop reaching the others. Symptom: `claude: … is a private copy, not shared` at launch, or a session missing from the other profiles.
+
+**How to apply:** to check, `find ~/.claude-* -maxdepth 1 -mindepth 1 ! -type l`; only the per-profile entries above should be listed. To repair, close the profile's sessions and run `claude-profile init` (or `claude-profile consolidate <name>`): it moves the private files into the store, appends the missing lines of a transcript resumed in both places, keeps other differing files as `<file>.from-<name>`, and puts the link back. Never edit the store while a session of the affected profile is running.
+EOF
     fi
-    printf 'claude profiles ready (shared store %s/.claude)\n' "${HOME}"
+    grep -qsF '(claude-profiles.md)' -- "${index}" ||
+        printf '%s\n' '- [Claude profiles](claude-profiles.md) — overlays symlink shared history into ~/.claude; repair a split with claude-profile init' >>"${index}"
+}
+
+# __dottod_claude_init: builds every discovered profile (plus the default
+# when none exists yet), consolidates every split one not in use, and seeds
+# the profile-layout memory. Fails when a profile is left split.
+__dottod_claude_init() {
+    local n rc=0 live
+    local -a names=()
+    mapfile -t names < <(__dottod_claude_profiles)
+    ((${#names[@]} > 0)) || names=("${CLAUDE_DEFAULT_PROFILE:-personal}")
+    for n in "${names[@]}"; do
+        # A split profile in use is left untouched: building it would move
+        # its private copy into the store under a running session.
+        if __dottod_claude_split "${n}" >/dev/null; then
+            live="$(__dottod_claude_live_pid "$(__dottod_claude_profile_dir "${n}")")"
+            if [[ -n "${live}" ]]; then
+                printf 'claude-profile: %s is split but in use by claude (pid %s); close it and run init again\n' "${n}" "${live}" >&2
+                rc=1
+                continue
+            fi
+        fi
+        __dottod_claude_ensure_profile "${n}" quiet >/dev/null 2>&1 || {
+            printf 'claude-profile: cannot build %s\n' "${n}" >&2
+            rc=1
+            continue
+        }
+        if __dottod_claude_split "${n}" >/dev/null; then
+            __dottod_claude_consolidate "${n}" || rc=1
+        fi
+    done
+    __dottod_claude_seed_memory || {
+        echo 'claude-profile: cannot write the profiles memory' >&2
+        rc=1
+    }
+    ((rc == 0)) && printf 'claude profiles ready (shared store %s/.claude)\n' "${HOME}"
+    return "${rc}"
+}
+
+# __dottod_claude_split <name>: prints the shared entries the overlay holds
+# as real files/dirs instead of links; rc 1 when there are none.
+__dottod_claude_split() {
+    local dir entry found=1
+    dir="$(__dottod_claude_profile_dir "${1:?profile required}")" || return 1
+    # shellcheck disable=SC2086 # intentional word splitting on the entry list
+    for entry in ${__DOTTOD_CLAUDE_SHARED}; do
+        if [[ -e "${dir}/${entry}" && ! -L "${dir}/${entry}" ]]; then
+            printf '%s\n' "${entry}"
+            found=0
+        fi
+    done
+    return "${found}"
+}
+
+# claude-profiles-init: kept for older setups; same as claude-profile init.
+claude-profiles-init() {
+    __dottod_claude_init
 }
 
 # __dottod_claude_session_flag <args...>: prints "continue" for

@@ -884,7 +884,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Launch with a profile",
-            code: "claude              # pick from all profiles\nclaude -P work      # one profile for this run\nclaude-profile add extra  # new overlay",
+            code: "claude              # pick from all profiles\nclaude -P work      # one profile for this run\nclaude-profile add extra  # new overlay\nclaude-profile init       # repair profiles whose history split from the store",
           },
         ],
       },

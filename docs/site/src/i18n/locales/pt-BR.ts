@@ -885,7 +885,7 @@ const pages: Record<PageId, DocPage> = {
             kind: "code",
             lang: "bash",
             caption: "Iniciar com um perfil",
-            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay",
+            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay\nclaude-profile init       # repara perfis cujo histórico se separou do armazenamento",
           },
         ],
       },
