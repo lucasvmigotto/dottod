@@ -5,6 +5,17 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.6.0 — 2026-10-17
+
+### Added
+
+- **claude:** add claude-profile init with a seeded profiles memory
+
+### Fixed
+
+- **claude:** warn about a private shared-entry copy on every launch
+- **claude:** append a split transcript's missing lines on consolidate
+
 ## 2.5.0 — 2026-10-16
 
 ### Added
