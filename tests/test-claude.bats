@@ -554,6 +554,18 @@ STUBEOF
     [[ -d "$FAKE_HOME/.claude-a/projects" && ! -L "$FAKE_HOME/.claude-a/projects" ]]
 }
 
+@test "consolidate appends a transcript resumed in both places" {
+    local h="$FAKE_HOME"
+    mkdir -p "$h/.claude/projects/p" "$h/.claude-a/projects/p"
+    printf 'a\n' >"$h/.claude-a/.dottod-profile"
+    printf '1\n2\n' >"$h/.claude/projects/p/s.jsonl"
+    printf '2\n3\n4\n' >"$h/.claude-a/projects/p/s.jsonl"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile consolidate a"
+    assert_eq 'consolidate rc 0' '0' "$status"
+    assert_eq 'missing lines appended in order' '1234' "$(tr -d '\n' <"$h/.claude/projects/p/s.jsonl")"
+    [[ ! -e "$h/.claude/projects/p/s.jsonl.from-a" ]]
+}
+
 # continue_probe <answer> <args...>: claude in a project dir, as if on a
 # terminal (the can_ask seam), answering the y/N question with <answer>.
 continue_probe() {

@@ -294,8 +294,10 @@ __dottod_claude_pick_profile() {
 
 # __dottod_claude_merge_dir <from> <into> <tag>: moves every file of <from>
 # into <into>, keeping relative paths. Moves (not copies) so files open in a
-# live session keep their inode. Identical duplicates are dropped; differing
-# ones land beside the store's copy as <file>.from-<tag>. Removes <from>.
+# live session keep their inode. Identical duplicates are dropped; a
+# differing .jsonl transcript (a session resumed in both places) gets the
+# lines it lacks appended, in order; other differing files land beside the
+# store's copy as <file>.from-<tag>. Removes <from>.
 __dottod_claude_merge_dir() {
     local from="${1:?from required}" into="${2:?into required}" tag="${3:?tag required}" f rel t
     mkdir -p -- "${into}" || return 1
@@ -306,6 +308,12 @@ __dottod_claude_merge_dir() {
         if [[ ! -e "${t}" && ! -L "${t}" ]]; then
             mv -- "${f}" "${t}" || return 1
         elif cmp -s -- "${f}" "${t}"; then
+            rm -f -- "${f}"
+        elif [[ "${t}" == *.jsonl && -f "${t}" ]]; then
+            [[ -z "$(tail -c 1 -- "${t}")" ]] || printf '\n' >>"${t}"
+            # awk reads all of ${t} before the first line of ${f} is written.
+            # shellcheck disable=SC2094
+            awk 'NR == FNR { seen[$0] = 1; next } !($0 in seen)' "${t}" "${f}" >>"${t}" || return 1
             rm -f -- "${f}"
         else
             mv -- "${f}" "${t}.from-${tag}" || return 1
