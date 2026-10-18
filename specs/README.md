@@ -29,6 +29,7 @@ removed), desktop and vscode tasks removed, zed added, TUI removed
 | 019 | progress bars (`pv` + shortcuts) | P2 | 011 | Implemented |
 | 020 | Claude sessions: continue or start, `codes` marks | P2 | 016 | Implemented |
 | 021 | `claude-mv`: move a directory with its Claude sessions | P2 | 020 | Implemented |
+| 022 | hardening: prompt speed, userland CI, Claude Code guard | P1 | 018, 020, 021 | Planned |
 
 Removed: 006 desktop (GNOME settings), 007 vscode (replaced by zed),
 012 interactive runner (TUI; `bootstrap.sh` is the only interface).
