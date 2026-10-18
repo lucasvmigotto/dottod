@@ -3,11 +3,11 @@
 # and shfmt; for `just` itself, on any supported distro, run once:
 #   bash -c 'source bin/utils.sh && _install_packages just shellcheck bats shfmt'
 
-# Shell files, explicit (globs skip dotfiles): the one list every
-# syntax/lint/format recipe uses, mirroring .github/workflows/shell.yml.
-bashn_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/*.sh config/.custom.bashrc scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.gwork.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.claude-mv.sh scripts/.doctor.sh scripts/.containers.sh scripts/.progress.sh scripts/nvim-headless-check.sh tests/run.sh"
-lint_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/*.sh styles/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.gwork.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.claude-mv.sh scripts/.doctor.sh scripts/.containers.sh scripts/.progress.sh scripts/nvim-headless-check.sh config/.custom.bashrc tests/run.sh tests/test-*.bats tests/helpers.bash"
-fmt_files := "bin/*.sh lib/*.sh lib/packages/*.sh scripts/.alias.sh scripts/.bat.utils.sh scripts/.sys.utils.sh scripts/.xclip.utils.sh scripts/.container.utils.sh scripts/.codes.sh scripts/.gwork.sh scripts/.dev.utils.sh scripts/.wsl.sh scripts/.update.sh scripts/.claude.sh scripts/.claude-mv.sh scripts/.doctor.sh scripts/.containers.sh scripts/.progress.sh scripts/nvim-headless-check.sh styles/promptlib.sh styles/prompt-robbyrussell.sh styles/prompt-kali.sh styles/prompt-powerline.sh styles/segments.sh styles/prompt-pastel.sh styles/prompt-tokyonight.sh styles/prompt-gruvbox.sh styles/prompt-catppuccin.sh config/.custom.bashrc tests/run.sh scripts/test-release.sh"
+# Shell files, derived from git by tests/files.sh (dotfiles included): the
+# one list every syntax/lint/format recipe uses.
+bashn_files := `tests/files.sh syntax | tr '\n' ' '`
+lint_files := `tests/files.sh lint | tr '\n' ' '`
+fmt_files := `tests/files.sh fmt | tr '\n' ' '`
 
 # Syntax + lint + format drift (the CI gate).
 check:

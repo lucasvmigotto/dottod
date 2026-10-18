@@ -9,6 +9,14 @@ _TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _failures=0
 _total=0
 
+# bats from PATH, else bunx, else a clear error (per suite, below).
+_bats=()
+if command -v bats >/dev/null 2>&1; then
+    _bats=(bats)
+elif command -v bunx >/dev/null 2>&1; then
+    _bats=(bunx bats@1.11.1)
+fi
+
 # Plain-bash suites are retired: every tests/test-*.sh must have a .bats
 # twin. Fail loudly instead of silently skipping, so a stray .sh suite
 # can never go unexecuted.
@@ -22,12 +30,12 @@ for t in "${_TEST_DIR}"/test-*.bats; do
     [[ -e "${t}" ]] || continue
     _total=$((_total + 1))
     printf '=== %s ===\n' "$(basename "${t}")"
-    if ! command -v bats >/dev/null 2>&1; then
-        printf -- '--- ERROR: %s needs `bats` (install it from your distro, or run: just tools)\n' "$(basename "${t}")"
+    if ((${#_bats[@]} == 0)); then
+        printf -- '--- ERROR: %s needs `bats` or `bunx` (install bats from your distro, or run: just tools)\n' "$(basename "${t}")"
         _failures=$((_failures + 1))
         continue
     fi
-    if bats "${t}"; then
+    if "${_bats[@]}" "${t}"; then
         printf -- '--- PASS: %s\n' "$(basename "${t}")"
     else
         printf -- '--- FAIL: %s\n' "$(basename "${t}")"
