@@ -53,7 +53,7 @@ git merge-base --is-ancestor origin/main develop ||
 [[ "${sha}" != "$(git rev-parse origin/main)" ]] || die 'nothing to promote: develop is main'
 
 # develop's runs for this exact commit: all completed, none failed. In
-# progress waits (up to PROMOTE_TIMEOUT); no run at all is a refusal.
+# progress or not yet registered waits (up to PROMOTE_TIMEOUT).
 runs_state() {
     "${GH}" run list --branch develop --limit 40 --json headSha,name,status,conclusion \
         --jq ".[] | select(.headSha == \"${sha}\") | [.name, .status, .conclusion] | @tsv"
@@ -61,7 +61,13 @@ runs_state() {
 deadline=$((SECONDS + TIMEOUT))
 while true; do
     state="$(runs_state)" || die 'cannot read the CI runs (gh)'
-    [[ -n "${state}" ]] || die "no CI run for ${sha:0:7} yet"
+    if [[ -z "${state}" ]]; then
+        # Just pushed: the runs register a few seconds late.
+        ((SECONDS < deadline)) || die "no CI run for ${sha:0:7}"
+        printf 'promote: waiting for CI runs to appear\n'
+        sleep "${POLL}"
+        continue
+    fi
     if bad="$(awk -F'\t' '$2 == "completed" && $3 != "success" && $3 != "skipped" { print $1 " (" $3 ")" }' <<<"${state}")" && [[ -n "${bad}" ]]; then
         die "CI is not green on develop: ${bad//$'\n'/, }"
     fi
