@@ -248,12 +248,23 @@ claude              # pick a profile (fzf) — defaults to personal headless
 claude -P work      # one profile for this invocation (--profile works too)
 claude-profile add extra   # new overlay (links shared store, own login)
 claude-profile ls          # profiles with login state
+claude-profile usage       # refresh and show every profile's 5h/7d usage
 claude-profile init        # build every profile, repair split ones, seed the profiles memory
 claude-profile consolidate # fold profiles' private history/projects into ~/.claude
 ```
 
 First run builds the overlay; a fresh profile asks for `/login`. Configure
 with `CLAUDE_PROFILE=<name>`, `CLAUDE_NO_PICKER=1`.
+
+Usage numbers come from Claude Code itself: opening the picker refreshes
+every logged-in profile whose numbers are older than five minutes, in the
+background, through `claude -p /usage` (runs locally — no model turn, no
+cost, no session saved). `ctrl-r` in the picker refreshes the highlighted
+profile now. Each bar shows when it resets: the time left (`in 4h 12m`),
+or the date when more than a day away. Settings are listed last, as
+indented JSON with every `env` value and anything token-, key- or
+secret-like masked. `CLAUDE_USAGE_REFRESH=0` turns the refresh off,
+`CLAUDE_USAGE_TTL` changes the five minutes.
 
 `claude -c` (`--continue`) or a bare `claude -r` (`--resume`) in a
 directory with no saved conversation asks `Start a new one? [y/N]` instead

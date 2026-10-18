@@ -879,13 +879,13 @@ const pages: Record<PageId, DocPage> = {
         blocks: [
           {
             kind: "p",
-            text: "O shell oferece perfis Claude Code nomeados (work, personal, …) sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada overlay ~/.claude-<nome> guarda seu próprio login, configurações e diretórios de identidade. claude escolhe o perfil (fzf), claude -P seleciona para a execução, claude-profile gerencia overlays. O painel lateral do seletor mostra conta, plano e uso 5h/7d com horários de reset de cada perfil. A primeira execução monta o overlay; um perfil novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis. claude -c (--continue) ou um claude -r (--resume) sem argumento onde nada foi salvo pergunta “Start a new one? [y/N]” em vez de parar em “No conversation found to continue”; y abre sem a flag, mantendo os outros argumentos.",
+            text: "O shell oferece perfis Claude Code nomeados (work, personal, …) sobre um armazenamento compartilhado: memória, skills, plugins e projetos ficam em ~/.claude, enquanto cada overlay ~/.claude-<nome> guarda seu próprio login, configurações e diretórios de identidade. claude escolhe o perfil (fzf), claude -P seleciona para a execução, claude-profile gerencia overlays. O painel lateral do seletor mostra conta, plano, uso 5h/7d (o tempo até cada reset, ou a data quando falta mais de um dia) e, por último, as configurações como JSON indentado com segredos mascarados. Abrir o seletor atualiza em segundo plano os números de uso desatualizados pelo próprio claude -p /usage do Claude Code (sem turno de modelo, sem custo); ctrl-r atualiza o perfil destacado, e claude-profile usage atualiza e mostra as barras de todos os perfis. CLAUDE_USAGE_REFRESH=0 desliga a atualização. A primeira execução monta o overlay; um perfil novo pede /login. Lance sempre pelo wrapper — um /login do claude puro escreve fora dos perfis. claude -c (--continue) ou um claude -r (--resume) sem argumento onde nada foi salvo pergunta “Start a new one? [y/N]” em vez de parar em “No conversation found to continue”; y abre sem a flag, mantendo os outros argumentos.",
           },
           {
             kind: "code",
             lang: "bash",
             caption: "Iniciar com um perfil",
-            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay\nclaude-profile init       # repara perfis cujo histórico se separou do armazenamento",
+            code: "claude              # escolhe entre os perfis\nclaude -P work      # um perfil para a execução\nclaude-profile add extra  # novo overlay\nclaude-profile usage      # atualiza e mostra o uso de cada perfil\nclaude-profile init       # repara perfis cujo histórico se separou do armazenamento",
           },
         ],
       },

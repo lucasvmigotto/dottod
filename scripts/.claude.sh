@@ -18,6 +18,8 @@
 #   CLAUDE_PROFILE         profile name (bypasses the picker)
 #   CLAUDE_DEFAULT_PROFILE fallback when no picker (default personal)
 #   CLAUDE_NO_PICKER       set (any value) to never show the picker
+#   CLAUDE_USAGE_REFRESH   0 = never refresh usage numbers in the background
+#   CLAUDE_USAGE_TTL       seconds before cached usage counts as stale (300)
 
 # Entries shared from ~/.claude into each overlay (symlinked when present).
 # Identity-bearing dirs stay OUT on purpose: backups/ (holds oauthAccount
@@ -155,10 +157,12 @@ __dottod_claude_bar() {
     printf '%s%s%s' "${color}" "${bar}" $'\e[0m'
 }
 
-# __dottod_claude_until <iso8601>: resets_at stamp as "today 20:00 (in 6h)".
-# Past stamps show "(any moment)"; unparseable stamps print raw.
+# __dottod_claude_until <iso8601>: a resets_at stamp as the time left
+# ("in 4h 12m", "in 35m") up to one day away, as the full date beyond
+# ("Sat 24 Oct 20:00"). Past stamps show "any moment"; unparseable stamps
+# print raw.
 __dottod_claude_until() {
-    local iso="${1:?stamp required}" now target diff h when mwhen
+    local iso="${1:?stamp required}" now target diff
     now="$(date +%s 2>/dev/null)" || {
         printf '%s' "${iso}"
         return 0
@@ -167,19 +171,16 @@ __dottod_claude_until() {
         printf '%s' "${iso}"
         return 0
     }
-    when="$(date -d "${iso}" +"%a %H:%M" 2>/dev/null || printf '%s' "${iso}")"
     diff=$((target - now))
     if ((diff <= 0)); then
-        mwhen="any moment"
+        printf 'any moment'
     elif ((diff < 3600)); then
-        mwhen="in $((diff / 60))m"
-    elif ((diff < 172800)); then
-        h=$((diff / 3600))
-        mwhen="in ${h}h"
+        printf 'in %dm' $((diff / 60))
+    elif ((diff <= 86400)); then
+        printf 'in %dh %dm' $((diff / 3600)) $((diff % 3600 / 60))
     else
-        mwhen="in $((diff / 86400))d"
+        date -d "${iso}" +'%a %d %b %H:%M' 2>/dev/null || printf '%s' "${iso}"
     fi
-    printf '%s (%s)' "${when}" "${mwhen}"
 }
 
 # __dottod_claude_ago <epoch_ms>: fetchedAtMs stamp as "updated 2h ago".
@@ -201,9 +202,11 @@ __dottod_claude_ago() {
 }
 
 # __dottod_claude_profile_info <dir>: prints a short account summary for the
-# fzf side panel — auth state, account, org, plan, preferences and usage
-# (5h/7d bars with reset times). Best effort: missing or unreadable files
-# degrade to fewer lines, never fail.
+# fzf side panel — auth state, account, org, plan, usage (5h/7d bars; the
+# clock-rotate glyph marks when each resets: the time left, or the date
+# when more than a day away) and, last, settings.json as indented, colored JSON with anything
+# secret-looking masked. Best effort: missing or unreadable files degrade
+# to fewer lines, never fail.
 __dottod_claude_profile_info() {
     local d="${1:?dir required}"
     if [[ -s "${d}/.credentials.json" ]]; then
@@ -227,26 +230,96 @@ __dottod_claude_profile_info() {
             "plan     \($c.subscriptionType // "n/a") · \($c.rateLimitTier // "n/a")"
         ' "${d}/.credentials.json" 2>/dev/null
     fi
+    __dottod_claude_usage_lines "${d}"
+    # Settings last, as written: every env value and any string under a
+    # token/key/secret/password/credential/auth-looking name is masked.
     if [[ -s "${d}/settings.json" ]]; then
-        jq -r '"prefs    " + (to_entries | map("\(.key)=\(.value)") | join(" "))' "${d}/settings.json" 2>/dev/null
+        printf '\nprefs\n'
+        jq -C '
+            walk(if type == "object" then with_entries(
+                if (.value | type) == "string"
+                    and (.key | test("token|secret|passw|api.?key|credential|auth|cookie"; "i"))
+                then .value = "•••" else . end) else . end)
+            | if (.env | type) == "object" then .env |= map_values("•••") else . end
+        ' "${d}/settings.json" 2>/dev/null | sed 's/^/  /'
     fi
-    if [[ -s "${d}/.claude.json" ]]; then
-        local five five_reset seven seven_reset fetched
-        five="$(jq -r '.cachedUsageUtilization.utilization.five_hour.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
-        five_reset="$(jq -r '.cachedUsageUtilization.utilization.five_hour.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
-        seven="$(jq -r '.cachedUsageUtilization.utilization.seven_day.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
-        seven_reset="$(jq -r '.cachedUsageUtilization.utilization.seven_day.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
-        fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // empty' "${d}/.claude.json" 2>/dev/null)"
-        if [[ "${five}" =~ ^[0-9]+$ && -n "${five_reset}" ]]; then
-            printf 'usage    5h %s %s%% \u00b7 resets %s\n' "$(__dottod_claude_bar "${five}")" "${five}" "$(__dottod_claude_until "${five_reset}")"
-        fi
-        if [[ "${seven}" =~ ^[0-9]+$ && -n "${seven_reset}" ]]; then
-            printf '         7d %s %s%% \u00b7 resets %s\n' "$(__dottod_claude_bar "${seven}")" "${seven}" "$(__dottod_claude_until "${seven_reset}")"
-        fi
-        if [[ -n "${fetched}" ]]; then
-            __dottod_claude_ago "${fetched}" && printf '\n'
-        fi
+}
+
+# __dottod_claude_usage_lines <dir>: the 5h/7d usage bars from the
+# profile's cached numbers (cachedUsageUtilization in .claude.json, which
+# Claude Code writes, and __dottod_claude_usage_refresh asks it to), and
+# how old they are. Nothing when there are none.
+__dottod_claude_usage_lines() {
+    local d="${1:?dir required}"
+    [[ -s "${d}/.claude.json" ]] && command -v jq >/dev/null 2>&1 || return 0
+    local five five_reset seven seven_reset fetched
+    five="$(jq -r '.cachedUsageUtilization.utilization.five_hour.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
+    five_reset="$(jq -r '.cachedUsageUtilization.utilization.five_hour.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
+    seven="$(jq -r '.cachedUsageUtilization.utilization.seven_day.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
+    seven_reset="$(jq -r '.cachedUsageUtilization.utilization.seven_day.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
+    fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // empty' "${d}/.claude.json" 2>/dev/null)"
+    # A window with nothing used yet has no reset time: the bar, no glyph.
+    if [[ "${five}" =~ ^[0-9]+$ ]]; then
+        printf 'usage    5h %s %3s%%' "$(__dottod_claude_bar "${five}")" "${five}"
+        [[ -z "${five_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${five_reset}")"
+        printf '\n'
     fi
+    if [[ "${seven}" =~ ^[0-9]+$ ]]; then
+        printf '         7d %s %3s%%' "$(__dottod_claude_bar "${seven}")" "${seven}"
+        [[ -z "${seven_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${seven_reset}")"
+        printf '\n'
+    fi
+    if [[ -n "${fetched}" ]]; then
+        __dottod_claude_ago "${fetched}" && printf '\n'
+    fi
+}
+
+# __dottod_claude_usage_stale <dir>: 0 when the profile is logged in and
+# its cached usage is missing or older than CLAUDE_USAGE_TTL seconds
+# (default 300).
+__dottod_claude_usage_stale() {
+    local d="${1:?dir required}" fetched now
+    [[ -s "${d}/.credentials.json" ]] || return 1
+    command -v jq >/dev/null 2>&1 || return 1
+    fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // 0' "${d}/.claude.json" 2>/dev/null)"
+    [[ "${fetched}" =~ ^[0-9]+$ ]] || fetched=0
+    now="$(date +%s)"
+    ((now - fetched / 1000 >= ${CLAUDE_USAGE_TTL:-300}))
+}
+
+# __dottod_claude_usage_refresh <dir>: asks Claude Code itself for fresh
+# numbers — `claude -p /usage` runs locally (no model turn, no cost) and
+# rewrites the cache — under a lock (one refresh per profile at a time; a
+# lock older than a minute is taken over) and a 30s timeout, from $HOME
+# with no session saved. Silent; rc 1 when it did not run or failed.
+__dottod_claude_usage_refresh() {
+    local d="${1:?dir required}" bin lock="${1}/.dottod-usage.lock" rc
+    bin="$(__dottod_claude_binary)" || return 1
+    if ! mkdir -- "${lock}" 2>/dev/null; then
+        [[ -n "$(find "${lock}" -maxdepth 0 -mmin +1 2>/dev/null)" ]] || return 1
+        rm -rf -- "${lock}"
+        mkdir -- "${lock}" 2>/dev/null || return 1
+    fi
+    (
+        cd -- "${HOME}" 2>/dev/null || exit 1
+        CLAUDE_CONFIG_DIR="${d}" timeout 30 "${bin}" -p /usage --no-session-persistence
+    ) </dev/null >/dev/null 2>&1
+    rc=$?
+    rmdir -- "${lock}" 2>/dev/null
+    return "${rc}"
+}
+
+# __dottod_claude_usage_spawn: refreshes every stale profile in the
+# background, detached (never waited on); CLAUDE_USAGE_REFRESH=0 turns it
+# off. The picker calls it as it opens.
+__dottod_claude_usage_spawn() {
+    [[ "${CLAUDE_USAGE_REFRESH:-1}" != 0 ]] || return 0
+    local n d
+    while IFS= read -r n; do
+        d="$(__dottod_claude_profile_dir "${n}")" || continue
+        __dottod_claude_usage_stale "${d}" || continue
+        (__dottod_claude_usage_refresh "${d}" &)
+    done < <(__dottod_claude_profiles)
 }
 
 # __dottod_claude_fzf: profile picker, prints the chosen name (fails on esc
@@ -259,10 +332,15 @@ __dottod_claude_fzf() {
     # callee of __dottod_claude_profile_info, or the picker logs
     # "command not found" for the bar/until/ago helpers.
     export -f __dottod_claude_profile_info __dottod_claude_bar \
-        __dottod_claude_until __dottod_claude_ago
+        __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines \
+        __dottod_claude_usage_refresh __dottod_claude_binary
+    # Stale numbers refresh in the background; moving the cursor (or
+    # ctrl-r, which refreshes the highlighted profile now) redraws them.
+    __dottod_claude_usage_spawn
     choice="$(printf '%s\n' "${names}" | fzf --prompt='profile> ' \
         --height=40% --layout=reverse --border \
-        --header='enter: launch   esc: cancel' \
+        --header='enter: launch   ctrl-r: refresh usage   esc: cancel' \
+        --bind='ctrl-r:execute-silent(bash -c '"'"'__dottod_claude_usage_refresh "$HOME/.claude-{}"'"'"')+refresh-preview' \
         --preview='bash -c '"'"'__dottod_claude_profile_info "$HOME/.claude-{}"'"'"'')" || return $?
     [[ -n "${choice}" ]] || return 130
     printf '%s' "${choice}"
@@ -547,8 +625,46 @@ claude-profile() {
             ((rc == 0)) && printf 'claude profiles consolidated into %s/.claude\n' "${HOME}"
             return "${rc}"
             ;;
+        usage)
+            # usage [name...]: refresh now (in parallel), then print the
+            # bars of the named profiles, or of all of them.
+            shift
+            local -a names=() pids=()
+            local n d first=1 pid
+            if (($# > 0)); then
+                names=("$@")
+            else
+                while IFS= read -r n; do names+=("${n}"); done < <(__dottod_claude_profiles)
+            fi
+            for n in "${names[@]}"; do
+                d="$(__dottod_claude_profile_dir "${n}")" || {
+                    echo "claude-profile: bad profile name ${n}" >&2
+                    return 2
+                }
+                [[ -f "${d}/${__DOTTOD_CLAUDE_MARKER}" ]] || {
+                    echo "claude-profile: not a profile: ${n}" >&2
+                    return 1
+                }
+                if [[ -s "${d}/.credentials.json" ]]; then
+                    __dottod_claude_usage_refresh "${d}" &
+                    pids+=($!)
+                fi
+            done
+            for pid in "${pids[@]}"; do wait "${pid}"; done
+            for n in "${names[@]}"; do
+                d="$(__dottod_claude_profile_dir "${n}")"
+                ((first)) || printf '\n'
+                first=0
+                printf '%s\n' "${n}"
+                if [[ ! -s "${d}/.credentials.json" ]]; then
+                    printf 'not authenticated — run and /login\n'
+                    continue
+                fi
+                __dottod_claude_usage_lines "${d}"
+            done
+            ;;
         -h | --help | help)
-            printf '%s\n' "usage: claude-profile add <name> | ls | init | consolidate [--force] [name...] | rename <old> <new> | rm [--force] <name>"
+            printf '%s\n' "usage: claude-profile add <name> | ls | usage [name...] | init | consolidate [--force] [name...] | rename <old> <new> | rm [--force] <name>"
             printf '%s\n' "init builds every profile, repairs split ones not in use and seeds the profiles memory note."
             printf '%s\n' "consolidate folds a profile's private history/projects/plugins into the shared store."
             printf '%s\n' "consolidate/rename/rm refuse while a claude session is using the profile."
