@@ -49,9 +49,9 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
 - [x] T197 [US7] Full suite green with no test edits beyond file paths.
 
 ## Phase 6 — pdd on a real block device (`ci/pdd-loop`)
-- [ ] T198 [US8] `tests/integration/pdd-loop.sh`: loop device, plain and `.xz`
+- [x] T198 [US8] `tests/integration/pdd-loop.sh`: loop device, plain and `.xz`
   images written and compared, mounted device refused.
-- [ ] T199 [US8] CI job on the Ubuntu runner (sudo, losetup).
+- [x] T199 [US8] CI job on the Ubuntu runner (sudo, losetup).
 
 ## Phase 7 — release guard (`feat/promote`)
 - [ ] T200 [US9] `scripts/promote.sh` / `just promote`: refuses unless develop
