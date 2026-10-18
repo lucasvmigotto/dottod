@@ -65,6 +65,23 @@ __dottod_mv_realpath() {
     printf '%s' "${p:-/}"
 }
 
+# __dottod_mv_prune <backups dir> <keep>: removes all but the newest <keep>
+# timestamped backups (YYYYMMDD-HHMMSS, so name order is age order); other
+# entries are left alone. A non-numeric or zero <keep> means the default, 5.
+__dottod_mv_prune() {
+    local dir="${1}" keep="${2}" d n=0
+    [[ "${keep}" =~ ^[0-9]+$ ]] && ((keep > 0)) || keep=5
+    local -a all=()
+    for d in "${dir}"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
+        [[ -d "${d}" ]] && all+=("${d}")
+    done
+    n=${#all[@]}
+    ((n > keep)) || return 0
+    for d in "${all[@]:0:n-keep}"; do
+        rm -rf -- "${d}"
+    done
+}
+
 # __dottod_mv_under <path> <dir>: 0 when path is dir or inside it.
 __dottod_mv_under() {
     [[ "${1}" == "${2}" || "${1}" == "${2}/"* ]]
@@ -513,6 +530,8 @@ EOF
         ' "${visits}" >"${visits}.claude-mv.$$" && mv -f -- "${visits}.claude-mv.$$" "${visits}"
     fi
     printf 'claude-mv: done — %s transcript line(s) repointed; backup in %s\n' "${total}" "${backup/#"${HOME}"/\~}"
+    __dottod_mv_prune "${backup%/*}" "${CLAUDE_MV_KEEP:-5}"
+    return 0
 }
 
 complete -o dirnames claude-mv 2>/dev/null

@@ -273,3 +273,30 @@ snapshot() {
     assert_eq 'forced dry run' '0' "$status"
     assert_contains 'goes on' '--force: going on anyway' "$output"
 }
+
+backups_count() {
+    local n=0 d
+    for d in "$1"/[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]-[0-9][0-9][0-9][0-9][0-9][0-9]; do
+        [[ -d "$d" ]] && n=$((n + 1))
+    done
+    printf '%s' "$n"
+}
+
+@test "backups: only the newest CLAUDE_MV_KEEP stay (default 5); strangers are left alone" {
+    local b="$HOME/.local/state/dottod/claude-mv" i
+    mkdir -p "$b/keep-me"
+    for i in 01 02 03 04 05 06 07; do mkdir -p "$b/202001$i-120000"; done
+    CLAUDE_MV_KEEP=3 run claude-mv "$P" "$N"
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'three timestamped remain' '3' "$(backups_count "$b")"
+    [[ -d "$b/keep-me" ]]
+    [[ ! -d "$b/20200101-120000" && -d "$b/20200107-120000" ]]
+}
+
+@test "backups: a bad CLAUDE_MV_KEEP falls back to 5" {
+    local b="$HOME/.local/state/dottod/claude-mv" i
+    for i in 01 02 03 04 05 06 07 08; do mkdir -p "$b/202001$i-120000"; done
+    CLAUDE_MV_KEEP=lots run claude-mv "$P" "$N"
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'five remain' '5' "$(backups_count "$b")"
+}

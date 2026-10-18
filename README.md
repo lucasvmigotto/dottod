@@ -280,7 +280,8 @@ It repoints, for the directory and every directory inside it, the
 the prompt history, every profile's `.claude.json` (and `~/.claude.json`)
 and the `codes` visit list — conversation text stays as written. It
 refuses while a Claude Code session works inside the directory, and
-copies everything it rewrites to `~/.local/state/dottod/claude-mv/` first.
+copies everything it rewrites to `~/.local/state/dottod/claude-mv/` first
+(the newest five backups are kept; `CLAUDE_MV_KEEP=N` changes that).
 
 These stores are Claude Code internals, not a documented interface, so
 `claude-mv` first checks they still look the way it expects (folder names
