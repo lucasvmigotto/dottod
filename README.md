@@ -266,6 +266,22 @@ indented JSON with every `env` value and anything token-, key- or
 secret-like masked. `CLAUDE_USAGE_REFRESH=0` turns the refresh off,
 `CLAUDE_USAGE_TTL` changes the five minutes.
 
+Moving a project directory would orphan its Claude sessions (they are
+filed by path). `claude-mv` moves it and brings them along:
+
+```bash
+claude-mv --dry-run ~/codes/app ~/work/app   # what would change
+claude-mv ~/codes/app ~/work/app             # mv + repoint the sessions
+claude-mv --fixup ~/codes/app ~/work/app     # already moved by hand
+```
+
+It repoints, for the directory and every directory inside it, the
+`projects/` folders (transcripts, memory), each transcript line's `cwd`,
+the prompt history, every profile's `.claude.json` (and `~/.claude.json`)
+and the `codes` visit list — conversation text stays as written. It
+refuses while a Claude Code session works inside the directory, and
+copies everything it rewrites to `~/.local/state/dottod/claude-mv/` first.
+
 `claude -c` (`--continue`) or a bare `claude -r` (`--resume`) in a
 directory with no saved conversation asks `Start a new one? [y/N]` instead
 of stopping at Claude Code's "No conversation found": `y` launches without
