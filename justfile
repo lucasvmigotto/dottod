@@ -74,3 +74,9 @@ tools:
     # dottod's own package layer: the distro's manager, the right names.
     # shellcheck disable=SC2086 # intentional word splitting on the tool list
     bash -c 'source bin/utils.sh && _install_packages "$@"' _ ${missing}
+
+# Promote develop to main and wait for the release (see README, Releasing).
+promote *args:
+    #!/usr/bin/env bash
+    set -Eeuo pipefail
+    ./scripts/promote.sh {{args}}

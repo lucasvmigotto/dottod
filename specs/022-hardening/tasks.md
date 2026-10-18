@@ -54,10 +54,10 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
 - [x] T199 [US8] CI job on the Ubuntu runner (sudo, losetup).
 
 ## Phase 7 — release guard (`feat/promote`)
-- [ ] T200 [US9] `scripts/promote.sh` / `just promote`: refuses unless develop
+- [x] T200 [US9] `scripts/promote.sh` / `just promote`: refuses unless develop
   contains origin/main, the tree is clean and develop's runs are green;
   promotes, waits for the release, fast-forwards develop.
-- [ ] T201 [US9] README "Releasing" section.
+- [x] T201 [US9] README "Releasing" section.
 
 ## Open milestone (not scheduled)
 - [ ] T202 G2: full bootstrap on a real Gentoo laptop (rootless Podman

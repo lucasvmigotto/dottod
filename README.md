@@ -93,6 +93,24 @@ Each release ships two assets:
 - `dottod-scripts-<v>.tar.gz` — bash scripts (`bin/` + `lib/` + `config/` + `scripts/`)
 - `dottod-<v>-sha256sums.txt` — SHA256 checksums (also embedded in the release notes)
 
+## Releasing
+
+Work lands on `develop` through `feat/…`, `fix/…` branches merged with
+`--no-ff`; a push to `main` cuts the release (`scripts/release.py` reads the
+conventional commits since the last tag). `just promote` does the promotion
+safely:
+
+```bash
+just promote --dry-run   # the checks only
+just promote             # push develop to main, wait for the release, fast-forward develop
+```
+
+It refuses unless you are on a clean, pushed `develop` that already contains
+`origin/main` (the bot's `chore(release)` commit lands there, so merge it
+back first) and every CI run on that commit is green; it waits for runs
+still in progress. Afterwards `develop` and the local `main` sit on the
+release commit. It needs `gh` logged in.
+
 ## Usage
 
 ### Bash bootstrap
