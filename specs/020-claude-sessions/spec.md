@@ -42,3 +42,21 @@ Implemented on `feat/claude-continue` (2026-10-16).
 - The projects/ folder naming is Claude Code's internal layout, not a
   documented interface: if it changes, the question may be asked where a
   conversation exists (y then starts a new one).
+
+### 2.7.0 addition: profile panel and usage refresh
+- The picker's panel marks each reset with a glyph (fa-clock_rotate_left)
+  and shows the time left up to a day away (`in 4h 12m`), the date beyond
+  (`Sat 24 Oct 20:00`); a window with nothing used yet shows 0% and no
+  reset. Settings come last, as indented colored JSON with every `env`
+  value and any token/key/secret/password/credential/auth/cookie-looking
+  string masked.
+- Usage numbers come from Claude Code: `claude -p /usage
+  --no-session-persistence` runs locally (0 turns, $0 — checked on
+  2.1.302) and rewrites `cachedUsageUtilization`. Opening the picker
+  refreshes logged-in profiles older than `CLAUDE_USAGE_TTL` (300 s) in
+  the background, detached, under a per-profile lock (taken over after a
+  minute) with a 30 s timeout, from `$HOME`; `ctrl-r` refreshes the
+  highlighted one; `claude-profile usage [name...]` refreshes in parallel
+  and prints the bars. `CLAUDE_USAGE_REFRESH=0` turns it off. `-p /usage`
+  is undocumented behavior: when it stops working, the cached numbers show
+  as before.

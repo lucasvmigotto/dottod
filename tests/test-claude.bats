@@ -12,14 +12,24 @@ setup() {
     export FAKE_HOME="$BATS_TEST_TMPDIR/home"
     export HOME="$FAKE_HOME"
     mkdir -p "$FAKE_HOME/.claude"
-    unset CLAUDE_PROFILE CLAUDE_DEFAULT_PROFILE CLAUDE_NO_PICKER CLAUDE_CONFIG_DIR
+    unset CLAUDE_PROFILE CLAUDE_DEFAULT_PROFILE CLAUDE_NO_PICKER CLAUDE_CONFIG_DIR CLAUDE_USAGE_TTL
+    # Usage refreshes start in the background when the picker opens; the
+    # tests that want them turn this back on.
+    export CLAUDE_USAGE_REFRESH=0
     export STUBBIN="$BATS_TEST_TMPDIR/bin"
     mkdir -p "$STUBBIN"
     export PATH="$STUBBIN:$PATH"
-    # Stub claude: records CLAUDE_CONFIG_DIR + args.
+    # Stub claude: records CLAUDE_CONFIG_DIR + args; `-p /usage` also
+    # records its cwd and writes fresh usage numbers into the profile, as
+    # Claude Code does (USAGE_STUB_FAIL=1: exits 1 without writing).
     cat >"$STUBBIN/claude" <<'STUBEOF'
 #!/usr/bin/env bash
 printf 'DIR=%s ARGS=%s\n' "${CLAUDE_CONFIG_DIR:-}" "$*" >>"${CALLS_LOG:?}"
+if [[ "$*" == '-p /usage --no-session-persistence' ]]; then
+    printf 'USAGE_CWD=%s\n' "$PWD" >>"${CALLS_LOG:?}"
+    [[ -z "${USAGE_STUB_FAIL:-}" ]] || exit 1
+    printf '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":42,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":7,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":%s000}}\n' "$(date +%s)" >"${CLAUDE_CONFIG_DIR}/.claude.json"
+fi
 STUBEOF
     chmod +x "$STUBBIN/claude"
     export CALLS_LOG="$BATS_TEST_TMPDIR/calls.log"
@@ -352,7 +362,26 @@ seed_store() {
     assert_contains 'email' 'x@y.org' "$output"
     assert_contains 'name' 'X Y' "$output"
     assert_contains 'plan' 'team' "$output"
-    assert_contains 'prefs' 'model=sonnet' "$output"
+    local plain
+    plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
+    assert_contains 'prefs as indented JSON' '    "model": "sonnet"' "$plain"
+    assert_eq 'prefs come last' '  }' "$(tail -n1 <<<"$plain")"
+}
+
+@test "profile prefs mask env values and secret-looking keys" {
+    local d="$FAKE_HOME/.claude-work"
+    mkdir -p "$d"
+    printf '%s\n' '{"model":"opus","env":{"ANTHROPIC_AUTH_TOKEN":"sk-live-1","DEBUG":"1"},"mcp":{"githubToken":"ghp_2","url":"https://x"}}' >"$d/settings.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    local plain
+    plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
+    assert_contains 'env masked' '"ANTHROPIC_AUTH_TOKEN": "•••"' "$plain"
+    assert_contains 'nested token masked' '"githubToken": "•••"' "$plain"
+    assert_contains 'plain values kept' '"url": "https://x"' "$plain"
+    if [[ "$plain" == *sk-live-1* || "$plain" == *ghp_2* ]]; then
+        printf 'FAIL: a secret value reached the panel\n' >&2
+        return 1
+    fi
 }
 
 @test "profile info shows usage bars with resets" {
@@ -365,7 +394,13 @@ seed_store() {
     assert_contains 'seven-day percent' '15%' "$output"
     assert_contains 'five-hour row' 'usage    5h' "$output"
     assert_contains 'seven-day row' '7d' "$output"
-    assert_contains 'reset labels' 'resets ' "$output"
+    assert_contains 'reset glyph' $'69%  \uf1da ' "$output"
+    # Both stamps are years away: full dates.
+    assert_match '7d reset far away: the date' $'7d .*\uf1da [A-Z][a-z]{2} [0-9]{2} [A-Z][a-z]{2} [0-9]{2}:[0-9]{2}$' "$(grep '7d' <<<"$output")"
+    if [[ "$output" == *resets* ]]; then
+        printf 'FAIL: the resets label is gone, the glyph replaces it\n' >&2
+        return 1
+    fi
     assert_contains 'staleness line' 'updated' "$output"
 }
 
@@ -395,19 +430,42 @@ seed_store() {
     assert_contains 'red at/above 80' '3   1   m' "$output"
 }
 
-@test "picker exports every preview helper" {
-    # fzf can't run hermetically, so assert the fix directly: the picker's
-    # export must cover all callees of __dottod_claude_profile_info, or the
-    # preview subshell logs "command not found" for bar/until/ago.
-    run bash -c "
-        source '$REPO_ROOT/scripts/.claude.sh'
-        declare -f __dottod_claude_fzf
-    "
-    assert_eq 'rc 0' '0' "$status"
-    assert_contains 'exports profile info' 'export -f __dottod_claude_profile_info' "$output"
-    assert_contains 'exports bar' '__dottod_claude_bar' "$output"
-    assert_contains 'exports until' '__dottod_claude_until' "$output"
-    assert_contains 'exports ago' '__dottod_claude_ago' "$output"
+@test "picker preview and ctrl-r run in a child shell with every helper" {
+    # A stub fzf runs the picker's real --preview and ctrl-r commands the
+    # way fzf does (a child bash, {} replaced by the quoted name), so a
+    # helper left unexported shows up as "command not found".
+    local d="$FAKE_HOME/.claude-work"
+    mkdir -p "$d"
+    printf 'work\n' >"$d/.dottod-profile"
+    printf 'tok' >"$d/.credentials.json"
+    cat >"$STUBBIN/fzf" <<'STUBEOF'
+#!/usr/bin/env bash
+name="$(head -n1)"
+for a in "$@"; do
+    case "$a" in
+        --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
+        --bind=ctrl-r:execute-silent\(*) cmd="${a#--bind=ctrl-r:execute-silent(}"; cmd="${cmd%)+refresh-preview}"
+            bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
+    esac
+done
+for a in "$@"; do
+    case "$a" in --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;; esac
+done
+printf '%s\n' "$name"
+STUBEOF
+    chmod +x "$STUBBIN/fzf"
+    export PREVIEW_LOG="$BATS_TEST_TMPDIR/preview.log"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_fzf"
+    assert_eq 'picked' 'work' "$output"
+    local log
+    log="$(cat "$PREVIEW_LOG")"
+    if [[ "$log" == *'command not found'* ]]; then
+        printf 'FAIL: a helper is missing in the child shell\n%s\n' "$log" >&2
+        return 1
+    fi
+    assert_contains 'ctrl-r refreshed the profile' "DIR=$d ARGS=-p /usage --no-session-persistence" "$(cat "$CALLS_LOG")"
+    assert_contains 'preview redrawn with the new numbers' '42%' "$log"
+    assert_contains 'fresh' 'updated just now' "$log"
 }
 
 @test "fzf cancel aborts the launch" {
@@ -446,12 +504,12 @@ STUBEOF
     printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
     run bash -c "
         source '$REPO_ROOT/scripts/.claude.sh'
-        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_until __dottod_claude_ago
+        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines
         bash -c \"__dottod_claude_profile_info '$d'\"
     "
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'bar rendered' '69%' "$output"
-    assert_contains 'reset shown' 'resets ' "$output"
+    assert_contains 'reset shown' $'\uf1da' "$output"
     if printf '%s' "$output" | grep -q 'command not found'; then
         printf 'FAIL: helper command not found in preview subshell\n%s\n' "$output" >&2
         return 1
@@ -721,4 +779,109 @@ conversation_key() {
     assert_eq 'rc' '0' "$status"
     assert_eq 'no question' '' "$output"
     assert_contains 'resume kept' 'ARGS=-r' "$(cat "$CALLS_LOG")"
+}
+
+@test "reset stamps: time left up to a day, the date beyond" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    local soon later far
+    soon="$(date -u -d '+35 minutes 20 seconds' +%FT%TZ)"
+    later="$(date -u -d '+4 hours 12 minutes 30 seconds' +%FT%TZ)"
+    far="$(date -u -d '+3 days' +%FT%TZ)"
+    assert_eq 'minutes' 'in 35m' "$(__dottod_claude_until "$soon")"
+    assert_eq 'hours and minutes' 'in 4h 12m' "$(__dottod_claude_until "$later")"
+    assert_eq 'more than a day: the date' "$(date -d "$far" +'%a %d %b %H:%M')" "$(__dottod_claude_until "$far")"
+    assert_eq 'past' 'any moment' "$(__dottod_claude_until 2001-01-01T00:00:00Z)"
+    assert_eq 'unparseable stays raw' 'soon-ish' "$(__dottod_claude_until soon-ish)"
+}
+
+@test "usage is stale when logged in and missing, old, or past CLAUDE_USAGE_TTL" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    local d="$BATS_TEST_TMPDIR/p"
+    mkdir -p "$d"
+    run __dottod_claude_usage_stale "$d"
+    assert_eq 'not logged in: never refreshed' '1' "$status"
+    printf 'tok' >"$d/.credentials.json"
+    run __dottod_claude_usage_stale "$d"
+    assert_eq 'no numbers yet' '0' "$status"
+    printf '{"cachedUsageUtilization":{"fetchedAtMs":%s000}}' "$(($(date +%s) - 60))" >"$d/.claude.json"
+    run __dottod_claude_usage_stale "$d"
+    assert_eq 'a minute old: fresh' '1' "$status"
+    CLAUDE_USAGE_TTL=30 run __dottod_claude_usage_stale "$d"
+    assert_eq 'past a shorter TTL' '0' "$status"
+}
+
+@test "usage refresh asks claude -p /usage from HOME, under a lock" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    local d="$FAKE_HOME/.claude-work"
+    mkdir -p "$d"
+    run __dottod_claude_usage_refresh "$d"
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'Claude Code itself, no session saved' "DIR=$d ARGS=-p /usage --no-session-persistence" "$(cat "$CALLS_LOG")"
+    assert_contains 'from HOME' "USAGE_CWD=$FAKE_HOME" "$(cat "$CALLS_LOG")"
+    assert_eq 'lock released' '0' "$([[ -e "$d/.dottod-usage.lock" ]] && echo 1 || echo 0)"
+
+    : >"$CALLS_LOG"
+    mkdir "$d/.dottod-usage.lock"
+    run __dottod_claude_usage_refresh "$d"
+    assert_eq 'busy: skipped' '1' "$status"
+    assert_eq 'nothing ran' '' "$(cat "$CALLS_LOG")"
+    touch -d '3 minutes ago' "$d/.dottod-usage.lock"
+    run __dottod_claude_usage_refresh "$d"
+    assert_eq 'stale lock taken over' '0' "$status"
+
+    USAGE_STUB_FAIL=1 run __dottod_claude_usage_refresh "$d"
+    assert_eq 'failure reported' '1' "$status"
+    assert_eq 'lock released after a failure' '0' "$([[ -e "$d/.dottod-usage.lock" ]] && echo 1 || echo 0)"
+}
+
+@test "the picker refreshes only stale, logged-in profiles in the background" {
+    local p
+    for p in fresh stale nologin; do
+        mkdir -p "$FAKE_HOME/.claude-$p"
+        printf '%s\n' "$p" >"$FAKE_HOME/.claude-$p/.dottod-profile"
+    done
+    printf 'tok' >"$FAKE_HOME/.claude-fresh/.credentials.json"
+    printf 'tok' >"$FAKE_HOME/.claude-stale/.credentials.json"
+    printf '{"cachedUsageUtilization":{"fetchedAtMs":%s000}}' "$(date +%s)" >"$FAKE_HOME/.claude-fresh/.claude.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; CLAUDE_USAGE_REFRESH=1 __dottod_claude_usage_spawn"
+    assert_eq 'returns at once' '0' "$status"
+    local i
+    for ((i = 0; i < 50; i++)); do
+        grep -q 'USAGE_CWD' "$CALLS_LOG" && break
+        sleep 0.1
+    done
+    sleep 0.3
+    local calls
+    calls="$(cat "$CALLS_LOG")"
+    assert_contains 'stale refreshed' "DIR=$FAKE_HOME/.claude-stale ARGS=-p /usage" "$calls"
+    assert_eq 'only that one' '1' "$(grep -c 'ARGS=-p /usage' <<<"$calls")"
+
+    : >"$CALLS_LOG"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; CLAUDE_USAGE_REFRESH=0 __dottod_claude_usage_spawn"
+    sleep 0.5
+    assert_eq 'CLAUDE_USAGE_REFRESH=0: none' '' "$(cat "$CALLS_LOG")"
+}
+
+@test "claude-profile usage refreshes now and prints every profile's bars" {
+    mkdir -p "$FAKE_HOME/.claude-work" "$FAKE_HOME/.claude-guest"
+    printf 'work\n' >"$FAKE_HOME/.claude-work/.dottod-profile"
+    printf 'guest\n' >"$FAKE_HOME/.claude-guest/.dottod-profile"
+    printf 'tok' >"$FAKE_HOME/.claude-work/.credentials.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile usage"
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'work refreshed' '42%' "$output"
+    assert_contains 'fresh' 'updated just now' "$output"
+    assert_contains 'guest has no login' $'guest\nnot authenticated' "$output"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; claude-profile usage nobody"
+    assert_eq 'unknown rc' '1' "$status"
+    assert_contains 'says so' 'not a profile: nobody' "$output"
+}
+
+@test "a usage window with nothing used yet shows 0% and no reset" {
+    local d="$FAKE_HOME/.claude-idle"
+    mkdir -p "$d"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":0,"resets_at":null},"seven_day":{"utilization":68,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_usage_lines '$d'"
+    assert_match '5h at 0%, no glyph' '^usage    5h .*   0%$' "$(grep '5h' <<<"$output")"
+    assert_contains '7d keeps its reset' $'68%  \uf1da ' "$output"
 }
