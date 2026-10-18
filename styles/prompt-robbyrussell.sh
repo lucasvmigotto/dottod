@@ -20,7 +20,8 @@ __dottod_prompt() {
         arrow='\[\e[1;31m\]➜\[\e[0m\]'
     fi
 
-    PS1="${arrow}  \[\e[36m\]\W\[\e[0m\]$(__dottod_git_info) "
+    __dottod_git_info_r || REPLY=""
+    PS1="${arrow}  \[\e[36m\]\W\[\e[0m\]${REPLY} "
     return $last_status
 }
 

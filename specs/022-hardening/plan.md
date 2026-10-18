@@ -75,3 +75,24 @@ unless `develop` contains `origin/main`, the working tree is clean and
 every workflow run for `develop`'s HEAD succeeded; then pushes
 `develop:main`, waits for the release run, fast-forwards `develop` to
 the release commit and pushes it. README gains a "Releasing" section.
+
+## Phase 2 result (prompt speed)
+
+`tests/bench/prompt.sh` — median of 31 renders in-process, fixture repo with
+a `package.json`, one untracked file, no containers:
+
+| style | before | after |
+|---|---|---|
+| robbyrussell | 5.2 ms | 2.8 ms |
+| kali | 19.8 ms | 2.5 ms |
+| powerline | 73.0 ms | 3.9 ms |
+| pastel / tokyonight / gruvbox / catppuccin | 47–49 ms | 3.1–3.5 ms |
+
+How: the repo root and gitdir come from a walk up to `.git` (no process);
+one `git status --porcelain=v2 --branch` per render (none with
+`dottod.hide-dirty`, read from the repo config file); every helper in the
+hot path leaves its result in `REPLY` instead of a `$(...)` subshell; the
+free-disk readout is remembered for 30 s. Known difference: a dirty
+submodule no longer marks the segmented prompts (`--ignore-submodules=dirty`,
+as the default style always did). `tests/test-prompt-perf.bats` pins the
+≤ 1 git call per render.

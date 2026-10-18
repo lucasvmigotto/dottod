@@ -37,14 +37,19 @@ __dottod_seg_now() {
     fi
 }
 
-# Prints the cache dir, creating it once per shell; fails when unusable.
-__dottod_seg_cache() {
+# The cache dir in REPLY, created once per shell; fails when unusable.
+__dottod_seg_cache_r() {
     local d="${XDG_CACHE_HOME:-${HOME}/.cache}/dottod/prompt"
     if [[ "${__DOTTOD_SEG_CACHE_OK:-}" != "${d}" ]]; then
         mkdir -p "${d}" 2>/dev/null && [[ -w "${d}" ]] || return 1
         __DOTTOD_SEG_CACHE_OK="${d}"
     fi
-    printf '%s' "${d}"
+    REPLY="${d}"
+}
+
+__dottod_seg_cache() {
+    __dottod_seg_cache_r || return 1
+    printf '%s' "${REPLY}"
 }
 
 # djb2 of a string, for cache file names (no external process).
@@ -63,7 +68,7 @@ __dottod_seg_hash() {
 __dottod_seg_spawn() {
     local lock="${1}" now held
     shift
-    now="$(__dottod_seg_now)"
+    now="${EPOCHSECONDS:-$(__dottod_seg_now)}"
     if ! (set -C && printf '%s' "${now}" >"${lock}") 2>/dev/null; then
         held="$(cat "${lock}" 2>/dev/null)"
         [[ "${held}" =~ ^[0-9]+$ ]] && ((now - held < 60)) && return 0
@@ -75,10 +80,10 @@ __dottod_seg_spawn() {
     ) </dev/null >/dev/null 2>&1 &)
 }
 
-# __dottod_seg_cached <file> <ttl> <lock> <function> [args...]: prints the
-# cached value (everything after the first line, which holds its epoch)
+# __dottod_seg_cached_r <file> <ttl> <lock> <function> [args...]: the
+# cached value, in REPLY (everything after the first line, which holds its epoch)
 # and refreshes it in the background when missing or older than <ttl>.
-__dottod_seg_cached() {
+__dottod_seg_cached_r() {
     local file="${1}" ttl="${2}" lock="${3}" stamp="" body="" nl="" line now
     shift 3
     if [[ -r "${file}" ]]; then
@@ -91,11 +96,16 @@ __dottod_seg_cached() {
             done
         } <"${file}"
     fi
-    now="$(__dottod_seg_now)"
+    now="${EPOCHSECONDS:-$(__dottod_seg_now)}"
     if ! [[ "${stamp}" =~ ^[0-9]+$ ]] || ((now - stamp > ttl)); then
         __dottod_seg_spawn "${lock}" "$@"
     fi
-    printf '%s' "${body}"
+    REPLY="${body}"
+}
+
+__dottod_seg_cached() {
+    __dottod_seg_cached_r "$@"
+    printf '%s' "${REPLY}"
 }
 
 # __dottod_seg_store <file> <command...>: run the command, store its output
@@ -114,8 +124,9 @@ __dottod_seg_store() {
 
 # ── facts ────────────────────────────────────────────────────────
 
-# Distribution id from os-release (read once per shell, never sourced).
-__dottod_seg_os_id() {
+# Distribution id from os-release (read once per shell, never sourced), in
+# REPLY.
+__dottod_seg_os_id_r() {
     if [[ -z "${__DOTTOD_SEG_OS:-}" ]]; then
         local f="${_DOT_OS_RELEASE_FILE:-/etc/os-release}" k v id='linux'
         [[ -r "${f}" ]] || f='/usr/lib/os-release'
@@ -128,13 +139,19 @@ __dottod_seg_os_id() {
         fi
         __DOTTOD_SEG_OS="${id}"
     fi
-    printf '%s' "${__DOTTOD_SEG_OS}"
+    REPLY="${__DOTTOD_SEG_OS}"
+}
+
+__dottod_seg_os_id() {
+    __dottod_seg_os_id_r
+    printf '%s' "${REPLY}"
 }
 
 # Stacks at the nearest directory (from $PWD up to <top>) holding a marker,
-# space-separated: `node`, `bun python`, …
-__dottod_seg_stacks() {
+# space-separated in REPLY: `node`, `bun python`, …
+__dottod_seg_stacks_r() {
     local top="${1}" dir="${PWD}" found g
+    REPLY=""
     while true; do
         found=''
         if [[ -f "${dir}/package.json" ]]; then
@@ -158,13 +175,18 @@ __dottod_seg_stacks() {
             fi
         done
         if [[ -n "${found}" ]]; then
-            printf '%s' "${found# }"
+            REPLY="${found# }"
             return 0
         fi
         [[ "${dir}" == "${top}" || "${dir}" == / || -z "${dir}" ]] && return 1
         dir="${dir%/*}"
         [[ -z "${dir}" ]] && dir=/
     done
+}
+
+__dottod_seg_stacks() {
+    __dottod_seg_stacks_r "$@" || return 1
+    printf '%s' "${REPLY}"
 }
 
 # A toolchain's version, probed in <root> (version managers read it).
@@ -203,7 +225,8 @@ __dottod_seg_version_probe() {
 # Cached version of <stack> for <root>, or nothing yet.
 __dottod_seg_version() {
     local stack="${1}" root="${2}" cache key
-    cache="$(__dottod_seg_cache)" || return 0
+    __dottod_seg_cache_r || return 0
+    cache="${REPLY}"
     key="${stack}|${root}|${PATH}"
     if [[ "${__DOTTOD_SEG_VKEY:-}" != "${key}" ]]; then
         __DOTTOD_SEG_VKEY="${key}"
@@ -225,14 +248,18 @@ __dottod_seg_containers_probe() {
 # How many running containers belong here: their compose or devcontainer
 # folder is $PWD or one of its parents (the project you are in), never a
 # directory below (/tmp is not every project under it).
-__dottod_seg_containers() {
+__dottod_seg_containers_r() {
     local cache file list line a b n=0
+    REPLY=""
     [[ "${DOT_PROMPT_CONTAINERS:-1}" == 1 ]] || return 0
     command -v podman >/dev/null 2>&1 || return 0
-    cache="$(__dottod_seg_cache)" || return 0
+    __dottod_seg_cache_r || return 0
+    cache="${REPLY}"
     file="${cache}/containers"
-    list="$(__dottod_seg_cached "${file}" 10 "${file}.lock" \
-        __dottod_seg_store "${file}" __dottod_seg_containers_probe)"
+    __dottod_seg_cached_r "${file}" 10 "${file}.lock" \
+        __dottod_seg_store "${file}" __dottod_seg_containers_probe
+    list="${REPLY}"
+    REPLY=""
     while IFS='|' read -r a b; do
         for line in "${a}" "${b}"; do
             if [[ -n "${line}" && ("${PWD}" == "${line}" || "${PWD}" == "${line%/}/"*) ]]; then
@@ -241,59 +268,104 @@ __dottod_seg_containers() {
             fi
         done
     done <<<"${list}"
-    ((n > 0)) && printf '%s' "${n}"
+    ((n > 0)) && REPLY="${n}"
+    return 0
+}
+
+__dottod_seg_containers() {
+    __dottod_seg_containers_r
+    printf '%s' "${REPLY}"
 }
 
 # ── render ───────────────────────────────────────────────────────
 
-# __dottod_seg_text <segment> <top>: the segment's text (escaped for PS1),
-# empty when it folds.
-__dottod_seg_text() {
-    local seg="${1}" top="${2}" t='' s v fields head ahead behind staged unstaged untracked stash _up
+# __dottod_seg_text_r <segment> <top>: the segment's text (escaped for PS1)
+# in REPLY, empty when it folds.
+__dottod_seg_text_r() {
+    local seg="${1}" top="${2}" t='' s v
     case "${seg}" in
-        os) t="$(__dottod_glyph "os_$(__dottod_seg_os_id)")" ;;
-        user | osuser)
-            t="$(__dottod_ps_esc "${USER:-$(id -un 2>/dev/null)}")"
-            if [[ "${seg}" == osuser ]]; then
-                t="$(__dottod_glyph "os_$(__dottod_seg_os_id)") ${t}"
-            else
-                t="$(__dottod_glyph user) ${t}"
-            fi
+        os)
+            __dottod_seg_os_id_r
+            __dottod_glyph_r "os_${REPLY}"
+            t="${REPLY}"
             ;;
-        dir) t="$(__dottod_ps_esc "$(__dottod_project_dir)")" ;;
+        user | osuser)
+            if [[ -n "${USER:-}" ]]; then
+                __dottod_ps_esc_r "${USER}"
+            else
+                __dottod_ps_esc_r "$(id -un 2>/dev/null)"
+            fi
+            t="${REPLY}"
+            if [[ "${seg}" == osuser ]]; then
+                __dottod_seg_os_id_r
+                __dottod_glyph_r "os_${REPLY}"
+            else
+                __dottod_glyph_r user
+            fi
+            t="${REPLY} ${t}"
+            ;;
+        dir)
+            __dottod_project_dir_r
+            __dottod_ps_esc_r "${REPLY}"
+            t="${REPLY}"
+            ;;
         git)
-            fields="$(__dottod_git_segments 2>/dev/null)" || return 0
-            IFS='|' read -r head ahead behind staged unstaged untracked stash _up <<<"${fields}"
-            t="$(__dottod_glyph branch) $(__dottod_ps_esc "${head}")"
-            ((ahead > 0)) && t+=" ⇡${ahead}"
-            ((behind > 0)) && t+=" ⇣${behind}"
-            ((stash > 0)) && t+=" *${stash}"
-            ((staged + unstaged + untracked > 0)) && t+=' ✗'
+            if ! __dottod_git_state; then
+                REPLY=""
+                return 0
+            fi
+            __dottod_glyph_r branch
+            t="${REPLY}"
+            __dottod_ps_esc_r "${__DG_HEAD}"
+            t+=" ${REPLY}"
+            ((__DG_AHEAD > 0)) && t+=" ⇡${__DG_AHEAD}"
+            ((__DG_BEHIND > 0)) && t+=" ⇣${__DG_BEHIND}"
+            ((__DG_STASH > 0)) && t+=" *${__DG_STASH}"
+            ((__DG_STAGED + __DG_UNSTAGED + __DG_UNTRACKED > 0)) && t+=' ✗'
             ;;
         stack)
-            for s in $(__dottod_seg_stacks "${top}"); do
-                [[ -n "${t}" ]] && t+=' '
-                t+="$(__dottod_glyph "lang_${s}")"
-                if [[ "${DOT_PROMPT_VERSIONS:-0}" == 1 ]]; then
-                    v="$(__dottod_seg_version "${s}" "${top}")"
-                    [[ -n "${v}" ]] && t+=" v$(__dottod_ps_esc "${v}")"
-                fi
-            done
+            if __dottod_seg_stacks_r "${top}"; then
+                for s in ${REPLY}; do
+                    [[ -n "${t}" ]] && t+=' '
+                    __dottod_glyph_r "lang_${s}"
+                    t+="${REPLY}"
+                    if [[ "${DOT_PROMPT_VERSIONS:-0}" == 1 ]]; then
+                        v="$(__dottod_seg_version "${s}" "${top}")"
+                        if [[ -n "${v}" ]]; then
+                            __dottod_ps_esc_r "${v}"
+                            t+=" v${REPLY}"
+                        fi
+                    fi
+                done
+            fi
             ;;
         containers)
-            v="$(__dottod_seg_containers)"
-            [[ -n "${v}" ]] && t="$(__dottod_glyph container) ${v}"
+            __dottod_seg_containers_r
+            if [[ -n "${REPLY}" ]]; then
+                v="${REPLY}"
+                __dottod_glyph_r container
+                t="${REPLY} ${v}"
+            fi
             ;;
-        time) t="$(__dottod_glyph clock) \\A" ;;
+        time)
+            __dottod_glyph_r clock
+            t="${REPLY} \\A"
+            ;;
     esac
-    printf '%s' "${t}"
+    REPLY="${t}"
 }
 
-__dottod_seg_sep() {
+__dottod_seg_text() {
+    __dottod_find_git || :
+    __dottod_seg_text_r "$@"
+    printf '%s' "${REPLY}"
+}
+
+__dottod_seg_sep_r() {
     if [[ "${1}" == round ]]; then
-        __dottod_glyph cap_right
+        __dottod_glyph_r cap_right
     else
-        __dottod_glyph sep_left
+        __dottod_glyph_r sep_left
     fi
 }
 
@@ -301,7 +373,8 @@ __dottod_prompt_segments() {
     local last_status=$? # must be first line to capture $?
     local top seg bg fg text out='' i n
     local -a segs=() bgs=() fgs=()
-    top="$(git rev-parse --show-toplevel 2>/dev/null)" || top="${PWD}"
+    __dottod_find_git || :
+    top="${__DG_TOP:-${PWD}}"
 
     for seg in ${__DOTTOD_THEME_SEGS:-}; do
         IFS=: read -r seg bg fg <<<"${seg}"
@@ -313,11 +386,18 @@ __dottod_prompt_segments() {
     ((n > 0)) || return "${last_status}"
 
     case "${__DOTTOD_THEME_HEAD:-none}" in
-        cap) out+="\\[\\e[0m\\e[38;5;${bgs[0]}m\\]$(__dottod_glyph cap_left)" ;;
-        fade) out+="\\[\\e[0m\\e[38;5;${bgs[0]}m\\]$(__dottod_glyph fade)" ;;
+        cap)
+            __dottod_glyph_r cap_left
+            out+="\\[\\e[0m\\e[38;5;${bgs[0]}m\\]${REPLY}"
+            ;;
+        fade)
+            __dottod_glyph_r fade
+            out+="\\[\\e[0m\\e[38;5;${bgs[0]}m\\]${REPLY}"
+            ;;
     esac
     for ((i = 0; i < n; i++)); do
-        text="$(__dottod_seg_text "${segs[i]}" "${top}")"
+        __dottod_seg_text_r "${segs[i]}" "${top}"
+        text="${REPLY}"
         out+="\\[\\e[48;5;${bgs[i]}m\\e[38;5;${fgs[i]}m\\]"
         if [[ -n "${text}" ]]; then
             out+=" ${text} "
@@ -326,9 +406,11 @@ __dottod_prompt_segments() {
             out+=' '
         fi
         if ((i + 1 < n)); then
-            out+="\\[\\e[48;5;${bgs[i + 1]}m\\e[38;5;${bgs[i]}m\\]$(__dottod_seg_sep "${__DOTTOD_THEME_SEP:-arrow}")"
+            __dottod_seg_sep_r "${__DOTTOD_THEME_SEP:-arrow}"
+            out+="\\[\\e[48;5;${bgs[i + 1]}m\\e[38;5;${bgs[i]}m\\]${REPLY}"
         else
-            out+="\\[\\e[0m\\e[38;5;${bgs[i]}m\\]$(__dottod_seg_sep "${__DOTTOD_THEME_TAIL:-arrow}")\\[\\e[0m\\]"
+            __dottod_seg_sep_r "${__DOTTOD_THEME_TAIL:-arrow}"
+            out+="\\[\\e[0m\\e[38;5;${bgs[i]}m\\]${REPLY}\\[\\e[0m\\]"
         fi
     done
 
@@ -337,13 +419,17 @@ __dottod_prompt_segments() {
     local line2='' dur
     if [[ -n "${__dottod_seg_t0:-}" ]]; then
         dur=$((SECONDS - __dottod_seg_t0))
-        ((dur >= ${DOT_PROMPT_SLOW:-2})) && line2+="\\[\\e[38;5;244m\\]took $(__dottod_duration "${dur}")\\[\\e[0m\\] "
+        if ((dur >= ${DOT_PROMPT_SLOW:-2})); then
+            __dottod_duration_r "${dur}"
+            line2+="\\[\\e[38;5;244m\\]took ${REPLY}\\[\\e[0m\\] "
+        fi
         unset __dottod_seg_t0
     fi
+    __dottod_glyph_r prompt_char
     if ((last_status == 0)); then
-        line2+="\\[\\e[1;32m\\]$(__dottod_glyph prompt_char)\\[\\e[0m\\]"
+        line2+="\\[\\e[1;32m\\]${REPLY}\\[\\e[0m\\]"
     else
-        line2+="\\[\\e[1;31m\\]$(__dottod_glyph prompt_char)\\[\\e[0m\\]"
+        line2+="\\[\\e[1;31m\\]${REPLY}\\[\\e[0m\\]"
     fi
     PS1="${out}\\n${line2} "
     return "${last_status}"
