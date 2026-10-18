@@ -192,6 +192,16 @@ dottod-doctor() {
         __dottod_doc_warn "claude library not loaded"
     fi
 
+    # The Claude Code internals dottod reads (claude-mv, the usage panel).
+    if declare -F __dottod_claude_compat >/dev/null 2>&1; then
+        while IFS= read -r t; do
+            case "${t}" in
+                ok\ *) __dottod_doc_ok "claude internals: ${t#ok }" ;;
+                warn\ *) __dottod_doc_warn "claude internals: ${t#warn }" ;;
+            esac
+        done < <(__dottod_claude_compat 2>/dev/null)
+    fi
+
     # Secrets (bin/secrets.sh): only where pass is installed. Registry names
     # only — never a credential value.
     if command -v pass >/dev/null 2>&1; then

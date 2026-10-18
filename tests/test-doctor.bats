@@ -31,6 +31,7 @@ doctor_run() {
         source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1
         source '$REPO_ROOT/scripts/.update.sh' >/dev/null 2>&1
         source '$REPO_ROOT/scripts/.claude.sh' >/dev/null 2>&1
+        source '$REPO_ROOT/scripts/.claude-mv.sh' >/dev/null 2>&1
         PROMPT_COMMAND='__dottod_prompt'
         dottod-doctor
     " 2>/dev/null
@@ -199,4 +200,15 @@ doctor_distro() {
     mkdir -p "$FAKE_HOME/.password-store" && printf 'ABC\n' >"$FAKE_HOME/.password-store/.gpg-id"
     PATH="$bin:$PATH" XDG_RUNTIME_DIR="$BATS_TEST_TMPDIR/run" run doctor_run
     assert_contains 'store ok' '[ok] pass store initialised' "$output"
+}
+
+@test "doctor: a claude internals section reports the layout, and warns on a surprise" {
+    local t="$FAKE_HOME/.claude/projects/-w-p"
+    mkdir -p "$t"
+    printf '{"cwd":"/w/p","type":"user"}\n' >"$t/s.jsonl"
+    run doctor_run
+    assert_contains 'ok' '[ok] claude internals: transcripts carry a compact cwd' "$output"
+    printf '{"workdir":"/w/p"}\n' >"$t/s.jsonl"
+    run doctor_run
+    assert_contains 'warn' '[warn] claude internals: no "cwd" field' "$output"
 }

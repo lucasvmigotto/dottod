@@ -112,6 +112,120 @@ __dottod_mv_stores() {
     return 0
 }
 
+# __dottod_claude_compat: do the Claude Code internals dottod reads still
+# look the way it expects? Prints "ok <what>" / "warn <what>" lines (the
+# first names the Claude Code version) and fails when any is a warn.
+# Checked on the newest few transcripts, so it stays fast on big stores:
+#   key      a projects/ folder is its path with non-alphanumerics as "-"
+#   cwd      transcript lines carry a compact "cwd":"…" field
+#   config   .claude.json keeps a "projects" object
+#   usage    cachedUsageUtilization keeps five_hour/seven_day and fetchedAtMs
+#   history  history.jsonl lines keep a "project" string
+__dottod_claude_compat() {
+    local kind path v bad=0 n sampled mism nocwd pretty f d key hit c cfg line
+    v="$(command claude --version 2>/dev/null | head -n 1)"
+    printf 'ok claude version: %s\n' "${v:-not on PATH (stores checked anyway)}"
+
+    local -a roots=() hists=() cfgs=() files=()
+    while IFS=$'\t' read -r kind path; do
+        case "${kind}" in
+            projects) roots+=("${path}") ;;
+            history) hists+=("${path}") ;;
+            config) cfgs+=("${path}") ;;
+        esac
+    done < <(__dottod_mv_stores)
+
+    if ((${#roots[@]} == 0)); then
+        echo 'ok no saved sessions yet (nothing to compare)'
+    else
+        # The newest 20 non-empty transcripts across the stores.
+        for path in "${roots[@]}"; do
+            while IFS= read -r f; do
+                [[ -s "${f}" ]] && files+=("${f}")
+            done < <(ls -t "${path}"/*/*.jsonl 2>/dev/null | head -n 20)
+        done
+        sampled=${#files[@]}
+        mism=0 nocwd=0 pretty=0
+        for f in "${files[@]}"; do
+            d="${f%/*}"
+            key="${d##*/}"
+            hit=0
+            if grep -q '"cwd":"' "${f}" 2>/dev/null; then
+                while IFS= read -r c; do
+                    [[ "$(__dottod_mv_key "${c}")" == "${key}" ]] && hit=1 && break
+                done < <(grep -oh '"cwd":"[^"]*"' "${f}" 2>/dev/null | sort -u | sed 's/^"cwd":"//; s/"$//')
+                ((hit == 1)) || mism=$((mism + 1))
+            elif grep -q '"cwd" *: *"' "${f}" 2>/dev/null; then
+                pretty=$((pretty + 1))
+            else
+                nocwd=$((nocwd + 1))
+            fi
+        done
+        if ((sampled == 0)); then
+            echo 'ok no transcripts yet (nothing to compare)'
+        else
+            if ((pretty * 2 > sampled)); then
+                echo "warn transcripts are pretty-printed (${pretty}/${sampled}): the cwd rewrite would miss them"
+                bad=1
+            elif ((nocwd * 2 > sampled)); then
+                echo "warn no \"cwd\" field in ${nocwd}/${sampled} recent transcripts (renamed?)"
+                bad=1
+            else
+                echo "ok transcripts carry a compact cwd (${sampled} checked)"
+            fi
+            if ((mism * 2 > sampled)); then
+                echo "warn project folder names are not the path with non-alphanumerics as '-' (${mism}/${sampled}): hashed keys?"
+                bad=1
+            else
+                echo 'ok project folders follow the path-key rule'
+            fi
+        fi
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        echo 'warn jq missing: .claude.json and usage checks skipped'
+        bad=1
+    else
+        n=0 mism=0
+        for cfg in "${cfgs[@]}"; do
+            n=$((n + 1))
+            jq -e '(.projects // {}) | type == "object"' "${cfg}" >/dev/null 2>&1 || mism=$((mism + 1))
+        done
+        if ((mism > 0)); then
+            echo "warn .claude.json: \"projects\" is not an object in ${mism}/${n} file(s)"
+            bad=1
+        else
+            echo "ok .claude.json keeps its projects map (${n} file(s))"
+        fi
+        n=0 mism=0
+        for cfg in "${cfgs[@]}"; do
+            jq -e 'has("cachedUsageUtilization")' "${cfg}" >/dev/null 2>&1 || continue
+            n=$((n + 1))
+            jq -e '.cachedUsageUtilization | (.fetchedAtMs | type == "number") and (.utilization | type == "object") and (.utilization | has("five_hour") and has("seven_day"))' "${cfg}" >/dev/null 2>&1 || mism=$((mism + 1))
+        done
+        if ((mism > 0)); then
+            echo "warn usage cache changed shape in ${mism}/${n} file(s): the panel bars may be empty"
+            bad=1
+        elif ((n > 0)); then
+            echo "ok usage cache shape (${n} file(s))"
+        fi
+        mism=0 n=0
+        for path in "${hists[@]}"; do
+            line="$(tail -n 1 "${path}" 2>/dev/null)"
+            [[ -n "${line}" ]] || continue
+            n=$((n + 1))
+            printf '%s\n' "${line}" | jq -e '.project | type == "string"' >/dev/null 2>&1 || mism=$((mism + 1))
+        done
+        if ((mism > 0)); then
+            echo "warn history.jsonl lost its \"project\" field in ${mism}/${n} file(s)"
+            bad=1
+        elif ((n > 0)); then
+            echo "ok history.jsonl keeps its project field (${n} file(s))"
+        fi
+    fi
+    return "${bad}"
+}
+
 # __dottod_mv_folders <projects root> <old>: the folders that belong to
 # old or a directory inside it, as "<folder>\t<path it was started in>".
 # A key is lossy (/a/b and /a/b-c both start "-a-b"), so a folder counts
@@ -209,15 +323,16 @@ __dottod_mv_config() {
 }
 
 claude-mv() {
-    local fixup=0 dry=0
+    local fixup=0 dry=0 force=0
     local -a args=()
     while (($# > 0)); do
         case "${1}" in
             --fixup) fixup=1 ;;
             --dry-run | -n) dry=1 ;;
+            --force) force=1 ;;
             -h | --help)
                 cat <<'EOF'
-usage: claude-mv [--dry-run] OLD NEW          move OLD to NEW and its Claude sessions with it
+usage: claude-mv [--dry-run] [--force] OLD NEW  move OLD to NEW and its Claude sessions with it
        claude-mv --fixup [--dry-run] OLD NEW  OLD was already moved to NEW: repoint the sessions
 
 Repoints, for OLD and every directory inside it: the projects/ folders
@@ -225,6 +340,8 @@ Repoints, for OLD and every directory inside it: the projects/ folders
 history, and every profile's .claude.json (plus ~/.claude.json); also the
 codes visit list. Conversation text is left as written. Refuses while a
 Claude Code session works inside OLD; backs up what it rewrites first.
+First checks that the stores still look the way claude-mv expects
+(dottod-doctor lists them) and refuses otherwise, unless --force.
 EOF
                 return 0
                 ;;
@@ -237,7 +354,7 @@ EOF
         shift
     done
     if ((${#args[@]} != 2)); then
-        echo 'usage: claude-mv [--fixup] [--dry-run] OLD NEW' >&2
+        echo 'usage: claude-mv [--fixup] [--dry-run] [--force] OLD NEW' >&2
         return 2
     fi
     local old new
@@ -285,6 +402,17 @@ EOF
     if [[ -n "${live}" ]]; then
         printf 'claude-mv: Claude Code is running inside %s (pid %s); exit it first\n' "$( ((fixup)) && echo "${new}" || echo "${old}")" "${live}" >&2
         return 1
+    fi
+
+    local compat
+    if ! compat="$(__dottod_claude_compat)"; then
+        grep '^warn ' <<<"${compat}" | sed 's/^warn /claude-mv: /' >&2
+        if ((force)); then
+            echo 'claude-mv: --force: going on anyway' >&2
+        else
+            echo 'claude-mv: the stores do not look the way this claude-mv expects; refusing (--force overrides)' >&2
+            return 1
+        fi
     fi
 
     # The plan.
