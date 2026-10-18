@@ -211,3 +211,65 @@ snapshot() {
     assert_eq 'dots and slashes' "$W/proj" "$(__dottod_mv_realpath "$W/./proj//docs/..")"
     cd "$W/proj" && assert_eq 'relative' "$W/proj/docs" "$(__dottod_mv_realpath docs)"
 }
+
+@test "compat: the current layout reports ok, with the Claude Code version" {
+    stub_bin=$BATS_TEST_TMPDIR/bin
+    mkdir -p "$stub_bin"
+    printf '#!/usr/bin/env bash\necho "9.9.9 (Claude Code)"\n' >"$stub_bin/claude"
+    chmod +x "$stub_bin/claude"
+    PATH="$stub_bin:$PATH" run __dottod_claude_compat
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'version' 'ok claude version: 9.9.9 (Claude Code)' "$output"
+    assert_contains 'cwd' 'ok transcripts carry a compact cwd' "$output"
+    assert_contains 'key rule' 'ok project folders follow the path-key rule' "$output"
+    assert_contains 'config' 'ok .claude.json keeps its projects map' "$output"
+    [[ "$output" != *'warn '* ]]
+}
+
+@test "compat: hashed folder names warn" {
+    local d
+    for d in "$S/projects"/*/; do
+        [[ -f "$(ls "$d"*.jsonl 2>/dev/null | head -n 1)" ]] && mv "$d" "${d%/}-0f3a9c"
+    done
+    run __dottod_claude_compat
+    assert_eq 'rc' '1' "$status"
+    assert_contains 'warns' "warn project folder names are not the path with non-alphanumerics as '-'" "$output"
+}
+
+@test "compat: a renamed cwd field warns" {
+    local f
+    for f in "$S/projects"/*/*.jsonl; do sed -i 's/"cwd"/"workdir"/g' "$f"; done
+    run __dottod_claude_compat
+    assert_eq 'rc' '1' "$status"
+    assert_contains 'warns' 'warn no "cwd" field' "$output"
+}
+
+@test "compat: pretty-printed lines warn" {
+    local f
+    for f in "$S/projects"/*/*.jsonl; do sed -i 's/"cwd":"/"cwd": "/g' "$f"; done
+    run __dottod_claude_compat
+    assert_eq 'rc' '1' "$status"
+    assert_contains 'warns' 'warn transcripts are pretty-printed' "$output"
+}
+
+@test "compat: a changed usage cache, projects map or history line warns" {
+    printf '{"projects":[],"cachedUsageUtilization":{"fetchedAtMs":1,"utilization":{"hourly":{}}}}\n' >"$HOME/.claude.json"
+    printf '{"display":"x","cwd":"/a"}\n' >>"$S/history.jsonl"
+    run __dottod_claude_compat
+    assert_eq 'rc' '1' "$status"
+    assert_contains 'projects' 'warn .claude.json: "projects" is not an object' "$output"
+    assert_contains 'usage' 'warn usage cache changed shape' "$output"
+    assert_contains 'history' 'warn history.jsonl lost its "project" field' "$output"
+}
+
+@test "claude-mv refuses an unrecognized store unless --force" {
+    local f
+    for f in "$S/projects"/*/*.jsonl; do sed -i 's/"cwd"/"workdir"/g' "$f"; done
+    run claude-mv "$P" "$N"
+    assert_eq 'refused' '1' "$status"
+    assert_contains 'says why' 'refusing (--force overrides)' "$output"
+    [[ -d "$P" && ! -e "$N" ]]
+    run claude-mv --force --dry-run "$P" "$N"
+    assert_eq 'forced dry run' '0' "$status"
+    assert_contains 'goes on' '--force: going on anyway' "$output"
+}

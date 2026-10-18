@@ -282,6 +282,13 @@ and the `codes` visit list — conversation text stays as written. It
 refuses while a Claude Code session works inside the directory, and
 copies everything it rewrites to `~/.local/state/dottod/claude-mv/` first.
 
+These stores are Claude Code internals, not a documented interface, so
+`claude-mv` first checks they still look the way it expects (folder names
+are the path with non-alphanumerics as `-`, compact `"cwd"` lines,
+`.claude.json` and history fields) and refuses otherwise unless `--force`.
+`dottod-doctor` runs the same checks under "claude internals" and names the
+Claude Code version, so an upgrade that moves something shows up there first.
+
 `claude -c` (`--continue`) or a bare `claude -r` (`--resume`) in a
 directory with no saved conversation asks `Start a new one? [y/N]` instead
 of stopping at Claude Code's "No conversation found": `y` launches without

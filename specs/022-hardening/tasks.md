@@ -34,12 +34,12 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
 - [x] T190 [US2] Fix every failure it surfaces (each with a regression test).
 
 ## Phase 4 — Claude Code guard (`feat/claude-compat`)
-- [ ] T191 [US4] `__dottod_claude_compat`: key rule, compact `cwd` lines,
+- [x] T191 [US4] `__dottod_claude_compat`: key rule, compact `cwd` lines,
   `.claude.json` projects, usage cache shape — ok/warn with the version.
-- [ ] T192 [US4] `dottod-doctor` section "claude internals".
-- [ ] T193 [US4] `claude-mv` runs the store checks first; refuses on a failure
+- [x] T192 [US4] `dottod-doctor` section "claude internals".
+- [x] T193 [US4] `claude-mv` runs the store checks first; refuses on a failure
   unless `--force`.
-- [ ] T194 [US4] Fixture stores: current layout passes; hashed keys, renamed
+- [x] T194 [US4] Fixture stores: current layout passes; hashed keys, renamed
   `cwd`, pretty-printed lines each warn.
 
 ## Phase 5 — claude-mv retention; split `.claude.sh` (`refactor/claude`)
