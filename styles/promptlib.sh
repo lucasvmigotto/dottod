@@ -11,60 +11,68 @@
 # fallback when DOT_PROMPT_GLYPHS=ascii — or on bash before 4.2, whose
 # printf has no \u escapes (the literal \u… would reach PS1, where \u is
 # the user name). Keeps variant files readable.
-__dottod_glyph() {
+# The hot path (every prompt) avoids `$(...)`: each helper has an `_r`
+# form that leaves its result in REPLY, and a printing form that wraps it.
+__dottod_glyph_r() {
     local name="${1:?glyph name required}"
     if [[ "${DOT_PROMPT_GLYPHS:-nerd}" == "ascii" ]] ||
         ((BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 2))); then
         case "${name}" in
-            sep_left) printf '>' ;;
-            sep_right | sep_left_thin | sep_right_thin) printf '<' ;;
-            branch) printf '' ;;
-            folder) printf '' ;;
-            user) printf '' ;;
-            clock) printf '' ;;
-            disk) printf '' ;;
-            lang_*) printf '%s' "${name#lang_}" ;;
-            os_*) printf '%s' "${name#os_}" ;;
-            container) printf 'ctr' ;;
-            prompt_char) printf '>' ;;
-            *) printf '' ;;
+            sep_left) printf -v REPLY '>' ;;
+            sep_right | sep_left_thin | sep_right_thin) printf -v REPLY '<' ;;
+            branch) printf -v REPLY '' ;;
+            folder) printf -v REPLY '' ;;
+            user) printf -v REPLY '' ;;
+            clock) printf -v REPLY '' ;;
+            disk) printf -v REPLY '' ;;
+            lang_*) printf -v REPLY '%s' "${name#lang_}" ;;
+            os_*) printf -v REPLY '%s' "${name#os_}" ;;
+            container) printf -v REPLY 'ctr' ;;
+            prompt_char) printf -v REPLY '>' ;;
+            *) printf -v REPLY '' ;;
         esac
         return 0
     fi
     case "${name}" in
-        sep_left) printf '\ue0b0' ;;
-        sep_right) printf '\ue0b2' ;;
-        sep_left_thin) printf '\ue0b1' ;;
-        sep_right_thin) printf '\ue0b3' ;;
-        branch) printf '\ue0a0' ;;
-        folder) printf '\uf07b' ;;
-        user) printf '\uf007' ;;
-        clock) printf '\uf017' ;;
-        disk) printf '\uf0a0' ;;
-        lang_node) printf '\ue718' ;;
-        lang_rust) printf '\ue7a8' ;;
-        lang_go) printf '\ue627' ;;
-        lang_python) printf '\ue606' ;;
-        lang_ruby) printf '\ue791' ;;
-        lang_php) printf '\ue73d' ;;
-        lang_java) printf '\ue738' ;;
-        lang_bun) printf '\ue76f' ;;
-        lang_deno) printf '\ue7c0' ;;
-        lang_dotnet) printf '\ue77f' ;;
-        cap_left) printf '\ue0b6' ;;
-        cap_right) printf '\ue0b4' ;;
-        fade) printf '░▒▓' ;;
-        container) printf '\uf4b7' ;;
-        prompt_char) printf '❯' ;;
-        os_debian) printf '\uf306' ;;
-        os_ubuntu) printf '\uf31b' ;;
-        os_gentoo) printf '\uf30d' ;;
-        os_arch) printf '\uf303' ;;
-        os_fedora) printf '\uf30a' ;;
-        os_alpine) printf '\uf300' ;;
-        os_*) printf '\uf31a' ;;
-        *) printf '' ;;
+        sep_left) printf -v REPLY '\ue0b0' ;;
+        sep_right) printf -v REPLY '\ue0b2' ;;
+        sep_left_thin) printf -v REPLY '\ue0b1' ;;
+        sep_right_thin) printf -v REPLY '\ue0b3' ;;
+        branch) printf -v REPLY '\ue0a0' ;;
+        folder) printf -v REPLY '\uf07b' ;;
+        user) printf -v REPLY '\uf007' ;;
+        clock) printf -v REPLY '\uf017' ;;
+        disk) printf -v REPLY '\uf0a0' ;;
+        lang_node) printf -v REPLY '\ue718' ;;
+        lang_rust) printf -v REPLY '\ue7a8' ;;
+        lang_go) printf -v REPLY '\ue627' ;;
+        lang_python) printf -v REPLY '\ue606' ;;
+        lang_ruby) printf -v REPLY '\ue791' ;;
+        lang_php) printf -v REPLY '\ue73d' ;;
+        lang_java) printf -v REPLY '\ue738' ;;
+        lang_bun) printf -v REPLY '\ue76f' ;;
+        lang_deno) printf -v REPLY '\ue7c0' ;;
+        lang_dotnet) printf -v REPLY '\ue77f' ;;
+        cap_left) printf -v REPLY '\ue0b6' ;;
+        cap_right) printf -v REPLY '\ue0b4' ;;
+        fade) printf -v REPLY '░▒▓' ;;
+        container) printf -v REPLY '\uf4b7' ;;
+        prompt_char) printf -v REPLY '❯' ;;
+        os_debian) printf -v REPLY '\uf306' ;;
+        os_ubuntu) printf -v REPLY '\uf31b' ;;
+        os_gentoo) printf -v REPLY '\uf30d' ;;
+        os_arch) printf -v REPLY '\uf303' ;;
+        os_fedora) printf -v REPLY '\uf30a' ;;
+        os_alpine) printf -v REPLY '\uf300' ;;
+        os_*) printf -v REPLY '\uf31a' ;;
+        *) printf -v REPLY '' ;;
     esac
+}
+
+# __dottod_glyph <name>: prints it (for callers that can afford a subshell).
+__dottod_glyph() {
+    __dottod_glyph_r "$@"
+    printf '%s' "${REPLY}"
 }
 
 # __dottod_ps_esc <text>: <text> made inert inside PS1. Bash decodes PS1's
@@ -74,7 +82,7 @@ __dottod_glyph() {
 # run commands at every prompt. Each gets a backslash that survives the
 # decoding. A character loop: ${t//…/…} replacements quote differently
 # across bash 3.2 to 5.2 (patsub_replacement).
-__dottod_ps_esc() {
+__dottod_ps_esc_r() {
     local t="${1}" out="" c i
     for ((i = 0; i < ${#t}; i++)); do
         c="${t:i:1}"
@@ -84,155 +92,265 @@ __dottod_ps_esc() {
             *) out+="${c}" ;;
         esac
     done
-    printf '%s' "${out}"
+    REPLY="${out}"
 }
 
-# __dottod_git_info: short git fragment for inline prompts.
-# ` git:(branch) ✗` — empty (and false) outside a repo. Kept byte-identical
-# to the original .custom.bashrc rendering for the default style.
-__dottod_git_info() {
-    local ref
-    ref=$(git symbolic-ref --short -q HEAD 2>/dev/null) ||
-        ref=$(git describe --tags --exact-match HEAD 2>/dev/null) ||
-        ref=$(git rev-parse --short HEAD 2>/dev/null) ||
-        return
+__dottod_ps_esc() {
+    __dottod_ps_esc_r "$@"
+    printf '%s' "${REPLY}"
+}
 
-    local dirty=""
-    if [[ $(git config --get dottod.hide-dirty 2>/dev/null) != 1 ]]; then
-        if [[ -n $(git status --porcelain --ignore-submodules=dirty 2>/dev/null | head -n 1) ]]; then
-            dirty=' \[\e[33m\]✗'
+# __dottod_find_git: the repo around $PWD without running git — walks up
+# looking for `.git` (a directory, or a file for worktrees and submodules).
+# Sets __DG_TOP and __DG_GD; fails outside a repo.
+__dottod_find_git() {
+    local d="${PWD}" l
+    __DG_TOP=""
+    __DG_GD=""
+    while true; do
+        if [[ -d "${d}/.git" ]]; then
+            __DG_TOP="${d}"
+            __DG_GD="${d}/.git"
+            return 0
+        elif [[ -f "${d}/.git" ]]; then
+            IFS= read -r l <"${d}/.git" || true
+            l="${l#gitdir: }"
+            [[ "${l}" == /* ]] || l="${d}/${l}"
+            __DG_TOP="${d}"
+            __DG_GD="${l}"
+            return 0
         fi
+        [[ "${d}" == / || -z "${d}" ]] && return 1
+        d="${d%/*}"
+        [[ -z "${d}" ]] && d=/
+    done
+}
+
+# __dottod_git_hidden: true when the repo's own config says
+# `dottod.hide-dirty = 1` (read from the file: no git process).
+__dottod_git_hidden() {
+    local f="${__DG_GD}/config" line sect=""
+    [[ -n "${__DG_GD}" ]] || return 1
+    if [[ -r "${__DG_GD}/commondir" ]]; then
+        IFS= read -r line <"${__DG_GD}/commondir" || true
+        [[ "${line}" == /* ]] || line="${__DG_GD}/${line}"
+        f="${line}/config"
+    fi
+    [[ -r "${f}" ]] || return 1
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        line="${line#"${line%%[![:space:]]*}"}"
+        case "${line}" in
+            '['*) sect="${line}" ;;
+            hide-dirty*)
+                [[ "${sect}" == '[dottod]' ]] || continue
+                line="${line#hide-dirty}"
+                line="${line#"${line%%[![:space:]]*}"}"
+                line="${line#=}"
+                line="${line#"${line%%[![:space:]]*}"}"
+                line="${line%"${line##*[![:space:]]}"}"
+                [[ "${line}" == 1 ]] && return 0
+                ;;
+        esac
+    done <"${f}"
+    return 1
+}
+
+# __dottod_git_state [nostatus]: the one git call of a prompt. Fills
+# __DG_HEAD __DG_AHEAD __DG_BEHIND __DG_STAGED __DG_UNSTAGED __DG_UNTRACKED
+# __DG_STASH __DG_UP from `git status --porcelain=v2 --branch` (no index
+# locks); fails outside a repo or when git does. With `nostatus` the branch
+# is read from HEAD and the counts stay 0 — no git process at all.
+__dottod_git_state() {
+    local line oid="" out ref
+    __DG_HEAD=""
+    __DG_UP=""
+    __DG_AHEAD=0
+    __DG_BEHIND=0
+    __DG_STAGED=0
+    __DG_UNSTAGED=0
+    __DG_UNTRACKED=0
+    __DG_STASH=0
+    [[ -n "${__DG_GD}" ]] || return 1
+
+    if [[ "${1:-}" == nostatus ]]; then
+        IFS= read -r line <"${__DG_GD}/HEAD" || return 1
+        case "${line}" in
+            'ref: refs/heads/'*) __DG_HEAD="${line#'ref: refs/heads/'}" ;;
+            *) return 1 ;;
+        esac
+        return 0
     fi
 
-    printf '%s' ' \[\e[1;34m\]git:(\[\e[0;31m\]'"$(__dottod_ps_esc "$ref")"'\[\e[34m\])'"$dirty"'\[\e[0m\]'
-}
-
-# __dottod_git_segments: machine-friendly git state for segmented prompts.
-# Prints `branch|ahead|behind|staged|unstaged|untracked|stash`; empty branch
-# (and false) outside a repo. One `git status` call, no index locks.
-__dottod_git_segments() {
-    local gd
-    gd="$(git rev-parse --absolute-git-dir 2>/dev/null)" || return 1
-
-    local line head oid up
-    local ahead behind staged unstaged untracked stash
-    head=""
-    oid=""
-    up=""
-    ahead=0
-    behind=0
-    staged=0
-    unstaged=0
-    untracked=0
+    out="$(GIT_OPTIONAL_LOCKS=0 git status --porcelain=v2 --branch --untracked-files=normal --ignore-submodules=dirty 2>/dev/null)" || return 1
     while IFS= read -r line; do
         case "${line}" in
-            '# branch.head '*) head="${line#'# branch.head '}" ;;
+            '# branch.head '*) __DG_HEAD="${line#'# branch.head '}" ;;
             '# branch.oid '*) oid="${line#'# branch.oid '}" ;;
-            '# branch.upstream '*) up="${line#'# branch.upstream '}" ;;
+            '# branch.upstream '*) __DG_UP="${line#'# branch.upstream '}" ;;
             '# branch.ab +'*)
                 line="${line#'# branch.ab +'}"
-                ahead="${line%% *}"
-                behind="${line##* -}"
+                __DG_AHEAD="${line%% *}"
+                __DG_BEHIND="${line##* -}"
                 ;;
             [12]' '*)
                 line="${line:2:2}"
-                [[ "${line:0:1}" != "." ]] && staged=$((staged + 1))
-                [[ "${line:1:1}" != "." ]] && unstaged=$((unstaged + 1))
+                [[ "${line:0:1}" != "." ]] && __DG_STAGED=$((__DG_STAGED + 1))
+                [[ "${line:1:1}" != "." ]] && __DG_UNSTAGED=$((__DG_UNSTAGED + 1))
                 ;;
-            'u '*) staged=$((staged + 1)) ;;
-            '? '*) untracked=$((untracked + 1)) ;;
+            'u '*) __DG_STAGED=$((__DG_STAGED + 1)) ;;
+            '? '*) __DG_UNTRACKED=$((__DG_UNTRACKED + 1)) ;;
         esac
-    done < <(GIT_OPTIONAL_LOCKS=0 git status --porcelain=v2 --branch --untracked-files=normal 2>/dev/null) || return 1
+    done <<<"${out}"
 
-    if [[ "${head}" == "(detached)" ]]; then
-        head="@${oid:0:7}"
-    elif [[ -z "${head}" ]]; then
+    if [[ "${__DG_HEAD}" == "(detached)" ]]; then
+        __DG_HEAD="@${oid:0:7}"
+    elif [[ -z "${__DG_HEAD}" ]]; then
         return 1
     fi
     # A branch with no upstream shows no .ab line: surface that as `local`.
-    if [[ -z "${up}" ]]; then
-        up="local"
-    fi
+    [[ -n "${__DG_UP}" ]] || __DG_UP="local"
 
-    stash=0
-    if [[ -s "${gd}/logs/refs/stash" ]]; then
-        stash=$(wc -l <"${gd}/logs/refs/stash")
-        stash="${stash//[[:space:]]/}"
+    if [[ -s "${__DG_GD}/logs/refs/stash" ]]; then
+        ref="$(wc -l <"${__DG_GD}/logs/refs/stash")"
+        __DG_STASH="${ref//[[:space:]]/}"
     fi
-
-    printf '%s|%s|%s|%s|%s|%s|%s|%s' "${head}" "${ahead}" "${behind}" "${staged}" "${unstaged}" "${untracked}" "${stash}" "${up}"
+    return 0
 }
 
-# __dottod_project_dir: `project[/sub/path]` inside a repo, `~`/basename out.
-__dottod_project_dir() {
-    local dir="${PWD}" top name sub
-    if top="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-        name="${top##*/}"
-        if [[ "${dir}" == "${top}" ]]; then
-            printf '%s' "${name}"
+# __dottod_git_segments: the state as `branch|ahead|behind|staged|unstaged|
+# untracked|stash|upstream` (empty and false outside a repo). Printing form
+# of __dottod_git_state, kept for callers that can afford a subshell.
+__dottod_git_segments() {
+    __dottod_find_git || return 1
+    __dottod_git_state || return 1
+    printf '%s|%s|%s|%s|%s|%s|%s|%s' "${__DG_HEAD}" "${__DG_AHEAD}" "${__DG_BEHIND}" "${__DG_STAGED}" "${__DG_UNSTAGED}" "${__DG_UNTRACKED}" "${__DG_STASH}" "${__DG_UP}"
+}
+
+# __dottod_git_info_r: short git fragment for inline prompts, in REPLY.
+# ` git:(branch) ✗` — empty outside a repo. Byte-identical to the original
+# .custom.bashrc rendering for the default style. One git call (none when
+# the repo hides its dirty mark); a detached HEAD asks git for a tag name.
+__dottod_git_info_r() {
+    local ref dirty="" mode=""
+    REPLY=""
+    __dottod_find_git || return 1
+    __dottod_git_hidden && mode=nostatus
+    if ! __dottod_git_state "${mode}"; then
+        # Detached (or unreadable): the slow path names a tag or short hash.
+        ref="$(git describe --tags --exact-match HEAD 2>/dev/null)" ||
+            ref="$(git rev-parse --short HEAD 2>/dev/null)" ||
+            return 1
+        __DG_HEAD="${ref}"
+    elif [[ "${__DG_HEAD}" == @* ]]; then
+        ref="$(git describe --tags --exact-match HEAD 2>/dev/null)" && __DG_HEAD="${ref}" || __DG_HEAD="${__DG_HEAD#@}"
+    fi
+    if [[ -z "${mode}" ]] && ((__DG_STAGED + __DG_UNSTAGED + __DG_UNTRACKED > 0)); then
+        dirty=' \[\e[33m\]✗'
+    fi
+    __dottod_ps_esc_r "${__DG_HEAD}"
+    REPLY=' \[\e[1;34m\]git:(\[\e[0;31m\]'"${REPLY}"'\[\e[34m\])'"${dirty}"'\[\e[0m\]'
+}
+
+__dottod_git_info() {
+    __dottod_git_info_r || return 1
+    printf '%s' "${REPLY}"
+}
+
+# __dottod_project_dir_r: `project[/sub/path]` inside a repo, `~`/basename
+# out, in REPLY. Call __dottod_find_git first (the prompt does, once).
+__dottod_project_dir_r() {
+    local dir="${PWD}" name sub
+    if [[ -n "${__DG_TOP}" ]]; then
+        name="${__DG_TOP##*/}"
+        if [[ "${dir}" == "${__DG_TOP}" ]]; then
+            REPLY="${name}"
         else
-            sub="${dir#"${top}/"}"
-            printf '%s' "${name}/${sub}"
+            sub="${dir#"${__DG_TOP}/"}"
+            REPLY="${name}/${sub}"
         fi
-        return 0
-    fi
-    if [[ "${dir}" == "${HOME:-/nonexistent}" ]]; then
-        printf '~'
+    elif [[ "${dir}" == "${HOME:-/nonexistent}" ]]; then
+        REPLY='~'
     else
-        printf '%s' "${dir##*/}"
+        REPLY="${dir##*/}"
     fi
 }
 
-# __dottod_lang: language key of the current project (`node`, `rust`, …),
-# nearest marker file from $PWD up to the repo root; empty outside projects.
-# Marker walk only — never invokes toolchains (prompt must stay fast).
-__dottod_lang() {
-    local dir="${PWD}" top marker
-    if top="$(git rev-parse --show-toplevel 2>/dev/null)"; then
-        :
-    else
-        top="${PWD}"
-    fi
+__dottod_project_dir() {
+    __dottod_find_git || :
+    __dottod_project_dir_r
+    printf '%s' "${REPLY}"
+}
+
+# __dottod_lang_r: language key of the current project (`node`, `rust`, …)
+# in REPLY, nearest marker file from $PWD up to the repo root; fails outside
+# projects. Marker walk only — never invokes toolchains (prompt stays fast).
+__dottod_lang_r() {
+    local dir="${PWD}" top="${__DG_TOP:-${PWD}}" marker
+    REPLY=""
     while true; do
         for marker in package.json Cargo.toml go.mod pyproject.toml setup.py requirements.txt Gemfile composer.json pom.xml; do
             if [[ -f "${dir}/${marker}" ]]; then
                 case "${marker}" in
-                    package.json) printf 'node' ;;
-                    Cargo.toml) printf 'rust' ;;
-                    go.mod) printf 'go' ;;
-                    pyproject.toml | setup.py | requirements.txt) printf 'python' ;;
-                    Gemfile) printf 'ruby' ;;
-                    composer.json) printf 'php' ;;
-                    pom.xml) printf 'java' ;;
+                    package.json) REPLY='node' ;;
+                    Cargo.toml) REPLY='rust' ;;
+                    go.mod) REPLY='go' ;;
+                    pyproject.toml | setup.py | requirements.txt) REPLY='python' ;;
+                    Gemfile) REPLY='ruby' ;;
+                    composer.json) REPLY='php' ;;
+                    pom.xml) REPLY='java' ;;
                 esac
                 return 0
             fi
         done
-        [[ "${dir}" == "${top}" || "${dir}" == "/" ]] && break
-        dir="$(dirname "${dir}")"
+        [[ "${dir}" == "${top}" || "${dir}" == "/" || -z "${dir}" ]] && break
+        dir="${dir%/*}"
+        [[ -z "${dir}" ]] && dir=/
     done
     return 1
 }
 
+__dottod_lang() {
+    __dottod_find_git || :
+    __dottod_lang_r || return 1
+    printf '%s' "${REPLY}"
+}
+
 # __dottod_disk_avail: free space on / in df -h form (`27G`); empty on error.
-__dottod_disk_avail() {
+# Remembered for 30 s of shell time: it costs three processes.
+__dottod_disk_avail_r() {
     local avail
+    if [[ -n "${__DG_DISK:-}" ]] && ((SECONDS - __DG_DISK_AT < 30)); then
+        REPLY="${__DG_DISK}"
+        return 0
+    fi
     avail="$(df -h / --output=avail 2>/dev/null | tail -n 1 | tr -d '[:space:]')" || return 1
     [[ -n "${avail}" && "${avail}" != "Avail" ]] || return 1
-    printf '%s' "${avail}"
+    __DG_DISK="${avail}"
+    __DG_DISK_AT="${SECONDS}"
+    REPLY="${avail}"
+}
+
+__dottod_disk_avail() {
+    __dottod_disk_avail_r || return 1
+    printf '%s' "${REPLY}"
 }
 
 # __dottod_duration <seconds>: `3s`, `2m 05s`, `1h 02m`.
-__dottod_duration() {
+__dottod_duration_r() {
     local total="${1:-0}" h m s
     h=$((total / 3600))
     m=$(((total % 3600) / 60))
     s=$((total % 60))
     if ((h > 0)); then
-        printf '%dh %02dm' "${h}" "${m}"
+        printf -v REPLY '%dh %02dm' "${h}" "${m}"
     elif ((m > 0)); then
-        printf '%dm %02ds' "${m}" "${s}"
+        printf -v REPLY '%dm %02ds' "${m}" "${s}"
     else
-        printf '%ds' "${s}"
+        printf -v REPLY '%ds' "${s}"
     fi
+}
+
+__dottod_duration() {
+    __dottod_duration_r "$@"
+    printf '%s' "${REPLY}"
 }

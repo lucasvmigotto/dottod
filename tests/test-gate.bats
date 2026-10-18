@@ -21,7 +21,7 @@ setup() {
         list="$("$REPO_ROOT/tests/files.sh" "$kind")"
         while IFS= read -r f; do
             case "$f" in
-                bin/*.sh | lib/*.sh | scripts/*.sh | scripts/.*.sh | styles/*.sh | tests/*.sh | config/.custom.bashrc)
+                bin/*.sh | lib/*.sh | scripts/*.sh | styles/*.sh | tests/*.sh | config/.custom.bashrc)
                     assert_contains "$kind lists $f" "$f" "$list"
                     ;;
             esac

@@ -18,13 +18,13 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
   make them tolerant or clock-injected.
 
 ## Phase 2 — prompt speed (`perf/prompt`)
-- [ ] T184 [US1] `tests/bench/prompt.sh`: median render time per style in a
+- [x] T184 [US1] `tests/bench/prompt.sh`: median render time per style in a
   fixture repo; baseline recorded in plan.md.
-- [ ] T185 [US1] One `git status --porcelain=v2 --branch` per prompt, parsed in
+- [x] T185 [US1] One `git status --porcelain=v2 --branch` per prompt, parsed in
   bash, shared by every style.
-- [ ] T186 [US1] Per-PWD memo of project root, stack and OS id; no `$(...)` in
+- [x] T186 [US1] Per-PWD memo of project root, stack and OS id; no `$(...)` in
   the render path.
-- [ ] T187 [US1] Test: a stub git proves ≤ 1 git invocation per render; bench
+- [x] T187 [US1] Test: a stub git proves ≤ 1 git invocation per render; bench
   after: segmented median < 25 ms, robbyrussell not slower.
 
 ## Phase 3 — userland matrix (`ci/userland`)
