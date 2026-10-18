@@ -44,3 +44,34 @@ jobs:
 
       - name: Release-logic tests
         run: just release
+
+  userland:
+    # The suites on userlands unlike the dev host: Alpine (BusyBox awk, sed,
+    # date, mktemp, realpath) and Debian (mawk). Images pinned in distros.sh.
+    name: Userland (${{ matrix.distro }})
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [alpine, debian]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Podman
+        run: |
+          command -v podman >/dev/null || {
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq podman uidmap
+          }
+          podman --version
+
+      - name: Ensure rootless subuids
+        run: |
+          if ! grep -q -- "^${USER}:" /etc/subuid 2>/dev/null \
+            || ! grep -q -- "^${USER}:" /etc/subgid 2>/dev/null; then
+            sudo usermod --add-subuids 100000-165535 --add-subgids 100000-165535 "${USER}"
+          fi
+
+      - name: Suites on ${{ matrix.distro }}
+        # Large runner: no memory/cpu caps.
+        run: DOT_IT_PODMAN_ARGS='' ./tests/integration/userland.sh ${{ matrix.distro }}

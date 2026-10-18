@@ -157,6 +157,39 @@ __dottod_claude_bar() {
     printf '%s%s%s' "${color}" "${bar}" $'\e[0m'
 }
 
+# __dottod_claude_epoch <iso8601>: epoch seconds of `2030-01-16T01:00:00Z`,
+# `…+00:00`, `….123456+02:00` — parsed in bash, since BusyBox date -d takes
+# no ISO form; anything else is left to `date -d`. Fails when unparseable.
+__dottod_claude_epoch() {
+    local iso="${1:?stamp required}" y m d hh mm ss off=0 sign hz mz days
+    local re='^([0-9]{4})-([0-9]{2})-([0-9]{2})[T ]([0-9]{2}):([0-9]{2}):([0-9]{2})(\.[0-9]+)?(Z|([+-])([0-9]{2}):?([0-9]{2}))?$'
+    if [[ "${iso}" =~ ${re} ]]; then
+        y=$((10#${BASH_REMATCH[1]}))
+        m=$((10#${BASH_REMATCH[2]}))
+        d=$((10#${BASH_REMATCH[3]}))
+        hh=$((10#${BASH_REMATCH[4]}))
+        mm=$((10#${BASH_REMATCH[5]}))
+        ss=$((10#${BASH_REMATCH[6]}))
+        if [[ -n "${BASH_REMATCH[9]}" ]]; then
+            sign="${BASH_REMATCH[9]}"
+            hz=$((10#${BASH_REMATCH[10]}))
+            mz=$((10#${BASH_REMATCH[11]}))
+            off=$((hz * 3600 + mz * 60))
+            [[ "${sign}" == - ]] && off=$((-off))
+        fi
+        # days from civil (Howard Hinnant): proleptic Gregorian to 1970-01-01.
+        ((m <= 2)) && y=$((y - 1))
+        local era=$((y >= 0 ? y / 400 : (y - 399) / 400))
+        local yoe=$((y - era * 400))
+        local doy=$(((153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1))
+        local doe=$((yoe * 365 + yoe / 4 - yoe / 100 + doy))
+        days=$((era * 146097 + doe - 719468))
+        printf '%s' $((days * 86400 + hh * 3600 + mm * 60 + ss - off))
+        return 0
+    fi
+    date -d "${iso}" +%s 2>/dev/null
+}
+
 # __dottod_claude_until <iso8601>: a resets_at stamp as the time left
 # ("in 4h 12m", "in 35m") up to one day away, as the full date beyond
 # ("Sat 24 Oct 20:00"). Past stamps show "any moment"; unparseable stamps
@@ -167,7 +200,7 @@ __dottod_claude_until() {
         printf '%s' "${iso}"
         return 0
     }
-    target="$(date -d "${iso}" +%s 2>/dev/null)" || {
+    target="$(__dottod_claude_epoch "${iso}")" || {
         printf '%s' "${iso}"
         return 0
     }
@@ -179,7 +212,7 @@ __dottod_claude_until() {
     elif ((diff <= 86400)); then
         printf 'in %dh %dm' $((diff / 3600)) $((diff % 3600 / 60))
     else
-        date -d "${iso}" +'%a %d %b %H:%M' 2>/dev/null || printf '%s' "${iso}"
+        date -d "@${target}" +'%a %d %b %H:%M' 2>/dev/null || printf '%s' "${iso}"
     fi
 }
 
@@ -332,7 +365,7 @@ __dottod_claude_fzf() {
     # callee of __dottod_claude_profile_info, or the picker logs
     # "command not found" for the bar/until/ago helpers.
     export -f __dottod_claude_profile_info __dottod_claude_bar \
-        __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines \
+        __dottod_claude_epoch __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines \
         __dottod_claude_usage_refresh __dottod_claude_binary
     # Stale numbers refresh in the background; moving the cursor (or
     # ctrl-r, which refreshes the highlighted profile now) redraws them.

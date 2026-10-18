@@ -141,9 +141,11 @@ function _fetch_main() {
         return 0
     fi
 
-    local cfg rc=0
+    local cfg dir rc=0
     local -a args=()
-    cfg="$(mktemp "${TMPDIR:-/tmp}/dottod-fetch.XXXXXX.jsonc")"
+    # A directory, not a suffixed template: BusyBox mktemp ends in XXXXXX.
+    dir="$(mktemp -d "${TMPDIR:-/tmp}/dottod-fetch.XXXXXX")"
+    cfg="${dir}/card.jsonc"
     printf '%s\n' "${card[@]}" | _fetch_fastfetch_config "$((!simulated))" >"${cfg}"
     args=(--config "${cfg}")
     # A simulated system gets its own logo; a real one, fastfetch's pick.
@@ -154,7 +156,7 @@ function _fetch_main() {
         args+=(--pipe true)
     fi
     "${FETCH_CMD}" "${args[@]}" || rc=$?
-    rm -f "${cfg}"
+    rm -rf "${dir}"
     return "${rc}"
 }
 

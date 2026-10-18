@@ -200,3 +200,14 @@ snapshot() {
     assert_eq 'rc' '0' "$status"
     assert_eq 'memory moved' 'remember this' "$(cat "$S/projects/$(key "$N")/memory/MEMORY.md")"
 }
+
+@test "the BusyBox path fallback resolves dots, symlinks and missing tails" {
+    ln -s "$W/proj" "$W/link"
+    assert_eq 'dot-dot' "$W/proj/docs" "$(__dottod_mv_realpath "$W/proj/../proj/docs")"
+    assert_eq 'symlink' "$W/proj/docs" "$(__dottod_mv_realpath "$W/link/docs")"
+    assert_eq 'symlink, missing tail' "$W/proj/new/deeper/x" "$(__dottod_mv_realpath "$W/link/new/deeper/x")"
+    assert_eq 'missing' "$W/dest/renamed" "$(__dottod_mv_realpath "$W/dest/renamed")"
+    assert_eq 'root' '/' "$(__dottod_mv_realpath /)"
+    assert_eq 'dots and slashes' "$W/proj" "$(__dottod_mv_realpath "$W/./proj//docs/..")"
+    cd "$W/proj" && assert_eq 'relative' "$W/proj/docs" "$(__dottod_mv_realpath docs)"
+}

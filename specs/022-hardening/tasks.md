@@ -28,10 +28,10 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
   after: segmented median < 25 ms, robbyrussell not slower.
 
 ## Phase 3 — userland matrix (`ci/userland`)
-- [ ] T188 [US2] `tests/integration/userland.sh <image>`: the bats suite inside
+- [x] T188 [US2] `tests/integration/userland.sh <image>`: the bats suite inside
   Alpine 3.22 (BusyBox) and Debian 13 slim (mawk), images pinned by digest.
-- [ ] T189 [US2] `userland` job in `shell.yml` running both.
-- [ ] T190 [US2] Fix every failure it surfaces (each with a regression test).
+- [x] T189 [US2] `userland` job in `shell.yml` running both.
+- [x] T190 [US2] Fix every failure it surfaces (each with a regression test).
 
 ## Phase 4 — Claude Code guard (`feat/claude-compat`)
 - [ ] T191 [US4] `__dottod_claude_compat`: key rule, compact `cwd` lines,

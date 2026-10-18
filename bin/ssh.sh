@@ -76,6 +76,34 @@ function _github_wanted_options() {
     ' "${template}"
 }
 
+# _ssh_resolve_link <symlink>: where it finally points, even when dangling
+# (readlink -m; BusyBox has no -m, so the chain is followed by hand).
+function _ssh_resolve_link() {
+    local p=${1} l n=0 part out=''
+    if readlink -m -- "${p}" 2>/dev/null; then
+        return 0
+    fi
+    while [[ -L "${p}" ]] && ((n < 40)); do
+        l="$(readlink -- "${p}")"
+        [[ "${l}" == /* ]] || l="${p%/*}/${l}"
+        p="${l}"
+        n=$((n + 1))
+    done
+    local -a parts=()
+    local IFS=/
+    set -f
+    for part in ${p}; do
+        case "${part}" in
+            '' | .) ;;
+            ..) ((${#parts[@]} > 0)) && unset "parts[${#parts[@]}-1]" ;;
+            *) parts+=("${part}") ;;
+        esac
+    done
+    set +f
+    out="/${parts[*]}"
+    printf '%s\n' "${out}"
+}
+
 function _merge_github_config() {
     local target=${1:?'Target SSH config must be informed'}
     local template=${2:?'SSH template must be informed'}
@@ -88,7 +116,7 @@ function _merge_github_config() {
     # Migrate legacy installs: dottod used to symlink the template directly.
     if [[ -L "${target}" ]]; then
         local dest
-        dest="$(readlink -m "${target}")"
+        dest="$(_ssh_resolve_link "${target}")"
         if [[ "${dest}" == "${template}" ]]; then
             log_info "Replacing legacy symlink ${target} with a managed file"
             rm -f "${target}"

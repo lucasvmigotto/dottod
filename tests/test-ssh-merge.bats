@@ -235,3 +235,15 @@ fresh_target() {
     assert_contains 'second run skips' 'already present' "$output"
     assert_eq 'key unchanged' "$before" "$(cat "$d/github")"
 }
+
+@test "symlink resolution works without readlink -m (BusyBox)" {
+    local d
+    d="$(mktemp -d -p "$FIX")"
+    mkdir -p "$d/real"
+    ln -s real/cfg "$d/hop"
+    ln -s "$d/hop" "$d/link"
+    readlink() { [[ "${1:-}" == -m ]] && return 1; command readlink "$@"; }
+    assert_eq 'dangling chain' "$d/real/cfg" "$(_ssh_resolve_link "$d/link")"
+    ln -sf ../up "$d/real/dots"
+    assert_eq 'dot-dot collapsed' "$d/up" "$(_ssh_resolve_link "$d/real/dots")"
+}
