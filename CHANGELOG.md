@@ -5,6 +5,25 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.9.0 — 2026-10-18
+
+### Added
+
+- **release:** promote.sh guards the develop-to-main promotion
+- **claude:** guard the Claude Code internals; claude-mv refuses surprises
+
+### Fixed
+
+- **release:** promote waits for CI runs that have not registered yet
+- **tests:** lint promote tests, find the final version cache file
+- **tests:** wait for the version cache file, not its lock
+- **tests:** hermetic env, bunx fallback, glob-based gate lists
+
+### Changed
+
+- **claude:** prune claude-mv backups; split .claude.sh into usage and panel files
+- **prompt:** one git call and no subshells per render
+
 ## 2.8.0 — 2026-10-18
 
 ### Added
