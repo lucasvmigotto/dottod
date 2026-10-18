@@ -163,6 +163,7 @@ nvim_present() { export NVIM_STUB_ABSENT=0; }
 }
 
 @test "tarball healing installs its own download tools first" {
+    _os_libc() { printf 'glibc'; }
     _nvim_tarball_asset() { return 1; }
     run _nvim_install_tarball v0.12.5 "$(id -un)"
     assert_contains 'prerequisites requested' 'PKGS:curl ca_certificates tar python3' "$(cat "$CALLS")"

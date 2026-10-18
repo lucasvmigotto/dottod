@@ -504,7 +504,7 @@ STUBEOF
     printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
     run bash -c "
         source '$REPO_ROOT/scripts/.claude.sh'
-        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines
+        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_epoch __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines
         bash -c \"__dottod_claude_profile_info '$d'\"
     "
     assert_eq 'rc 0' '0' "$status"
@@ -784,12 +784,13 @@ conversation_key() {
 @test "reset stamps: time left up to a day, the date beyond" {
     source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
     local soon later far
-    soon="$(date -u -d '+35 minutes 20 seconds' +%FT%TZ)"
-    later="$(date -u -d '+4 hours 12 minutes 30 seconds' +%FT%TZ)"
-    far="$(date -u -d '+3 days' +%FT%TZ)"
+    # Epoch arithmetic: BusyBox date has no relative "+35 minutes".
+    soon="$(date -u -d "@$(($(date +%s) + 2120))" +%FT%TZ)"
+    later="$(date -u -d "@$(($(date +%s) + 15150))" +%FT%TZ)"
+    far="$(date -u -d "@$(($(date +%s) + 259200))" +%FT%TZ)"
     assert_eq 'minutes' 'in 35m' "$(__dottod_claude_until "$soon")"
     assert_eq 'hours and minutes' 'in 4h 12m' "$(__dottod_claude_until "$later")"
-    assert_eq 'more than a day: the date' "$(date -d "$far" +'%a %d %b %H:%M')" "$(__dottod_claude_until "$far")"
+    assert_eq 'more than a day: the date' "$(date -d "@$(($(date +%s) + 259200))" +'%a %d %b %H:%M')" "$(__dottod_claude_until "$far")"
     assert_eq 'past' 'any moment' "$(__dottod_claude_until 2001-01-01T00:00:00Z)"
     assert_eq 'unparseable stays raw' 'soon-ish' "$(__dottod_claude_until soon-ish)"
 }
@@ -825,7 +826,7 @@ conversation_key() {
     run __dottod_claude_usage_refresh "$d"
     assert_eq 'busy: skipped' '1' "$status"
     assert_eq 'nothing ran' '' "$(cat "$CALLS_LOG")"
-    touch -d '3 minutes ago' "$d/.dottod-usage.lock"
+    touch -t "$(date -d "@$(($(date +%s) - 180))" +%Y%m%d%H%M.%S)" "$d/.dottod-usage.lock"
     run __dottod_claude_usage_refresh "$d"
     assert_eq 'stale lock taken over' '0' "$status"
 
@@ -884,4 +885,16 @@ conversation_key() {
     run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_usage_lines '$d'"
     assert_match '5h at 0%, no glyph' '^usage    5h .*   0%$' "$(grep '5h' <<<"$output")"
     assert_contains '7d keeps its reset' $'68%  \uf1da ' "$output"
+}
+
+@test "ISO stamps parse without GNU date (offsets, fractions, Z)" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    assert_eq 'epoch start' '0' "$(__dottod_claude_epoch 1970-01-01T00:00:00Z)"
+    assert_eq 'zero offset' '1893456000' "$(__dottod_claude_epoch 2030-01-01T00:00:00+00:00)"
+    assert_eq 'positive offset' '1893456000' "$(__dottod_claude_epoch 2030-01-01T02:00:00+02:00)"
+    assert_eq 'negative offset' '1893463200' "$(__dottod_claude_epoch 2029-12-31T20:30:00-05:30)"
+    assert_eq 'fraction ignored' '1893456000' "$(__dottod_claude_epoch 2030-01-01T00:00:00.987654Z)"
+    assert_eq 'leap day' '951868800' "$(__dottod_claude_epoch 2000-03-01T00:00:00Z)"
+    run __dottod_claude_epoch 'not a date'
+    assert_eq 'garbage fails' '1' "$status"
 }

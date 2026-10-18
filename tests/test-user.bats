@@ -16,10 +16,10 @@ setup() {
     export _DOT_NO_PACKAGES=1
     export _DOT_PASSWD_FILE="$BATS_TEST_TMPDIR/passwd"
     export _DOT_SHELLS_FILE="$BATS_TEST_TMPDIR/shells"
-    cat >"$_DOT_PASSWD_FILE" <<'PW'
+    cat >"$_DOT_PASSWD_FILE" <<PW
 root:x:0:0:root:/root:/bin/bash
 alice:x:1000:1000::/var/home/alice:/bin/sh
-bob:x:1001:1001::/data/home/bob dir:/usr/bin/bash
+bob:x:1001:1001::/data/home/bob dir:$(command -v bash)
 nohome:x:1002:1002:::/bin/sh
 PW
     printf '/bin/sh\n%s\n' "$(command -v bash)" >"$_DOT_SHELLS_FILE"

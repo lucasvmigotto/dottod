@@ -96,3 +96,21 @@ free-disk readout is remembered for 30 s. Known difference: a dirty
 submodule no longer marks the segmented prompts (`--ignore-submodules=dirty`,
 as the default style always did). `tests/test-prompt-perf.bats` pins the
 ≤ 1 git call per render.
+
+## Phase 3 result (userland matrix)
+
+`tests/integration/userland.sh [alpine|debian]` runs all bats suites as an
+unprivileged user with a UTF-8 locale on the pinned Alpine 3.22 (BusyBox
+awk/sed/date/mktemp/realpath) and Debian trixie (mawk) images; the
+`userland` job in `shell.yml` runs both. First run: 20 failures on Alpine,
+15 on Debian (mostly the harness: root, no locale, no python3). What was
+left were real BusyBox bugs, each fixed with a regression test:
+
+- `claude-mv`: `realpath -m` → a pure-bash fallback (it refused every path).
+- `bin/ssh.sh`: `readlink -m` → `_ssh_resolve_link` (SSH config merge died).
+- `claude` usage panel: `date -d <ISO>` → `__dottod_claude_epoch` parses
+  ISO-8601 in bash (reset stamps printed raw).
+- `dottod-fetch.sh`: `mktemp …XXXXXX.jsonc` → a temp directory (the card
+  never drew).
+- Tests that assumed GNU `date -d '+35 minutes'`, `touch -d`, `/usr/bin/bash`
+  or a glibc host now use epoch arithmetic and `command -v bash`.

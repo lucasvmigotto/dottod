@@ -33,9 +33,36 @@ __dottod_mv_key() {
 # the path exists (realpath -m); fails on paths JSON would escape.
 __dottod_mv_abs() {
     local p
-    p="$(realpath -m -- "${1}" 2>/dev/null)" || return 1
+    p="$(realpath -m -- "${1}" 2>/dev/null)" || p="$(__dottod_mv_realpath "${1}")" || return 1
     [[ "${p}" == /* && "${p}" != *[\"\\]* && "${p}" != *$'\n'* ]] || return 1
     printf '%s' "${p}"
+}
+
+# realpath -m for userlands without it (BusyBox): the path made absolute and
+# lexically collapsed, its deepest existing directory resolved physically.
+__dottod_mv_realpath() {
+    local p="${1}" part rest='' base IFS=/
+    [[ "${p}" == /* ]] || p="${PWD}/${p}"
+    local -a out=()
+    set -f
+    for part in ${p}; do
+        case "${part}" in
+            '' | .) ;;
+            ..) ((${#out[@]} > 0)) && unset "out[${#out[@]}-1]" ;;
+            *) out+=("${part}") ;;
+        esac
+    done
+    set +f
+    p="/${out[*]}"
+    while [[ ! -d "${p}" && "${p}" != / ]]; do
+        rest="/${p##*/}${rest}"
+        p="${p%/*}"
+        [[ -n "${p}" ]] || p=/
+    done
+    base="$(cd -P -- "${p}" 2>/dev/null && pwd -P)" || return 1
+    [[ "${base}" == / ]] && base=''
+    p="${base}${rest}"
+    printf '%s' "${p:-/}"
 }
 
 # __dottod_mv_under <path> <dir>: 0 when path is dir or inside it.
