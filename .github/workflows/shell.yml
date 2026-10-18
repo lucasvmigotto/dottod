@@ -75,3 +75,19 @@ jobs:
       - name: Suites on ${{ matrix.distro }}
         # Large runner: no memory/cpu caps.
         run: DOT_IT_PODMAN_ARGS='' ./tests/integration/userland.sh ${{ matrix.distro }}
+
+  pdd-loop:
+    # `pdd` against a real block device: a loop device stands in for the
+    # USB stick (plain and .xz images, refusals leave the device alone).
+    name: pdd on a loop device
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq pv xz-utils e2fsprogs util-linux
+
+      - name: Loop-device tests
+        run: sudo env DOTTOD_TEST_INTEGRATION=1 ./tests/integration/pdd-loop.sh
