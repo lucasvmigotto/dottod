@@ -4,15 +4,17 @@ One branch per phase off `develop`; gate per commit: bats green,
 ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
 
 ## Phase 1 — hermetic tests and tooling (`fix/test-harness`)
-- [ ] T180 [US3] `tests/helpers.bash`: clear `CLAUDE_*`, `CODES_*`, `DOT_*`,
+- [x] T180 [US3] `tests/helpers.bash`: clear `CLAUDE_*`, `CODES_*`, `DOT_*`,
   `XDG_*_HOME`, `PROMPT_COMMAND`, `PS0` for every suite; a canary test
   proves poisoned outer values never reach a test.
-- [ ] T181 [US5] `tests/run.sh`: bats, else `bunx bats@1.11.1`, else a clear
+- [x] T181 [US5] `tests/run.sh`: bats, else `bunx bats@1.11.1`, else a clear
   error; summary unchanged.
-- [ ] T182 [US5] justfile: lint/format/syntax lists from globs plus explicit
+- [x] T182 [US5] justfile: lint/format/syntax lists from globs plus explicit
   exclusions; a test proves every `scripts/.*.sh` and `styles/*.sh` is
   covered.
-- [ ] T183 [US3] Audit timing-sensitive assertions (SECONDS, date, sleep) and
+- [x] T183 [US3] Audit timing-sensitive assertions (SECONDS, date, sleep) and
+  Audit: the remaining `sleep`s only cross an mtime boundary; the duration
+  assertion is already tolerant (`took [78]s`). Nothing else is clock-bound.
   make them tolerant or clock-injected.
 
 ## Phase 2 — prompt speed (`perf/prompt`)

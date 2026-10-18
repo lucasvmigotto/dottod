@@ -14,6 +14,17 @@
 # failing assertion can vanish from the report (bats 1.14: "Executed N-1
 # instead of N tests"). See tests/test-neovim.bats setup() for the recipe.
 
+# Hermetic environment: an outer dottod/Claude session must never leak into
+# a test. Runs when a suite does `load helpers`, before any setup().
+function dottod_test_env() {
+    local v
+    while IFS= read -r v; do
+        unset "${v}"
+    done < <(compgen -v | grep -E '^(CLAUDE_|CODES_|DOT_|DOTTOD_|XDG_[A-Z]+_HOME$|PROMPT_COMMAND$|PS0$)' || true)
+    return 0
+}
+dottod_test_env
+
 function assert_eq() {
     local desc=${1} expected=${2} actual=${3}
     if [[ "${expected}" == "${actual}" ]]; then
