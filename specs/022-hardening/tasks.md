@@ -43,10 +43,10 @@ ShellCheck (`-S warning`) and shfmt clean, site checks when docs change.
   `cwd`, pretty-printed lines each warn.
 
 ## Phase 5 — claude-mv retention; split `.claude.sh` (`refactor/claude`)
-- [ ] T195 [US6] `claude-mv` keeps the newest `CLAUDE_MV_KEEP` (5) backups.
-- [ ] T196 [US7] Split into `.claude.sh`, `.claude-panel.sh`, `.claude-usage.sh`
+- [x] T195 [US6] `claude-mv` keeps the newest `CLAUDE_MV_KEEP` (5) backups.
+- [x] T196 [US7] Split into `.claude.sh`, `.claude-panel.sh`, `.claude-usage.sh`
   with unchanged function names and behavior.
-- [ ] T197 [US7] Full suite green with no test edits beyond file paths.
+- [x] T197 [US7] Full suite green with no test edits beyond file paths.
 
 ## Phase 6 — pdd on a real block device (`ci/pdd-loop`)
 - [ ] T198 [US8] `tests/integration/pdd-loop.sh`: loop device, plain and `.xz`

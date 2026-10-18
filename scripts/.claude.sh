@@ -21,6 +21,15 @@
 #   CLAUDE_USAGE_REFRESH   0 = never refresh usage numbers in the background
 #   CLAUDE_USAGE_TTL       seconds before cached usage counts as stale (300)
 
+# The usage and panel functions live beside this file (spec 022). Sourced
+# here so `source .claude.sh` stays enough (the shell loader also sources
+# every scripts/.*.sh itself; defining the functions twice is harmless).
+for __dottod_claude_part in .claude-usage.sh .claude-panel.sh; do
+    # shellcheck disable=SC1090 # sibling file by design
+    source "${BASH_SOURCE[0]%/*}/${__dottod_claude_part}"
+done
+unset __dottod_claude_part
+
 # Entries shared from ~/.claude into each overlay (symlinked when present).
 # Identity-bearing dirs stay OUT on purpose: backups/ (holds oauthAccount
 # snapshots), state/, sessions/ and session-env/ are per-profile, otherwise
@@ -135,274 +144,6 @@ __dottod_claude_ensure_profile() {
         printf '%s\n' "${name}" >"${dir}/${__DOTTOD_CLAUDE_MARKER}" 2>/dev/null || true
     fi
     printf '%s' "${dir}"
-}
-
-# __dottod_claude_bar <pct> <width>: a usage bar, colored by level
-# (green <50, yellow <80, red at/above). fzf renders the ANSI colors.
-__dottod_claude_bar() {
-    local pct="${1:-0}" width="${2:-10}" filled i bar color
-    ((pct < 0)) && pct=0
-    ((pct > 100)) && pct=100
-    filled=$((pct * width / 100))
-    bar=""
-    for ((i = 0; i < filled; i++)); do bar+=$'\u2588'; done
-    for ((i = filled; i < width; i++)); do bar+=$'\u2591'; done
-    if ((pct < 50)); then
-        color=$'\e[32m'
-    elif ((pct < 80)); then
-        color=$'\e[33m'
-    else
-        color=$'\e[31m'
-    fi
-    printf '%s%s%s' "${color}" "${bar}" $'\e[0m'
-}
-
-# __dottod_claude_epoch <iso8601>: epoch seconds of `2030-01-16T01:00:00Z`,
-# `…+00:00`, `….123456+02:00` — parsed in bash, since BusyBox date -d takes
-# no ISO form; anything else is left to `date -d`. Fails when unparseable.
-__dottod_claude_epoch() {
-    local iso="${1:?stamp required}" y m d hh mm ss off=0 sign hz mz days
-    local re='^([0-9]{4})-([0-9]{2})-([0-9]{2})[T ]([0-9]{2}):([0-9]{2}):([0-9]{2})(\.[0-9]+)?(Z|([+-])([0-9]{2}):?([0-9]{2}))?$'
-    if [[ "${iso}" =~ ${re} ]]; then
-        y=$((10#${BASH_REMATCH[1]}))
-        m=$((10#${BASH_REMATCH[2]}))
-        d=$((10#${BASH_REMATCH[3]}))
-        hh=$((10#${BASH_REMATCH[4]}))
-        mm=$((10#${BASH_REMATCH[5]}))
-        ss=$((10#${BASH_REMATCH[6]}))
-        if [[ -n "${BASH_REMATCH[9]}" ]]; then
-            sign="${BASH_REMATCH[9]}"
-            hz=$((10#${BASH_REMATCH[10]}))
-            mz=$((10#${BASH_REMATCH[11]}))
-            off=$((hz * 3600 + mz * 60))
-            [[ "${sign}" == - ]] && off=$((-off))
-        fi
-        # days from civil (Howard Hinnant): proleptic Gregorian to 1970-01-01.
-        ((m <= 2)) && y=$((y - 1))
-        local era=$((y >= 0 ? y / 400 : (y - 399) / 400))
-        local yoe=$((y - era * 400))
-        local doy=$(((153 * (m > 2 ? m - 3 : m + 9) + 2) / 5 + d - 1))
-        local doe=$((yoe * 365 + yoe / 4 - yoe / 100 + doy))
-        days=$((era * 146097 + doe - 719468))
-        printf '%s' $((days * 86400 + hh * 3600 + mm * 60 + ss - off))
-        return 0
-    fi
-    date -d "${iso}" +%s 2>/dev/null
-}
-
-# __dottod_claude_until <iso8601>: a resets_at stamp as the time left
-# ("in 4h 12m", "in 35m") up to one day away, as the full date beyond
-# ("Sat 24 Oct 20:00"). Past stamps show "any moment"; unparseable stamps
-# print raw.
-__dottod_claude_until() {
-    local iso="${1:?stamp required}" now target diff
-    now="$(date +%s 2>/dev/null)" || {
-        printf '%s' "${iso}"
-        return 0
-    }
-    target="$(__dottod_claude_epoch "${iso}")" || {
-        printf '%s' "${iso}"
-        return 0
-    }
-    diff=$((target - now))
-    if ((diff <= 0)); then
-        printf 'any moment'
-    elif ((diff < 3600)); then
-        printf 'in %dm' $((diff / 60))
-    elif ((diff <= 86400)); then
-        printf 'in %dh %dm' $((diff / 3600)) $((diff % 3600 / 60))
-    else
-        date -d "@${target}" +'%a %d %b %H:%M' 2>/dev/null || printf '%s' "${iso}"
-    fi
-}
-
-# __dottod_claude_ago <epoch_ms>: fetchedAtMs stamp as "updated 2h ago".
-__dottod_claude_ago() {
-    local ms="${1:?stamp required}" now diff
-    now="$(date +%s 2>/dev/null)" || return 0
-    [[ "${ms}" =~ ^[0-9]+$ ]] || return 0
-    diff=$((now - ms / 1000))
-    ((diff < 0)) && diff=0
-    if ((diff < 300)); then
-        printf 'updated just now'
-    elif ((diff < 3600)); then
-        printf 'updated %dm ago' $((diff / 60))
-    elif ((diff < 86400)); then
-        printf 'updated %dh ago' $((diff / 3600))
-    else
-        printf 'updated %dd ago' $((diff / 86400))
-    fi
-}
-
-# __dottod_claude_profile_info <dir>: prints a short account summary for the
-# fzf side panel — auth state, account, org, plan, usage (5h/7d bars; the
-# clock-rotate glyph marks when each resets: the time left, or the date
-# when more than a day away) and, last, settings.json as indented, colored JSON with anything
-# secret-looking masked. Best effort: missing or unreadable files degrade
-# to fewer lines, never fail.
-__dottod_claude_profile_info() {
-    local d="${1:?dir required}"
-    if [[ -s "${d}/.credentials.json" ]]; then
-        printf 'authenticated\n'
-    else
-        printf 'not authenticated — run and /login\n'
-    fi
-    command -v jq >/dev/null 2>&1 || return 0
-    if [[ -s "${d}/.claude.json" ]]; then
-        jq -r '
-            (.oauthAccount // {}) as $o |
-            "account  \($o.emailAddress // "n/a")",
-            "name     \($o.displayName // $o.fullName // "n/a")",
-            "org      \($o.organizationName // "n/a")",
-            "role     \($o.organizationRole // $o.workspaceRole // "n/a")"
-        ' "${d}/.claude.json" 2>/dev/null
-    fi
-    if [[ -s "${d}/.credentials.json" ]]; then
-        jq -r '
-            (.claudeAiOauth // {}) as $c |
-            "plan     \($c.subscriptionType // "n/a") · \($c.rateLimitTier // "n/a")"
-        ' "${d}/.credentials.json" 2>/dev/null
-    fi
-    __dottod_claude_usage_lines "${d}"
-    # Settings last, as written: every env value and any string under a
-    # token/key/secret/password/credential/auth-looking name is masked.
-    if [[ -s "${d}/settings.json" ]]; then
-        printf '\nprefs\n'
-        jq -C '
-            walk(if type == "object" then with_entries(
-                if (.value | type) == "string"
-                    and (.key | test("token|secret|passw|api.?key|credential|auth|cookie"; "i"))
-                then .value = "•••" else . end) else . end)
-            | if (.env | type) == "object" then .env |= map_values("•••") else . end
-        ' "${d}/settings.json" 2>/dev/null | sed 's/^/  /'
-    fi
-}
-
-# __dottod_claude_usage_lines <dir>: the 5h/7d usage bars from the
-# profile's cached numbers (cachedUsageUtilization in .claude.json, which
-# Claude Code writes, and __dottod_claude_usage_refresh asks it to), and
-# how old they are. Nothing when there are none.
-__dottod_claude_usage_lines() {
-    local d="${1:?dir required}"
-    [[ -s "${d}/.claude.json" ]] && command -v jq >/dev/null 2>&1 || return 0
-    local five five_reset seven seven_reset fetched
-    five="$(jq -r '.cachedUsageUtilization.utilization.five_hour.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
-    five_reset="$(jq -r '.cachedUsageUtilization.utilization.five_hour.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
-    seven="$(jq -r '.cachedUsageUtilization.utilization.seven_day.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
-    seven_reset="$(jq -r '.cachedUsageUtilization.utilization.seven_day.resets_at // empty' "${d}/.claude.json" 2>/dev/null)"
-    fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // empty' "${d}/.claude.json" 2>/dev/null)"
-    # A window with nothing used yet has no reset time: the bar, no glyph.
-    if [[ "${five}" =~ ^[0-9]+$ ]]; then
-        printf 'usage    5h %s %3s%%' "$(__dottod_claude_bar "${five}")" "${five}"
-        [[ -z "${five_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${five_reset}")"
-        printf '\n'
-    fi
-    if [[ "${seven}" =~ ^[0-9]+$ ]]; then
-        printf '         7d %s %3s%%' "$(__dottod_claude_bar "${seven}")" "${seven}"
-        [[ -z "${seven_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${seven_reset}")"
-        printf '\n'
-    fi
-    if [[ -n "${fetched}" ]]; then
-        __dottod_claude_ago "${fetched}" && printf '\n'
-    fi
-}
-
-# __dottod_claude_usage_stale <dir>: 0 when the profile is logged in and
-# its cached usage is missing or older than CLAUDE_USAGE_TTL seconds
-# (default 300).
-__dottod_claude_usage_stale() {
-    local d="${1:?dir required}" fetched now
-    [[ -s "${d}/.credentials.json" ]] || return 1
-    command -v jq >/dev/null 2>&1 || return 1
-    fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // 0' "${d}/.claude.json" 2>/dev/null)"
-    [[ "${fetched}" =~ ^[0-9]+$ ]] || fetched=0
-    now="$(date +%s)"
-    ((now - fetched / 1000 >= ${CLAUDE_USAGE_TTL:-300}))
-}
-
-# __dottod_claude_usage_refresh <dir>: asks Claude Code itself for fresh
-# numbers — `claude -p /usage` runs locally (no model turn, no cost) and
-# rewrites the cache — under a lock (one refresh per profile at a time; a
-# lock older than a minute is taken over) and a 30s timeout, from $HOME
-# with no session saved. Silent; rc 1 when it did not run or failed.
-__dottod_claude_usage_refresh() {
-    local d="${1:?dir required}" bin lock="${1}/.dottod-usage.lock" rc
-    bin="$(__dottod_claude_binary)" || return 1
-    if ! mkdir -- "${lock}" 2>/dev/null; then
-        [[ -n "$(find "${lock}" -maxdepth 0 -mmin +1 2>/dev/null)" ]] || return 1
-        rm -rf -- "${lock}"
-        mkdir -- "${lock}" 2>/dev/null || return 1
-    fi
-    (
-        cd -- "${HOME}" 2>/dev/null || exit 1
-        CLAUDE_CONFIG_DIR="${d}" timeout 30 "${bin}" -p /usage --no-session-persistence
-    ) </dev/null >/dev/null 2>&1
-    rc=$?
-    rmdir -- "${lock}" 2>/dev/null
-    return "${rc}"
-}
-
-# __dottod_claude_usage_spawn: refreshes every stale profile in the
-# background, detached (never waited on); CLAUDE_USAGE_REFRESH=0 turns it
-# off. The picker calls it as it opens.
-__dottod_claude_usage_spawn() {
-    [[ "${CLAUDE_USAGE_REFRESH:-1}" != 0 ]] || return 0
-    local n d
-    while IFS= read -r n; do
-        d="$(__dottod_claude_profile_dir "${n}")" || continue
-        __dottod_claude_usage_stale "${d}" || continue
-        (__dottod_claude_usage_refresh "${d}" &)
-    done < <(__dottod_claude_profiles)
-}
-
-# __dottod_claude_fzf: profile picker, prints the chosen name (fails on esc
-# or when no profiles exist yet).
-__dottod_claude_fzf() {
-    local names choice
-    names="$(__dottod_claude_profiles)"
-    [[ -n "${names}" ]] || return 1
-    # The preview subshell inherits only exported functions — export every
-    # callee of __dottod_claude_profile_info, or the picker logs
-    # "command not found" for the bar/until/ago helpers.
-    export -f __dottod_claude_profile_info __dottod_claude_bar \
-        __dottod_claude_epoch __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines \
-        __dottod_claude_usage_refresh __dottod_claude_binary
-    # Stale numbers refresh in the background; moving the cursor (or
-    # ctrl-r, which refreshes the highlighted profile now) redraws them.
-    __dottod_claude_usage_spawn
-    choice="$(printf '%s\n' "${names}" | fzf --prompt='profile> ' \
-        --height=40% --layout=reverse --border \
-        --header='enter: launch   ctrl-r: refresh usage   esc: cancel' \
-        --bind='ctrl-r:execute-silent(bash -c '"'"'__dottod_claude_usage_refresh "$HOME/.claude-{}"'"'"')+refresh-preview' \
-        --preview='bash -c '"'"'__dottod_claude_profile_info "$HOME/.claude-{}"'"'"'')" || return $?
-    [[ -n "${choice}" ]] || return 130
-    printf '%s' "${choice}"
-}
-
-# __dottod_claude_pick_profile: prints the profile to use (fails on esc, on
-# an unknown CLAUDE_PROFILE value, or when the named profile is missing).
-__dottod_claude_pick_profile() {
-    local choice="${CLAUDE_PROFILE:-}" picked rc
-    if [[ -n "${choice}" ]]; then
-        if ! __dottod_claude_valid_name "${choice}"; then
-            printf 'claude: bad profile name %s\n' "${choice}" >&2
-            return 2
-        fi
-        printf '%s' "${choice}"
-        return 0
-    fi
-    if [[ $- == *i* ]] && [[ -t 0 ]] && [[ -z "${CLAUDE_NO_PICKER:-}" ]] && command -v fzf >/dev/null 2>&1; then
-        picked="$(__dottod_claude_fzf)"
-        rc=$?
-        if ((rc == 0)); then
-            printf '%s' "${picked}"
-            return 0
-        elif ((rc == 130)); then
-            return 130 # user cancelled: abort the launch, never default
-        fi
-        # Any other failure (e.g. empty registry): fall through to default.
-    fi
-    printf '%s' "${CLAUDE_DEFAULT_PROFILE:-personal}"
 }
 
 # __dottod_claude_merge_dir <from> <into> <tag>: moves every file of <from>
@@ -871,6 +612,7 @@ claude() {
                 shift 2
                 ;;
             --profile=*)
+                # shellcheck disable=SC2034 # read by __dottod_claude_pick_profile
                 CLAUDE_PROFILE="${1#--profile=}"
                 shift
                 ;;
