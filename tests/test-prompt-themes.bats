@@ -147,10 +147,11 @@ no_stderr() {
         printf 'FAIL: first prompt waited for the version\n' >&2
         return 1
     fi
-    # The refresh may still hold its .lock: name the cache file, not the lock.
+    # The refresh may still hold its .lock or write through version-node-H.PID:
+    # name the cache file itself (its hash has no dot).
     local cached
     cached="$(ls "$XDG_CACHE_HOME"/dottod/prompt/version-node-* | head -n 1)"
-    wait_for "${cached%.lock}"
+    wait_for "${cached%.*}"
     out="$(render pastel "$PROJ")"
     assert_contains 'version after refresh' 'v22.11.0' "$out"
     no_stderr

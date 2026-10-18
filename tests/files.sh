@@ -12,7 +12,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 _exclude_re='^$'
 
 _sources() {
-    git ls-files -- 'bin/*.sh' 'lib/*.sh' 'lib/packages/*.sh' 'scripts/*.sh' \
+    git ls-files --cached --others --exclude-standard -- 'bin/*.sh' 'lib/*.sh' 'lib/packages/*.sh' 'scripts/*.sh' \
         'scripts/.*.sh' 'styles/*.sh' 'tests/*.sh' 'tests/integration/*.sh' \
         config/.custom.bashrc | grep -Ev "${_exclude_re}"
 }
@@ -21,7 +21,7 @@ case "${1:-}" in
     syntax | fmt) _sources ;;
     lint)
         _sources
-        git ls-files -- 'tests/*.bats' tests/helpers.bash
+        git ls-files --cached --others --exclude-standard -- 'tests/*.bats' tests/helpers.bash
         ;;
     *)
         printf 'usage: files.sh syntax|lint|fmt\n' >&2
