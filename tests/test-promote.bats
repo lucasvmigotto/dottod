@@ -21,13 +21,12 @@ setup() {
     git init -q --bare "$O"
     W="$BATS_TEST_TMPDIR/w"
     git clone -q "$O" "$W" 2>/dev/null
-    cd "$W"
+    cd "$W" || return 1
     git commit -q --allow-empty -m "chore: start"
     git push -q origin main
     git checkout -q -b develop
     git commit -q --allow-empty -m "feat: something"
     git push -q origin develop
-    SHA="$(git rev-parse HEAD)"
 
     # gh stub: develop runs from $GH_DEVELOP (rows "name<TAB>status<TAB>conclusion",
     # {SHA} expanded); the release run from $GH_RELEASE, which also lands the
