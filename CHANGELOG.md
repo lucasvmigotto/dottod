@@ -5,6 +5,12 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.8.0 — 2026-10-18
+
+### Added
+
+- **claude:** claude-mv moves a directory with its Claude sessions
+
 ## 2.7.0 — 2026-10-18
 
 ### Added
