@@ -284,6 +284,14 @@ indented JSON with every `env` value and anything token-, key- or
 secret-like masked. `CLAUDE_USAGE_REFRESH=0` turns the refresh off,
 `CLAUDE_USAGE_TTL` changes the five minutes.
 
+The picker colors each profile by how much of its week is used: white bold
+on red when the weekly limit is reached, bold red from 90%, amber from 75%
+(`CLAUDE_WEEK_CRIT`, `CLAUDE_WEEK_WARN`), each with a glyph so it reads
+without color. The side panel is glyph-led: the organization first (a
+personal one shows as `personal`), the account under a chain glyph (broken
+and red when not logged in) with the name as its sub-line, then plan, usage
+bars, cache age and prefs.
+
 Moving a project directory would orphan its Claude sessions (they are
 filed by path). `claude-mv` moves it and brings them along:
 
