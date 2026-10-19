@@ -358,9 +358,10 @@ seed_store() {
     printf '%s\n' '{"model":"sonnet","theme":"dark"}' >"$d/settings.json"
     run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
     assert_eq 'rc 0' '0' "$status"
-    assert_contains 'authenticated' 'authenticated' "$output"
+    assert_contains 'link glyph when authenticated' $'\uf0c1' "$output"
     assert_contains 'email' 'x@y.org' "$output"
-    assert_contains 'name' 'X Y' "$output"
+    assert_contains 'org' $'\uf1ad  Acme' "$output"
+    assert_contains 'name is a tree sub-line' $'└\e[0m \uf007 X Y' "$output"
     assert_contains 'plan' 'team' "$output"
     local plain
     plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
@@ -392,7 +393,7 @@ seed_store() {
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'five-hour percent' '69%' "$output"
     assert_contains 'seven-day percent' '15%' "$output"
-    assert_contains 'five-hour row' 'usage    5h' "$output"
+    assert_contains 'five-hour row' $'\uf080  5h' "$output"
     assert_contains 'seven-day row' '7d' "$output"
     assert_contains 'reset glyph' $'69%  \uf1da ' "$output"
     # Both stamps are years away: full dates.
@@ -401,7 +402,7 @@ seed_store() {
         printf 'FAIL: the resets label is gone, the glyph replaces it\n' >&2
         return 1
     fi
-    assert_contains 'staleness line' 'updated' "$output"
+    assert_contains 'age line' $'\uf021  ' "$output"
 }
 
 @test "profile info omits usage without cached data" {
@@ -441,15 +442,16 @@ seed_store() {
     cat >"$STUBBIN/fzf" <<'STUBEOF'
 #!/usr/bin/env bash
 name="$(head -n1)"
+name="${name%%$'\t'*}"
 for a in "$@"; do
     case "$a" in
-        --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
+        --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{1\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
         --bind=ctrl-r:execute-silent\(*) cmd="${a#--bind=ctrl-r:execute-silent(}"; cmd="${cmd%)+refresh-preview}"
-            bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
+            bash -c "${cmd//\{1\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;;
     esac
 done
 for a in "$@"; do
-    case "$a" in --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;; esac
+    case "$a" in --preview=*) cmd="${a#--preview=}"; bash -c "${cmd//\{1\}/\'$name\'}" >>"$PREVIEW_LOG" 2>&1 ;; esac
 done
 printf '%s\n' "$name"
 STUBEOF
@@ -465,7 +467,7 @@ STUBEOF
     fi
     assert_contains 'ctrl-r refreshed the profile' "DIR=$d ARGS=-p /usage --no-session-persistence" "$(cat "$CALLS_LOG")"
     assert_contains 'preview redrawn with the new numbers' '42%' "$log"
-    assert_contains 'fresh' 'updated just now' "$log"
+    assert_contains 'fresh' $'\uf021  just now' "$log"
 }
 
 @test "fzf cancel aborts the launch" {
@@ -504,7 +506,7 @@ STUBEOF
     printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"five_hour":{"utilization":69,"resets_at":"2030-01-04T23:00:00+00:00"},"seven_day":{"utilization":15,"resets_at":"2030-01-16T01:00:00+00:00"}},"fetchedAtMs":1893800000000}}' >"$d/.claude.json"
     run bash -c "
         source '$REPO_ROOT/scripts/.claude.sh'
-        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_epoch __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines
+        export -f __dottod_claude_profile_info __dottod_claude_bar __dottod_claude_org_label __dottod_claude_epoch __dottod_claude_until __dottod_claude_ago __dottod_claude_usage_lines
         bash -c \"__dottod_claude_profile_info '$d'\"
     "
     assert_eq 'rc 0' '0' "$status"
@@ -522,6 +524,72 @@ STUBEOF
     run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
     assert_eq 'rc 0' '0' "$status"
     assert_contains 'not authenticated' 'not authenticated' "$output"
+    assert_contains 'broken link glyph' $'\uf127' "$output"
+}
+
+@test "organization names are simplified" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    assert_eq 'personal org' 'personal' "$(__dottod_claude_org_label "me@x.com's Organization" me@x.com)"
+    assert_eq 'typographic apostrophe' 'personal' "$(__dottod_claude_org_label "me@x.com’s Organization" me@x.com)"
+    assert_eq 'named org kept' 'Sescsp NTD' "$(__dottod_claude_org_label 'Sescsp NTD' a@b.org)"
+    assert_eq 'name suffix stripped' 'Acme' "$(__dottod_claude_org_label "Acme's Organization" a@b.org)"
+    assert_eq 'missing' 'n/a' "$(__dottod_claude_org_label '' a@b.org)"
+}
+
+@test "profile info lists the org first, then the account with its name below" {
+    local d="$FAKE_HOME/.claude-order"
+    mkdir -p "$d"
+    printf 'tok' >"$d/.credentials.json"
+    printf '%s\n' '{"oauthAccount":{"emailAddress":"x@y.org","displayName":"X Y","organizationName":"x@y.org'"'"'s Organization","organizationRole":"admin"}}' >"$d/.claude.json"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_profile_info '$d'"
+    local plain
+    plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
+    assert_eq 'org line first' $'\uf1ad  personal  \uf132 admin' "$(sed -n 1p <<<"$plain")"
+    assert_eq 'account second' $'\uf0c1  x@y.org' "$(sed -n 2p <<<"$plain")"
+    assert_eq 'name third' $' └ \uf007 X Y' "$(sed -n 3p <<<"$plain")"
+}
+
+@test "picker rows are colored by how much of the week is used" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    local far="2999-01-01T00:00:00+00:00" pct
+    for pct in 10 75 90 100; do
+        mkdir -p "$FAKE_HOME/.claude-p$pct"
+        printf '{"cachedUsageUtilization":{"utilization":{"seven_day":{"utilization":%s,"resets_at":"%s"}}}}\n' "$pct" "$far" >"$FAKE_HOME/.claude-p$pct/.claude.json"
+    done
+    mkdir -p "$FAKE_HOME/.claude-none"
+    assert_eq 'no data: plain' $'none\t   none' "$(__dottod_claude_list_line none)"
+    assert_eq 'low: plain' $'p10\t   p10' "$(__dottod_claude_list_line p10)"
+    assert_eq 'close: amber' $'p75\t\e[38;5;214m\uf06a  p75\e[0m' "$(__dottod_claude_list_line p75)"
+    assert_eq 'near: bold red' $'p90\t\e[1;31m\uf071  p90\e[0m' "$(__dottod_claude_list_line p90)"
+    assert_eq 'exceeded: white bold on red' $'p100\t\e[1;97;41m \uf05e p100 \e[0m' "$(__dottod_claude_list_line p100)"
+    CLAUDE_WEEK_WARN=5 run __dottod_claude_list_line p10
+    assert_contains 'thresholds are tunable' '38;5;214' "$output"
+}
+
+@test "a week that already reset no longer colors the row" {
+    source "$REPO_ROOT/scripts/.claude.sh" >/dev/null 2>&1
+    mkdir -p "$FAKE_HOME/.claude-old"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"seven_day":{"utilization":100,"resets_at":"2001-01-01T00:00:00+00:00"}}}}' >"$FAKE_HOME/.claude-old/.claude.json"
+    assert_eq 'plain row' $'old\t   old' "$(__dottod_claude_list_line old)"
+}
+
+@test "the picker feeds fzf styled rows and returns the bare name" {
+    mkdir -p "$FAKE_HOME/.claude-work"
+    printf 'work\n' >"$FAKE_HOME/.claude-work/.dottod-profile"
+    printf '%s\n' '{"cachedUsageUtilization":{"utilization":{"seven_day":{"utilization":100,"resets_at":"2999-01-01T00:00:00+00:00"}}}}' >"$FAKE_HOME/.claude-work/.claude.json"
+    cat >"$STUBBIN/fzf" <<'STUBEOF'
+#!/usr/bin/env bash
+cat >"$ROWS_LOG"
+printf '%s\n' "$*" >"$ARGS_LOG"
+head -n1 "$ROWS_LOG"
+STUBEOF
+    chmod +x "$STUBBIN/fzf"
+    export ROWS_LOG="$BATS_TEST_TMPDIR/rows" ARGS_LOG="$BATS_TEST_TMPDIR/args"
+    run bash -c "source '$REPO_ROOT/scripts/.claude.sh'; __dottod_claude_fzf"
+    assert_eq 'bare name returned' 'work' "$output"
+    assert_contains 'row carries the styling' $'\e[1;97;41m' "$(cat "$ROWS_LOG")"
+    assert_contains 'fzf reads ANSI' '--ansi' "$(cat "$ARGS_LOG")"
+    assert_contains 'label shown, name hidden' '--with-nth=2' "$(cat "$ARGS_LOG")"
 }
 
 @test "missing binary fails without launching" {

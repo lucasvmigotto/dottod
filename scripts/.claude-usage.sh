@@ -85,9 +85,15 @@ __dottod_claude_ago() {
 # __dottod_claude_usage_lines <dir>: the 5h/7d usage bars from the
 # profile's cached numbers (cachedUsageUtilization in .claude.json, which
 # Claude Code writes, and __dottod_claude_usage_refresh asks it to), and
-# how old they are. Nothing when there are none.
+# how old they are. Nothing when there are none. With a second argument
+# (the panel), the labels become glyphs: a chart for the bars, a refresh
+# arrow for the age.
 __dottod_claude_usage_lines() {
-    local d="${1:?dir required}"
+    local d="${1:?dir required}" mode="${2:-}" l5='usage    5h' l7='         7d' ago
+    if [[ -n "${mode}" ]]; then
+        l5=$'\uf080  5h'
+        l7='   7d'
+    fi
     [[ -s "${d}/.claude.json" ]] && command -v jq >/dev/null 2>&1 || return 0
     local five five_reset seven seven_reset fetched
     five="$(jq -r '.cachedUsageUtilization.utilization.five_hour.utilization // empty' "${d}/.claude.json" 2>/dev/null)"
@@ -97,17 +103,22 @@ __dottod_claude_usage_lines() {
     fetched="$(jq -r '.cachedUsageUtilization.fetchedAtMs // empty' "${d}/.claude.json" 2>/dev/null)"
     # A window with nothing used yet has no reset time: the bar, no glyph.
     if [[ "${five}" =~ ^[0-9]+$ ]]; then
-        printf 'usage    5h %s %3s%%' "$(__dottod_claude_bar "${five}")" "${five}"
+        printf '%s %s %3s%%' "${l5}" "$(__dottod_claude_bar "${five}")" "${five}"
         [[ -z "${five_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${five_reset}")"
         printf '\n'
     fi
     if [[ "${seven}" =~ ^[0-9]+$ ]]; then
-        printf '         7d %s %3s%%' "$(__dottod_claude_bar "${seven}")" "${seven}"
+        printf '%s %s %3s%%' "${l7}" "$(__dottod_claude_bar "${seven}")" "${seven}"
         [[ -z "${seven_reset}" ]] || printf '  \uf1da %s' "$(__dottod_claude_until "${seven_reset}")"
         printf '\n'
     fi
     if [[ -n "${fetched}" ]]; then
-        __dottod_claude_ago "${fetched}" && printf '\n'
+        if [[ -n "${mode}" ]]; then
+            ago="$(__dottod_claude_ago "${fetched}")"
+            [[ -z "${ago}" ]] || printf '\uf021  %s\n' "${ago#updated }"
+        else
+            __dottod_claude_ago "${fetched}" && printf '\n'
+        fi
     fi
 }
 
