@@ -29,6 +29,8 @@
 #   CODES_CLAUDE         0 = no Claude mark (default 1: repos with a saved
 #                        Claude Code conversation show nf-cod-sparkle)
 #   CODES_CLAUDE_GLYPH   the mark itself (e.g. '*' without a Nerd Font)
+#   CODES_LOCAL_GLYPH    the no-upstream mark (default: a broken link; e.g.
+#                        'local' without a Nerd Font)
 
 [[ $- != *i* ]] && return 0 2>/dev/null
 
@@ -220,8 +222,9 @@ __codes_table() {
     work=$(__codes_work_email)
 
     # Claude mark: nf-cod-sparkle (U+EC10, as UTF-8 bytes for any bash).
-    local cproj="" cglyph=$'\xee\xb0\x90'
+    local cproj="" cglyph=$'\xee\xb0\x90' lglyph=$'\xef\x84\xa7'
     [[ -n ${CODES_CLAUDE_GLYPH:-} ]] && cglyph=$CODES_CLAUDE_GLYPH
+    [[ -n ${CODES_LOCAL_GLYPH:-} ]] && lglyph=$CODES_LOCAL_GLYPH
     [[ ${CODES_CLAUDE:-1} != 0 ]] && cproj=${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects
     tr '\n' '\0' |
         CODES_CLAUDE_PROJECTS=$cproj xargs -0 -r -n1 -P "${CODES_JOBS:-8}" bash -c "$fn"'; __codes_info "$@"' _ "$flavor" "$fetch" |
@@ -237,7 +240,7 @@ __codes_table() {
         sort -t $'\t' -k1,1nr |
         awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" \
             -v work="$work" -v only="$only" -v bycontext="$bycontext" \
-            -v cglyph="$cglyph" '
+            -v cglyph="$cglyph" -v lglyph="$lglyph" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
@@ -258,7 +261,7 @@ __codes_table() {
                 for (i = 1; i <= length(s); i++) if (!index(CONT, substr(s, i, 1))) n++
                 return n
             }
-            function pad(s, w,    n) { n = w - length(s); while (n-- > 0) s = s " "; return s }
+            function pad(s, w,    n) { n = w - wlen(s); while (n-- > 0) s = s " "; return s }
             function seg(t, c) {
                 plain = plain (plain == "" ? "" : " ") t
                 col   = col   (col   == "" ? "" : " ") c t R
@@ -292,7 +295,7 @@ __codes_table() {
                     if (un > 0) seg("!" un, YEL)
                     if (ut > 0) seg("?" ut, CYN)
                     if (cf + st + un + ut == 0) seg("✔", GRN)
-                    if (up == "")            seg("local", D)       # no upstream configured
+                    if (up == "")            seg(lglyph, D)        # no upstream configured
                     else if (hasab + 0 == 0) seg("gone", RED)      # upstream branch deleted
                     else {
                         if (ah > 0) seg("⇡" ah, BLU)               # unpushed commits
@@ -300,7 +303,6 @@ __codes_table() {
                     }
                     if (sh > 0) seg("*" sh, D)
                 }
-                if ($15 == 1) seg(cglyph, CLD)                     # a saved Claude conversation
 
                 N++
                 pts[N] = $1; pt[N] = path; nm0[N] = name
@@ -308,9 +310,10 @@ __codes_table() {
                 pb = pdir; sub(/.*\//, "", pb); ppb[N] = pb
                 cx[N] = ctx
                 bn[N] = trunc(br, 24)
+                cl[N] = ($15 == 1)                                 # a saved Claude conversation
                 ag[N] = age($1); sp[N] = plain; sc[N] = col; dr[N] = dir
-                if (length(bn[N]) > wb) wb = length(bn[N])
-                if (length(ag[N]) > wa) wa = length(ag[N])
+                if (wlen(bn[N]) > wb) wb = wlen(bn[N])
+                if (wlen(ag[N]) > wa) wa = wlen(ag[N])
                 if (wlen(plain) > ws) ws = wlen(plain)
             }
             END {
@@ -371,8 +374,22 @@ __codes_table() {
                         nm[i] = trunc(disp, 32)
                     }
                 }
-                for (oi = 1; oi <= nog; oi++)
-                    if (length(nm[ord[oi]]) > wn) wn = length(nm[ord[oi]])
+                # A child row carries a 3-column "├─ " prefix: count it in
+                # the name column so every later column lines up.
+                # The Claude mark leads the row in its own slot (mark + space,
+                # blank on rows without one); the tree lines and names start
+                # after it. No slot at all when no row has a mark.
+                gw = wlen(cglyph)
+                anyc = 0
+                for (i = 1; i <= N; i++) if (cl[i]) anyc = 1
+                sw = anyc ? gw + 1 : 0
+                blank = ""; for (k = 0; k < sw; k++) blank = blank " "
+                for (oi = 1; oi <= nog; oi++) {
+                    i = ord[oi]
+                    ind[i] = (groupopt == 1 && key[i] != pt[i]) ? 3 : 0
+                    nw[i] = sw + ind[i] + wlen(nm[i])
+                    if (nw[i] > wn) wn = nw[i]
+                }
                 for (oi = 1; oi <= nog; oi++) {
                     i = ord[oi]
                     pre = ""
@@ -380,14 +397,16 @@ __codes_table() {
                         pre = D (lastc[i] ? "└─ " : "├─ ") R
                     fill = ""; for (k = wlen(sp[i]); k < ws; k++) fill = fill " "
                     if (slash = index(nm[i], "/"))
-                        namef = D substr(nm[i], 1, slash) R B pad(substr(nm[i], slash + 1), wn - slash) R
+                        namef = D substr(nm[i], 1, slash) R B substr(nm[i], slash + 1) R
                     else
-                        namef = B pad(nm[i], wn) R
+                        namef = B nm[i] R
+                    for (k = nw[i]; k < wn; k++) namef = namef " "
+                    mark = cl[i] ? CLD cglyph R " " : blank
                     # Context column only once a work identity exists.
                     cxf = ""
                     if (work != "")
                         cxf = (cx[i] == "work" ? YEL : D) pad(cx[i], 8) R "  "
-                    printf "%s\t%s%s  %s%s  %s  %s%s  %s\n", pt[i], pre,
+                    printf "%s\t%s%s%s  %s%s  %s  %s%s  %s\n", pt[i], mark, pre,
                         namef, cxf, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
                         sc[i], fill, D dr[i] R
                 }
@@ -561,7 +580,7 @@ codes() {
     fi
 
     if [[ -z $picked ]]; then
-        local table cmark=${CODES_CLAUDE_GLYPH:-$'\xee\xb0\x90'}
+        local table cmark=${CODES_CLAUDE_GLYPH:-$'\xee\xb0\x90'} lmark=${CODES_LOCAL_GLYPH:-$'\xef\x84\xa7'}
         table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch" "$only" "$bycontext")
         if [[ -z $table ]]; then
             echo "codes: no ${only:-matching} projects" >&2
@@ -575,11 +594,11 @@ codes() {
         fi
         picked=$(printf '%s\n' "$table" |
             fzf --ansi --delimiter=$'\t' --with-nth=2 --tiebreak=index \
-                --height=70% --layout=reverse --border \
+                --layout=reverse --border \
                 --prompt='codes> ' \
-                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  local=no upstream  '"$cmark"'=claude' \
-                --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 12 --oneline --decorate --color=always' \
-                --preview-window='right,45%,border-left,<110(down,40%,border-top)' \
+                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  '"$lmark"'=no upstream  '"$cmark"'=claude' \
+                --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 40 --graph --oneline --decorate --color=always' \
+                --preview-window='right,45%,border-left,<110(down,50%,border-top)' \
                 --bind='ctrl-/:toggle-preview' |
             cut -f1)
         [[ -z $picked ]] && return 130

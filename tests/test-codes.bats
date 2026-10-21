@@ -78,6 +78,36 @@ codes_find() {
     fi
 }
 
+@test "list keeps the columns aligned on nested rows" {
+    run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
+    assert_eq 'list rc 0' '0' "$status"
+    local plain starts
+    plain="$(sed $'s/\033\\[[0-9;]*m//g' <<<"$output")"
+    assert_contains 'has a nested row' '└─' "$plain"
+    # The age column ("now", "5m", …) must begin at one column on every row.
+    plain="$(sed -e 's/└─/  /' -e 's/├─/  /' <<<"$plain")" # awk may count bytes, not columns
+    starts="$(awk '/ master /{ match($0, /  [0-9]+(m|h|d|mo|y)  |  now  /); print RSTART }' <<<"$plain" | sort -u | wc -l)"
+    assert_eq 'one start column for the age' '1' "$starts"
+}
+
+@test "the Claude mark leads the row and keeps the columns aligned" {
+    # A truncated branch ("…" is multibyte) and a mark in the name column
+    # must not shift the age column.
+    git -C "$ROOTS/solo" checkout -q -b feature/a-branch-name-that-is-far-too-long
+    mkdir -p "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")" "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/super/sub")"
+    : >"$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/solo")/s.jsonl"
+    : >"$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/super/sub")/s.jsonl"
+    CODES_CLAUDE_GLYPH='C*' run codes_list
+    assert_eq 'rc' '0' "$status"
+    local plain
+    plain="$(sed -e $'s/\033\\[[0-9;]*m//g' -e 's/└─/  /' -e 's/├─/  /' <<<"$output" | grep ' master \| feature/')"
+    assert_match 'mark one space before the name' '^C\* solo ' "$(grep 'solo' <<<"$plain")"
+    assert_match 'a child sits under the parent name' '^C\*   +sub ' "$(grep ' sub ' <<<"$plain")"
+    assert_contains 'branch truncated' '…' "$plain"
+    plain="$(sed 's/…/~/' <<<"$plain")" # awk may count bytes, not columns
+    assert_eq 'one start column for the age' '1' "$(awk '{ match($0, /  now  /); print RSTART }' <<<"$plain" | sort -u | wc -l)"
+}
+
 @test "list with CODES_GROUP=0 stays flat" {
     export CODES_GROUP=0 CODES_SUBMODULES=0
     run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
@@ -174,7 +204,7 @@ claude_key() {
     mkdir -p "$FAKE_HOME/.claude/projects/$(claude_key "$ROOTS/family/a")"
     run codes_list
     assert_eq 'rc' '0' "$status"
-    assert_match 'solo marked' $'solo .*\xee\xb0\x90' "$(grep 'solo' <<<"$output")"
+    assert_match 'solo marked, mark first' $'\xee\xb0\x90 solo' "$(grep 'solo' <<<"$output")"
     assert_eq 'family/a unmarked' '0' "$(grep 'family/a' <<<"$output" | grep -c $'\xee\xb0\x90' || true)"
 }
 
@@ -184,7 +214,39 @@ claude_key() {
     CODES_CLAUDE=0 run codes_list
     assert_eq 'hidden' '0' "$(grep -c $'\xee\xb0\x90' <<<"$output" || true)"
     CODES_CLAUDE_GLYPH='C*' run codes_list
-    assert_match 'custom glyph' 'solo .*C\*' "$(grep 'solo' <<<"$output")"
+    assert_match 'custom glyph' 'C\* solo' "$(grep 'solo' <<<"$output")"
+}
+
+@test "a repo without an upstream shows a link glyph, not the word" {
+    run codes_list
+    assert_eq 'rc' '0' "$status"
+    assert_contains 'broken-link glyph' $'\xef\x84\xa7' "$output"
+    if grep -qw 'local' <<<"$output"; then
+        printf 'FAIL: the word local is still printed\n%s\n' "$output" >&2
+        return 1
+    fi
+    CODES_LOCAL_GLYPH='no-up' run codes_list
+    assert_contains 'glyph is replaceable' 'no-up' "$output"
+}
+
+@test "the picker is full screen and previews the commit graph" {
+    mkdir -p "$BATS_TEST_TMPDIR/bin"
+    cat >"$BATS_TEST_TMPDIR/bin/fzf" <<'STUBEOF'
+#!/usr/bin/env bash
+printf '%s\n' "$@" >"$ARGS_LOG"
+head -n1
+STUBEOF
+    chmod +x "$BATS_TEST_TMPDIR/bin/fzf"
+    export ARGS_LOG="$BATS_TEST_TMPDIR/args"
+    run env PATH="$BATS_TEST_TMPDIR/bin:$PATH" CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -p" 2>/dev/null
+    local args
+    args="$(cat "$ARGS_LOG")"
+    if grep -q -- '--height' <<<"$args"; then
+        printf 'FAIL: --height set, the picker is not full screen\n%s\n' "$args" >&2
+        return 1
+    fi
+    assert_contains 'graph preview' 'log -n 40 --graph --oneline --decorate' "$args"
+    assert_contains 'legend explains the glyph' $'\xef\x84\xa7=no upstream' "$args"
 }
 
 @test "CLAUDE_CONFIG_DIR points the lookup at another store" {
@@ -192,7 +254,7 @@ claude_key() {
     mkdir -p "$store/projects/$(claude_key "$ROOTS/solo")"
     : >"$store/projects/$(claude_key "$ROOTS/solo")/s.jsonl"
     CLAUDE_CONFIG_DIR="$store" run codes_list
-    assert_match 'solo marked' $'solo .*\xee\xb0\x90' "$(grep 'solo' <<<"$output")"
+    assert_match 'solo marked' $'\xee\xb0\x90 solo' "$(grep 'solo' <<<"$output")"
 }
 
 @test "codes -c jumps, then continues the Claude conversation there" {
