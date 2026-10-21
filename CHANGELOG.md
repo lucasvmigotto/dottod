@@ -5,6 +5,12 @@ Releases are plain SemVer git tags (`1.0.0`). This file is maintained by
 version on release (hand-written notes win); otherwise the section is
 generated from Conventional Commits since the last tag.
 
+## 2.11.0 — 2026-10-21
+
+### Added
+
+- **codes:** aligned columns, leading Claude mark, link glyph, graph preview, full screen
+
 ## 2.10.0 — 2026-10-19
 
 ### Added
