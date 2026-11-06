@@ -292,3 +292,44 @@ STUBEOF
         return 1
     fi
 }
+
+# A linked worktree of solo, one beside it and one in another directory.
+add_worktrees() {
+    mkdir -p "$ROOTS/elsewhere"
+    git -C "$ROOTS/solo" worktree add -q "$ROOTS/elsewhere/solo-fix" -b fix
+    git -C "$ROOTS/solo" worktree add -q "$ROOTS/solo-b" -b b2
+}
+
+@test "worktrees nest under their main checkout, wherever they live" {
+    add_worktrees
+    run codes_list
+    assert_eq 'rc' '0' "$status"
+    assert_match 'worktree in another dir nests' '├─ +solo-fix' "$output"
+    assert_match 'last worktree closes the tree' '└─ +solo-b' "$output"
+    assert_eq 'no header for the other dir' '0' "$(grep -c 'elsewhere/ ' <<<"$output" || true)"
+}
+
+@test "main checkout and worktrees carry their own glyphs; a plain repo none" {
+    add_worktrees
+    run env CODES_MAIN_GLYPH=MAIN CODES_WORKTREE_GLYPH=WT CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
+    assert_eq 'rc' '0' "$status"
+    local plain; plain=$(sed 's/\x1b\[[0-9;]*m//g' <<<"$output")
+    assert_match 'main marked' 'MAIN +solo ' "$plain"
+    assert_eq 'two worktrees marked' '2' "$(grep -c 'WT' <<<"$plain")"
+    assert_eq 'plain repo unmarked' '0' "$(grep -E '(^| )solo-nothing' <<<"$plain" | grep -cE 'MAIN|WT' || true)"
+    assert_eq 'family sibling unmarked' '0' "$(grep -E '├─ a|└─ b' <<<"$plain" | grep -cE 'MAIN|WT' || true)"
+}
+
+@test "no worktrees, no glyph slot" {
+    run env CODES_MAIN_GLYPH=MAIN CODES_WORKTREE_GLYPH=WT CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'no marks' '0' "$(grep -cE 'MAIN|WT' <<<"$output" || true)"
+}
+
+@test "child rows print no path; their parent or header already shows it" {
+    add_worktrees
+    run codes_list
+    assert_eq 'rc' '0' "$status"
+    assert_eq 'tree children carry no path' '0' "$(grep -E '(├─|└─)' <<<"$output" | grep -c "$ROOTS" || true)"
+    assert_match 'top-level repo keeps its dir' "solo .*$ROOTS" "$output"
+}
