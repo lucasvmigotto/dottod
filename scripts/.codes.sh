@@ -329,7 +329,6 @@ __codes_table() {
                             nm[i] = trunc(nm0[i], 32); ord[++nog] = i
                         }
                 } else {
-                    for (i = 1; i <= N; i++) cnt[pdr[i]]++
                     for (i = 1; i <= N; i++) {
                         key[i] = ""
                         for (j = 1; j <= N; j++) {
@@ -338,10 +337,30 @@ __codes_table() {
                         }
                         if (key[i] == "") key[i] = pt[i]
                         if (key[i] == pt[i]) gcx[pt[i]] = cx[i]
-                        if (!(key[i] in gts) || pts[i] > gts[key[i]]) gts[key[i]] = pts[i]
                     }
-                    # Groups by activity (group = its hottest member);
-                    # the group root first, then children newest-first.
+                    # Sibling repos under a plain directory (not a scan root,
+                    # not $HOME) hang under a header row for that directory:
+                    # same tree as a superproject, but the header is no repo.
+                    for (i = 1; i <= N; i++)
+                        if (key[i] == pt[i]) tcnt[pdr[i]]++
+                    for (i = 1; i <= N; i++) {
+                        dgrp[i] = (key[i] == pt[i] && tcnt[pdr[i]] > 1 \
+                            && index(roots, "|" pdr[i] "|") == 0 && pdr[i] != home)
+                        top[pt[i]] = i
+                    }
+                    for (i = 1; i <= N; i++) {
+                        t = top[key[i]]
+                        uk[i] = dgrp[t] ? pdr[t] : key[i]
+                        # --by-context: a directory holding both kinds shows
+                        # one header per context, each with its own repos.
+                        if (dgrp[t] && npass == 2) { uk[i] = uk[i] "\t" cx[t]; hdir[uk[i]] = pdr[t] }
+                        else if (dgrp[t]) hdir[uk[i]] = pdr[t]
+                        if (dgrp[t] && !(uk[i] in gcx)) gcx[uk[i]] = cx[t]
+                        if (!(uk[i] in gts) || pts[i] > gts[uk[i]]) gts[uk[i]] = pts[i]
+                    }
+                    # Units by activity (a unit = its hottest member): a
+                    # directory header with its repos, or a repo with its
+                    # nested checkouts. Newest first inside each.
                     for (pass = 1; pass <= npass; pass++)
                     while (1) {
                         bestk = ""; bestt = -1
@@ -354,24 +373,46 @@ __codes_table() {
                         }
                         if (bestk == "") break
                         done[bestk] = 1
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] == bestk) ord[++nog] = i
-                        nk = 0
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] != bestk) nk++
-                        kk = 0
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] != bestk) {
-                                kk++; lastc[i] = (kk == nk); ord[++nog] = i
+                        if (!(bestk in top)) {
+                            h = ++NH; hn = N + NH
+                            pt[hn] = ""; cx[hn] = ""; bn[hn] = ""; ag[hn] = age(gts[bestk])
+                            sp[hn] = ""; sc[hn] = ""; cl[hn] = 0
+                            hd = hdir[bestk]
+                            dr[hn] = hd; if (home != "" && index(hd, home) == 1) dr[hn] = "~" substr(hd, length(home) + 1)
+                            hb = hd; sub(/.*\//, "", hb)
+                            nm[hn] = trunc(hb, 31) "/"
+                            ord[++nog] = hn
+                            nr = 0
+                            for (i = 1; i <= N; i++) if (dgrp[i] && uk[i] == bestk) nr++
+                            rr = 0
+                            for (i = 1; i <= N; i++) {
+                                if (!(dgrp[i] && uk[i] == bestk)) continue
+                                rr++; lastc[i] = (rr == nr); dep[i] = 1; ord[++nog] = i
+                                nk = 0
+                                for (j = 1; j <= N; j++) if (key[j] == pt[i] && j != i) nk++
+                                kk = 0
+                                for (j = 1; j <= N; j++)
+                                    if (key[j] == pt[i] && j != i) {
+                                        kk++; lastc[j] = (kk == nk); dep[j] = 2
+                                        plast[j] = lastc[i]; ord[++nog] = j
+                                    }
                             }
+                        } else {
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] == bestk) ord[++nog] = i
+                            nk = 0
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] != bestk) nk++
+                            kk = 0
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] != bestk) {
+                                    kk++; lastc[i] = (kk == nk); dep[i] = 1; ord[++nog] = i
+                                }
+                        }
                     }
                     for (oi = 1; oi <= nog; oi++) {
                         i = ord[oi]
-                        if (key[i] != pt[i]) disp = nm0[i]
-                        else if (cnt[pdr[i]] > 1 && index(roots, "|" pdr[i] "|") == 0 \
-                            && pdr[i] != home) disp = ppb[i] "/" nm0[i]
-                        else disp = nm0[i]
-                        nm[i] = trunc(disp, 32)
+                        if (i <= N) nm[i] = trunc(nm0[i], 32)
                     }
                 }
                 # A child row carries a 3-column "├─ " prefix: count it in
@@ -386,17 +427,20 @@ __codes_table() {
                 blank = ""; for (k = 0; k < sw; k++) blank = blank " "
                 for (oi = 1; oi <= nog; oi++) {
                     i = ord[oi]
-                    ind[i] = (groupopt == 1 && key[i] != pt[i]) ? 3 : 0
+                    ind[i] = (groupopt == 1) ? dep[i] * 3 : 0
                     nw[i] = sw + ind[i] + wlen(nm[i])
                     if (nw[i] > wn) wn = nw[i]
                 }
                 for (oi = 1; oi <= nog; oi++) {
                     i = ord[oi]
                     pre = ""
-                    if (groupopt == 1 && key[i] != pt[i])
-                        pre = D (lastc[i] ? "└─ " : "├─ ") R
+                    if (groupopt == 1 && dep[i] > 0)
+                        pre = D (dep[i] == 2 ? (plast[i] ? "   " : "│  ") : "") \
+                            (lastc[i] ? "└─ " : "├─ ") R
                     fill = ""; for (k = wlen(sp[i]); k < ws; k++) fill = fill " "
-                    if (slash = index(nm[i], "/"))
+                    if (i > N)
+                        namef = D nm[i] R
+                    else if (slash = index(nm[i], "/"))
                         namef = D substr(nm[i], 1, slash) R B substr(nm[i], slash + 1) R
                     else
                         namef = B nm[i] R
@@ -461,8 +505,9 @@ context: a repo is work when the email git resolves in it is the work
   email (GIT_WORK_EMAIL or ~/.gitconfig-work; mark repos with gwork set).
 
 grouping (CODES_GROUP=0 for the old flat list):
-  sibling repos under one dir show as parent/name; submodule checkouts
-  nest under their superproject (├─/└─). Every row is a real path.
+  sibling repos under one plain dir nest under a header row for that dir
+  (not selectable); submodule checkouts nest under their superproject
+  (├─/└─). Every other row is a real path.
   CODES_SUBMODULES=0 drops nested checkouts like before.
 
 status legend:
@@ -597,9 +642,10 @@ codes() {
                 --layout=reverse --border \
                 --prompt='codes> ' \
                 --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  '"$lmark"'=no upstream  '"$cmark"'=claude' \
-                --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 40 --graph --oneline --decorate --color=always' \
+                --preview='[ -n {1} ] && { git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 40 --graph --oneline --decorate --color=always; }' \
                 --preview-window='right,45%,border-left,<110(down,50%,border-top)' \
-                --bind='ctrl-/:toggle-preview' |
+                --bind='ctrl-/:toggle-preview' \
+                --bind='enter:transform:[ -n {1} ] && echo accept || echo ignore' |
             cut -f1)
         [[ -z $picked ]] && return 130
     fi

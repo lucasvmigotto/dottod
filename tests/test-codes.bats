@@ -5,7 +5,7 @@
 #
 # Fixture tree (under $BATS_TEST_TMPDIR/roots):
 #   solo/                 independent repo
-#   family/a, family/b    sibling repos (non-repo parent -> parent/name)
+#   family/a, family/b    sibling repos (non-repo parent -> header row + tree)
 #   super/                superproject repo
 #   super/sub             submodule-style checkout (.git file -> modules)
 #   super/vendor/nested   vendored clone (nested .git dir -> dropped)
@@ -65,11 +65,14 @@ codes_find() {
     fi
 }
 
-@test "list qualifies siblings and nests submodule checkouts" {
+@test "list nests siblings under a header and submodule checkouts under their repo" {
     run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
     assert_eq 'list rc 0' '0' "$status"
-    assert_contains 'sibling qualified' 'family/a' "$output"
-    assert_contains 'sibling qualified' 'family/b' "$output"
+    assert_contains 'dir header' 'family/' "$output"
+    assert_match 'first sibling is a child' '├─ a' "$output"
+    assert_match 'last sibling closes the tree' '└─ b' "$output"
+    # the header is no repo: no row for the bare directory path
+    assert_eq 'header has no path row' '0' "$(grep -c "^family/ .*$ROOTS/family\$" <<<"$output" | sed 's/^1$/0/')"
     assert_contains 'top repo bare' 'solo' "$output"
     assert_contains 'submodule nested' '└─' "$output"
     if printf '%s' "$output" | grep -q 'super/sub'; then
@@ -131,8 +134,9 @@ codes_find() {
 @test "parent query restricts the table to its children" {
     run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l family" 2>/dev/null
     assert_eq 'list rc 0' '0' "$status"
-    assert_contains 'first child shown' 'family/a' "$output"
-    assert_contains 'second child shown' 'family/b' "$output"
+    assert_contains 'header shown' 'family/' "$output"
+    assert_match 'first child shown' '├─ a' "$output"
+    assert_match 'second child shown' '└─ b' "$output"
     if printf '%s' "$output" | grep -q 'solo'; then
         printf 'FAIL: unrelated project in restricted table\n%s\n' "$output" >&2
         return 1
@@ -170,7 +174,7 @@ codes_list() {
         printf 'FAIL: work repo in --personal\n%s\n' "$output" >&2
         return 1
     fi
-    assert_contains 'personal listed' 'family/a' "$output"
+    assert_match 'personal listed' '├─ a' "$output"
 }
 
 @test "GIT_WORK_EMAIL overrides ~/.gitconfig-work for the context" {
@@ -188,7 +192,8 @@ codes_list() {
     git -C "$ROOTS/solo" commit -q --allow-empty -m newer
     run codes_list --by-context
     assert_eq 'rc 0' '0' "$status"
-    assert_contains 'first row is work' 'work' "$(printf '%s\n' "$output" | sed -n 1p)"
+    # row 1 is the family/ header (no context of its own), row 2 its work repo
+    assert_contains 'first repo row is work' 'work' "$(printf '%s\n' "$output" | sed -n 2p)"
     assert_eq 'one work row' '1' "$(printf '%s\n' "$output" | grep -cw 'work')"
 }
 
@@ -205,7 +210,7 @@ claude_key() {
     run codes_list
     assert_eq 'rc' '0' "$status"
     assert_match 'solo marked, mark first' $'\xee\xb0\x90 solo' "$(grep 'solo' <<<"$output")"
-    assert_eq 'family/a unmarked' '0' "$(grep 'family/a' <<<"$output" | grep -c $'\xee\xb0\x90' || true)"
+    assert_eq 'family/a unmarked' '0' "$(grep '├─ a' <<<"$output" | grep -c $'\xee\xb0\x90' || true)"
 }
 
 @test "CODES_CLAUDE=0 hides the mark; CODES_CLAUDE_GLYPH replaces it" {
@@ -268,4 +273,22 @@ STUBEOF
     run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -c -l" 2>&1
     assert_eq 'with -l rc' '2' "$status"
     assert_contains 'refused' 'not with -l or -p' "$output"
+}
+
+@test "the directory header row has no path, so it can never be picked" {
+    run codes_list
+    assert_eq 'rc' '0' "$status"
+    run env CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; __codes_find | __codes_table 0 '' 0" 2>/dev/null
+    assert_eq 'rc' '0' "$status"
+    assert_match 'header row starts with an empty path' $'^\tfamily/' "$(sed 's/\x1b\[[0-9;]*m//g' <<<"$output" | grep -a 'family/' | head -1)"
+    assert_eq 'one header, no other pathless row' '1' "$(awk -F'\t' '$1 == ""' <<<"$output" | grep -c .)"
+}
+
+@test "CODES_GROUP=0 keeps the flat list, no header" {
+    run env CODES_GROUP=0 CODES_ROOTS="$ROOTS" bash -i -c "source '$REPO_ROOT/scripts/.codes.sh' >/dev/null 2>&1; codes -l" 2>/dev/null
+    assert_eq 'rc' '0' "$status"
+    if printf '%s' "$output" | grep -q 'family/'; then
+        printf 'FAIL: header with CODES_GROUP=0\n%s\n' "$output" >&2
+        return 1
+    fi
 }
