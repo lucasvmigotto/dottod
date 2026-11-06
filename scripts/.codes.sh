@@ -31,6 +31,10 @@
 #   CODES_CLAUDE_GLYPH   the mark itself (e.g. '*' without a Nerd Font)
 #   CODES_LOCAL_GLYPH    the no-upstream mark (default: a broken link; e.g.
 #                        'local' without a Nerd Font)
+#   CODES_MAIN_GLYPH     marks a main checkout that has linked worktrees
+#                        (default nf-fa-code_fork; e.g. 'main' without a Nerd Font)
+#   CODES_WORKTREE_GLYPH marks a linked worktree, which nests under its main
+#                        checkout wherever it lives (default nf-pl-branch; e.g. 'wt')
 
 [[ $- != *i* ]] && return 0 2>/dev/null
 
@@ -153,10 +157,10 @@ __codes_match() {
 # ──────────────────────────────────────────────────────────────
 # Per-repo info (runs in parallel workers; must stay self-contained)
 # args: <stat flavor: gnu|bsd> <fetch: 0|1> <path>
-# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash email claude
+# out : ts path head oid upstream has_ab ahead behind staged unstaged untracked conflicts stash email claude wt(W|M|) main
 # ──────────────────────────────────────────────────────────────
 __codes_info() {
-    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary email claude=0 key f
+    local flavor=$1 fetch=$2 p=$3 tm="" gd ts m stash=0 summary email claude=0 key f wt="" wmain=""
     command -v timeout >/dev/null 2>&1 && tm="timeout 8"
     # Never take index.lock: avoids fighting your editor and keeps .git/index's
     # mtime meaningful (a refreshing `git status` would bump it and ruin the sort).
@@ -206,7 +210,22 @@ __codes_info() {
         done
     fi
 
-    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}" "$email" "$claude"
+    # Linked worktree: its git dir is <main>/.git/worktrees/<name> (a
+    # submodule's lives under .git/modules). A main checkout with linked
+    # worktrees has a .git/worktrees/ directory holding one entry each.
+    case $gd in
+        */.git/worktrees/*)
+            wt=W
+            wmain=${gd%/.git/worktrees/*}
+            ;;
+        *)
+            for f in "$gd"/worktrees/*; do
+                [[ -d $f ]] && wt=M && break
+            done
+            ;;
+    esac
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$ts" "$p" "$summary" "${stash:-0}" "$email" "$claude" "$wt" "$wmain"
 }
 
 # ──────────────────────────────────────────────────────────────
@@ -223,6 +242,8 @@ __codes_table() {
 
     # Claude mark: nf-cod-sparkle (U+EC10, as UTF-8 bytes for any bash).
     local cproj="" cglyph=$'\xee\xb0\x90' lglyph=$'\xef\x84\xa7'
+    # Worktree marks: nf-fa-code_fork (main checkout), nf-pl-branch (worktree).
+    local mglyph=${CODES_MAIN_GLYPH:-$'\xef\x84\xa6'} wglyph=${CODES_WORKTREE_GLYPH:-$'\xee\x82\xa0'}
     [[ -n ${CODES_CLAUDE_GLYPH:-} ]] && cglyph=$CODES_CLAUDE_GLYPH
     [[ -n ${CODES_LOCAL_GLYPH:-} ]] && lglyph=$CODES_LOCAL_GLYPH
     [[ ${CODES_CLAUDE:-1} != 0 ]] && cproj=${CLAUDE_CONFIG_DIR:-$HOME/.claude}/projects
@@ -240,7 +261,7 @@ __codes_table() {
         sort -t $'\t' -k1,1nr |
         awk -F'\t' -v now="$(date +%s)" -v home="$HOME" -v groupopt="${CODES_GROUP:-1}" -v roots="|${rts}|" \
             -v work="$work" -v only="$only" -v bycontext="$bycontext" \
-            -v cglyph="$cglyph" -v lglyph="$lglyph" '
+            -v cglyph="$cglyph" -v lglyph="$lglyph" -v mglyph="$mglyph" -v wglyph="$wglyph" '
             BEGIN {
                 E = sprintf("%c", 27)
                 R = E "[0m"; B = E "[1m"; D = E "[2m"
@@ -311,6 +332,7 @@ __codes_table() {
                 cx[N] = ctx
                 bn[N] = trunc(br, 24)
                 cl[N] = ($15 == 1)                                 # a saved Claude conversation
+                wk[N] = $16; wm[N] = $17                           # W worktree (of wm) | M main with worktrees
                 ag[N] = age($1); sp[N] = plain; sc[N] = col; dr[N] = dir
                 if (wlen(bn[N]) > wb) wb = wlen(bn[N])
                 if (wlen(ag[N]) > wa) wa = wlen(ag[N])
@@ -329,7 +351,6 @@ __codes_table() {
                             nm[i] = trunc(nm0[i], 32); ord[++nog] = i
                         }
                 } else {
-                    for (i = 1; i <= N; i++) cnt[pdr[i]]++
                     for (i = 1; i <= N; i++) {
                         key[i] = ""
                         for (j = 1; j <= N; j++) {
@@ -337,11 +358,38 @@ __codes_table() {
                                 && length(pt[j]) > length(key[i])) key[i] = pt[j]
                         }
                         if (key[i] == "") key[i] = pt[i]
-                        if (key[i] == pt[i]) gcx[pt[i]] = cx[i]
-                        if (!(key[i] in gts) || pts[i] > gts[key[i]]) gts[key[i]] = pts[i]
                     }
-                    # Groups by activity (group = its hottest member);
-                    # the group root first, then children newest-first.
+                    # A linked worktree belongs to its main checkout, wherever
+                    # it lives, when that one is a top-level repo in the list.
+                    for (i = 1; i <= N; i++) isp[pt[i]] = i
+                    for (i = 1; i <= N; i++)
+                        if (wk[i] == "W" && (wm[i] in isp) && wm[i] != pt[i] \
+                            && key[isp[wm[i]]] == wm[i]) key[i] = wm[i]
+                    for (i = 1; i <= N; i++)
+                        if (key[i] == pt[i]) gcx[pt[i]] = cx[i]
+                    # Sibling repos under a plain directory (not a scan root,
+                    # not $HOME) hang under a header row for that directory:
+                    # same tree as a superproject, but the header is no repo.
+                    for (i = 1; i <= N; i++)
+                        if (key[i] == pt[i]) tcnt[pdr[i]]++
+                    for (i = 1; i <= N; i++) {
+                        dgrp[i] = (key[i] == pt[i] && tcnt[pdr[i]] > 1 \
+                            && index(roots, "|" pdr[i] "|") == 0 && pdr[i] != home)
+                        top[pt[i]] = i
+                    }
+                    for (i = 1; i <= N; i++) {
+                        t = top[key[i]]
+                        uk[i] = dgrp[t] ? pdr[t] : key[i]
+                        # --by-context: a directory holding both kinds shows
+                        # one header per context, each with its own repos.
+                        if (dgrp[t] && npass == 2) { uk[i] = uk[i] "\t" cx[t]; hdir[uk[i]] = pdr[t] }
+                        else if (dgrp[t]) hdir[uk[i]] = pdr[t]
+                        if (dgrp[t] && !(uk[i] in gcx)) gcx[uk[i]] = cx[t]
+                        if (!(uk[i] in gts) || pts[i] > gts[uk[i]]) gts[uk[i]] = pts[i]
+                    }
+                    # Units by activity (a unit = its hottest member): a
+                    # directory header with its repos, or a repo with its
+                    # nested checkouts. Newest first inside each.
                     for (pass = 1; pass <= npass; pass++)
                     while (1) {
                         bestk = ""; bestt = -1
@@ -354,24 +402,46 @@ __codes_table() {
                         }
                         if (bestk == "") break
                         done[bestk] = 1
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] == bestk) ord[++nog] = i
-                        nk = 0
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] != bestk) nk++
-                        kk = 0
-                        for (i = 1; i <= N; i++)
-                            if (key[i] == bestk && pt[i] != bestk) {
-                                kk++; lastc[i] = (kk == nk); ord[++nog] = i
+                        if (!(bestk in top)) {
+                            h = ++NH; hn = N + NH
+                            pt[hn] = ""; cx[hn] = ""; bn[hn] = ""; ag[hn] = age(gts[bestk])
+                            sp[hn] = ""; sc[hn] = ""; cl[hn] = 0
+                            hd = hdir[bestk]
+                            dr[hn] = hd; if (home != "" && index(hd, home) == 1) dr[hn] = "~" substr(hd, length(home) + 1)
+                            hb = hd; sub(/.*\//, "", hb)
+                            nm[hn] = trunc(hb, 31) "/"
+                            ord[++nog] = hn
+                            nr = 0
+                            for (i = 1; i <= N; i++) if (dgrp[i] && uk[i] == bestk) nr++
+                            rr = 0
+                            for (i = 1; i <= N; i++) {
+                                if (!(dgrp[i] && uk[i] == bestk)) continue
+                                rr++; lastc[i] = (rr == nr); dep[i] = 1; ord[++nog] = i
+                                nk = 0
+                                for (j = 1; j <= N; j++) if (key[j] == pt[i] && j != i) nk++
+                                kk = 0
+                                for (j = 1; j <= N; j++)
+                                    if (key[j] == pt[i] && j != i) {
+                                        kk++; lastc[j] = (kk == nk); dep[j] = 2
+                                        plast[j] = lastc[i]; ord[++nog] = j
+                                    }
                             }
+                        } else {
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] == bestk) ord[++nog] = i
+                            nk = 0
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] != bestk) nk++
+                            kk = 0
+                            for (i = 1; i <= N; i++)
+                                if (key[i] == bestk && pt[i] != bestk) {
+                                    kk++; lastc[i] = (kk == nk); dep[i] = 1; ord[++nog] = i
+                                }
+                        }
                     }
                     for (oi = 1; oi <= nog; oi++) {
                         i = ord[oi]
-                        if (key[i] != pt[i]) disp = nm0[i]
-                        else if (cnt[pdr[i]] > 1 && index(roots, "|" pdr[i] "|") == 0 \
-                            && pdr[i] != home) disp = ppb[i] "/" nm0[i]
-                        else disp = nm0[i]
-                        nm[i] = trunc(disp, 32)
+                        if (i <= N) nm[i] = trunc(nm0[i], 32)
                     }
                 }
                 # A child row carries a 3-column "├─ " prefix: count it in
@@ -384,31 +454,45 @@ __codes_table() {
                 for (i = 1; i <= N; i++) if (cl[i]) anyc = 1
                 sw = anyc ? gw + 1 : 0
                 blank = ""; for (k = 0; k < sw; k++) blank = blank " "
+                # Worktree slot after it: main checkout / linked worktree.
+                tw = wlen(mglyph); if (wlen(wglyph) > tw) tw = wlen(wglyph)
+                anyw = 0
+                for (i = 1; i <= N; i++) if (wk[i] != "") anyw = 1
+                tw = anyw ? tw + 1 : 0
+                wblank = ""; for (k = 0; k < tw; k++) wblank = wblank " "
                 for (oi = 1; oi <= nog; oi++) {
                     i = ord[oi]
-                    ind[i] = (groupopt == 1 && key[i] != pt[i]) ? 3 : 0
-                    nw[i] = sw + ind[i] + wlen(nm[i])
+                    ind[i] = (groupopt == 1) ? dep[i] * 3 : 0
+                    nw[i] = sw + tw + ind[i] + wlen(nm[i])
                     if (nw[i] > wn) wn = nw[i]
                 }
                 for (oi = 1; oi <= nog; oi++) {
                     i = ord[oi]
                     pre = ""
-                    if (groupopt == 1 && key[i] != pt[i])
-                        pre = D (lastc[i] ? "└─ " : "├─ ") R
+                    if (groupopt == 1 && dep[i] > 0)
+                        pre = D (dep[i] == 2 ? (plast[i] ? "   " : "│  ") : "") \
+                            (lastc[i] ? "└─ " : "├─ ") R
                     fill = ""; for (k = wlen(sp[i]); k < ws; k++) fill = fill " "
-                    if (slash = index(nm[i], "/"))
+                    if (i > N)
+                        namef = D nm[i] R
+                    else if (slash = index(nm[i], "/"))
                         namef = D substr(nm[i], 1, slash) R B substr(nm[i], slash + 1) R
                     else
                         namef = B nm[i] R
                     for (k = nw[i]; k < wn; k++) namef = namef " "
                     mark = cl[i] ? CLD cglyph R " " : blank
+                    if (tw) {
+                        if (i <= N && wk[i] == "M")      mark = mark BLU pad(mglyph, tw - 1) R " "
+                        else if (i <= N && wk[i] == "W") mark = mark CYN pad(wglyph, tw - 1) R " "
+                        else                             mark = mark wblank
+                    }
                     # Context column only once a work identity exists.
                     cxf = ""
                     if (work != "")
                         cxf = (cx[i] == "work" ? YEL : D) pad(cx[i], 8) R "  "
                     printf "%s\t%s%s%s  %s%s  %s  %s%s  %s\n", pt[i], mark, pre,
                         namef, cxf, MAG pad(bn[i], wb) R, D pad(ag[i], wa) R,
-                        sc[i], fill, D dr[i] R
+                        sc[i], fill, (groupopt == 1 && dep[i] > 0) ? "" : D dr[i] R
                 }
             }'
 }
@@ -461,8 +545,9 @@ context: a repo is work when the email git resolves in it is the work
   email (GIT_WORK_EMAIL or ~/.gitconfig-work; mark repos with gwork set).
 
 grouping (CODES_GROUP=0 for the old flat list):
-  sibling repos under one dir show as parent/name; submodule checkouts
-  nest under their superproject (├─/└─). Every row is a real path.
+  sibling repos under one plain dir nest under a header row for that dir
+  (not selectable); submodule checkouts nest under their superproject
+  (├─/└─). Every other row is a real path.
   CODES_SUBMODULES=0 drops nested checkouts like before.
 
 status legend:
@@ -470,6 +555,8 @@ status legend:
   ⇡N unpushed commits   ⇣N upstream commits not pulled   *N stashes
   local = branch has no upstream   gone = upstream branch was deleted
    = a saved Claude Code conversation (CODES_CLAUDE=0 hides it)
+ = main checkout that has worktrees (CODES_MAIN_GLYPH)
+ = linked worktree, nested under its main checkout (CODES_WORKTREE_GLYPH)
 EOF
 }
 
@@ -581,6 +668,7 @@ codes() {
 
     if [[ -z $picked ]]; then
         local table cmark=${CODES_CLAUDE_GLYPH:-$'\xee\xb0\x90'} lmark=${CODES_LOCAL_GLYPH:-$'\xef\x84\xa7'}
+        local mmark=${CODES_MAIN_GLYPH:-$'\xef\x84\xa6'} wmark=${CODES_WORKTREE_GLYPH:-$'\xee\x82\xa0'}
         table=$(printf '%s\n' "${pool[@]}" | __codes_table "$fetch" "$only" "$bycontext")
         if [[ -z $table ]]; then
             echo "codes: no ${only:-matching} projects" >&2
@@ -596,10 +684,11 @@ codes() {
             fzf --ansi --delimiter=$'\t' --with-nth=2 --tiebreak=index \
                 --layout=reverse --border \
                 --prompt='codes> ' \
-                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  '"$lmark"'=no upstream  '"$cmark"'=claude' \
-                --preview='git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 40 --graph --oneline --decorate --color=always' \
+                --header=$'enter: cd   ctrl-/: preview   esc: cancel\n+staged !modified ?untracked ✖conflict ⇡unpushed ⇣behind *stash  '"$lmark"'=no upstream  '"$cmark"'=claude  '"$mmark"'=main checkout  '"$wmark"'=worktree' \
+                --preview='[ -n {1} ] && { git -C {1} -c color.status=always status -sb; echo; git -C {1} log -n 40 --graph --oneline --decorate --color=always; }' \
                 --preview-window='right,45%,border-left,<110(down,50%,border-top)' \
-                --bind='ctrl-/:toggle-preview' |
+                --bind='ctrl-/:toggle-preview' \
+                --bind='enter:transform:[ -n {1} ] && echo accept || echo ignore' |
             cut -f1)
         [[ -z $picked ]] && return 130
     fi
