@@ -10,6 +10,8 @@ generated from Conventional Commits since the last tag.
 ### Added
 
 - **codes:** sibling repos under a plain directory nest under a non-selectable header row, like submodules under their superproject
+- **codes:** a glyph marks a main checkout that has worktrees (`CODES_MAIN_GLYPH`) and each linked worktree (`CODES_WORKTREE_GLYPH`); worktrees nest under their main checkout wherever they live
+- **codes:** child rows no longer repeat the path their parent row already shows
 
 ## 2.11.0 — 2026-10-21
 
